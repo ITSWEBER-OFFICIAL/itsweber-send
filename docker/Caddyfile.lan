@@ -1,0 +1,37 @@
+# LAN testing config for ITSWEBER Send.
+#
+# Caddy issues a self-signed certificate via its built-in local CA so the
+# Web Crypto API (which requires a secure context) works on plain LAN IPs.
+# Browsers will show a one-time certificate warning — accept it.
+#
+# Production deployments should use Caddyfile.example with a real hostname
+# and Let's Encrypt instead.
+
+{
+	local_certs
+	auto_https disable_redirects
+}
+
+192.168.0.10:8443, localhost:8443, 127.0.0.1:8443 {
+	tls internal
+
+	encode zstd gzip
+
+	request_body {
+		max_size 5GB
+	}
+
+	reverse_proxy send:3000
+
+	header {
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "no-referrer"
+		Permissions-Policy "camera=(), microphone=(), geolocation=()"
+		-Server
+	}
+
+	log {
+		output stdout
+		format console
+	}
+}

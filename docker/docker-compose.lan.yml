@@ -1,0 +1,49 @@
+# LAN test setup: Send + Caddy with self-signed certs (Web Crypto needs HTTPS).
+# Bring up:    docker compose -f docker/docker-compose.lan.yml up -d
+# Tear down:   docker compose -f docker/docker-compose.lan.yml down
+# Open:        https://<host-ip>:8443  (accept the cert warning once)
+
+services:
+  send:
+    image: itsweber-send:latest
+    container_name: itsweber-send
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: 3000
+      ORIGIN: ${ORIGIN:-https://localhost:8443}
+      BASE_URL: ${ORIGIN:-https://localhost:8443}
+      LOG_LEVEL: info
+      STORAGE_PATH: /data/uploads
+      DB_PATH: /data/shares.db
+    volumes:
+      - send-data:/data
+    networks:
+      - send-net
+    expose:
+      - '3000'
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: itsweber-send-caddy
+    restart: unless-stopped
+    ports:
+      - '8443:8443'
+    volumes:
+      - ./Caddyfile.lan:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    networks:
+      - send-net
+    depends_on:
+      - send
+
+networks:
+  send-net:
+    driver: bridge
+
+volumes:
+  send-data:
+  caddy-data:
+  caddy-config:
