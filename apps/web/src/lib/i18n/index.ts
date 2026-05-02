@@ -1,11 +1,17 @@
 import { browser } from '$app/environment';
-import { init, register } from 'svelte-i18n';
+import { addMessages, init } from 'svelte-i18n';
+import deMessages from './de.json';
+import enMessages from './en.json';
 
 const DEFAULT_LOCALE = 'de';
 
+// Synchronous bundle registration so the first render never hits
+// "Cannot format a message without first setting the initial locale".
+// The two JSON files are tiny — bundling them inline is cheaper than
+// the round-trip cost of a lazy import.
 export function initI18n(): void {
-  register('de', () => import('./de.json'));
-  register('en', () => import('./en.json'));
+  addMessages('de', deMessages);
+  addMessages('en', enMessages);
 
   init({
     fallbackLocale: DEFAULT_LOCALE,
