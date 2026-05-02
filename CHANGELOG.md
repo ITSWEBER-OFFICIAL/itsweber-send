@@ -4,36 +4,90 @@ All notable changes to ITSWEBER Send are documented here.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.0.0] - 2026-05-02
 
 ### Added
 
+- M6 — Release preparation
+  - Full documentation suite: `docs/INSTALL.md`, `docs/CONFIG.md`, `docs/API.md`, `docs/SECURITY.md`, `docs/ARCHITECTURE.md`
+  - OpenAPI 3.0 specification served at `/api/v1/openapi.json` via `@fastify/swagger`; interactive Swagger UI at `/api/v1/docs` in development mode
+  - `.github/FUNDING.yml`
+  - `docs/TROUBLESHOOTING.md` updated with M2 and M5 lessons learned
+
+- M5 — Hardening and Docker
+  - Strict Content-Security-Policy on every Fastify response (mirrors the SvelteKit-side policy)
+  - Cross-Origin-Opener-Policy `same-origin`, Cross-Origin-Embedder-Policy `credentialless`, Cross-Origin-Resource-Policy `same-origin`, Origin-Agent-Cluster
+  - Strict-Transport-Security with two-year `max-age`, `includeSubDomains` and `preload`
+  - Permissions-Policy denying every powerful browser feature the app does not use (camera, microphone, geolocation, payment, USB, MIDI, sensors, etc.)
+  - Referrer-Policy `no-referrer`, X-Frame-Options `DENY`, X-Content-Type-Options `nosniff`, X-Permitted-Cross-Domain-Policies `none`
+  - Caddyfile (`Caddyfile.example` and `Caddyfile.lan`) reapplies the same header set as a defense-in-depth layer
+  - Login brute-force protection: 5 attempts per minute per IP, subsequent requests return 429
+  - Registration throttle: 3 accounts per IP per 10 minutes
+  - Upload throttle: 20 uploads per IP per hour
+  - Health and readiness probes opt out of rate limiting
+  - Dockerfile: healthcheck via Node's built-in `http` module (no `wget` in runtime image)
+  - OCI image labels for title, description, source and license
+  - `docker-compose.yml` and `docker-compose.lan.yml`: read-only rootfs, `cap_drop: ALL`, `no-new-privileges`, 64 MiB tmpfs for `/tmp`
+
+- M4 — Account management and admin panel
+  - Optional user accounts with email + password authentication
+  - Argon2id password hashing (OWASP 2026 defaults: 64 MB memory, 3 iterations, parallelism 4)
+  - 32-byte session tokens stored as `HttpOnly`, `Secure`, `SameSite=Strict` cookies
+  - First user to register automatically receives the `admin` role
+  - Upload history endpoint: `GET /api/v1/account/uploads` with per-user quota tracking
+  - Account upload deletion: `DELETE /api/v1/account/uploads/:id`
+  - Admin stats endpoint: `GET /api/v1/admin/stats`
+  - Admin user-list endpoint: `GET /api/v1/admin/users` with limit/offset pagination
+  - Quota enforcement on upload: authenticated users are blocked at their quota ceiling
+  - `ENABLE_ACCOUNTS` and `REGISTRATION_ENABLED` environment variables
+
+- M3 — Frontend polish
+  - Drag-and-drop multi-file upload with automatic client-side ZIP streaming
+  - Resumable chunked uploads via the tus.io protocol
+  - Per-file and overall upload progress with ETA
+  - Pause and resume controls for in-progress uploads
+  - QR code for the share link, generated entirely client-side
+  - Four-word handoff code as an alternative to the raw URL
+  - Optional Markdown note for the recipient
+  - Dark / light / system-preference theme toggle persisted in `localStorage`
+  - German and English i18n, synchronously bundled (no async race condition)
+  - PWA manifest — the app is installable from the browser
+  - Mobile-optimised layout
+
 - M2 — End-to-end-encrypted upload and download core
-  - Web Crypto API wrapper: AES-256-GCM, PBKDF2 200k iterations, password-based key wrapping
+  - Web Crypto API wrapper: AES-256-GCM encryption, PBKDF2 200 000-iteration key derivation, password-based key wrapping
   - Filesystem storage adapter with expiry-based cleanup
   - better-sqlite3 share lifecycle database (creation, download counter, expiry tracking)
   - Multipart upload route: encrypts manifest + blobs, stores opaque ciphertext only
   - Download routes: manifest endpoint and per-blob streaming with download-limit enforcement
   - Hourly cleanup job for expired shares (storage + database)
-  - Upload UI: drag-and-drop, password protection, expiry and download-limit settings
-  - Download UI: client-side decryption, password prompt, progress feedback
-  - 27 unit tests covering crypto round-trip, storage filesystem and health
-- Production runtime: SvelteKit's adapter-node handler mounted as Fastify's `setNotFoundHandler` so API and web app share a single port and process
-- LAN test setup: `docker/Caddyfile.lan` and `docker/docker-compose.lan.yml` for Unraid / home-lab testing with self-signed certificates (Web Crypto requires a secure context)
-- `docs/TROUBLESHOOTING.md` with the build, runtime and TLS pitfalls hit during M2
-- M1 — Initial monorepo skeleton: pnpm workspaces, Turborepo, TypeScript baseline
-- `packages/theme` with primitive tokens, light/dark presets and semantic CSS variables
-- `packages/shared` with shared types and validators (with a real `tsc` build step so `pnpm deploy` produces runnable JavaScript)
-- `packages/crypto-spec` with the file-format and key-derivation specification
-- `apps/web` SvelteKit skeleton with theme store, BrandMark, icon library and German/English i18n
-- `apps/api` Fastify backend with `/health`, `/api/v1/upload`, `/api/v1/download/:id/manifest`, `/api/v1/download/:id/blob/:n`
-- `docker/Dockerfile` (multi-stage, non-root, alpine) with native-module build tools and `pnpm deploy` for self-contained API output
-- GitHub Actions workflow scaffolding (CI; release pipeline gated until M6)
-- Brand assets: logo "Paper Plane Crypt" as standalone SVG with usage guidelines
-- Release validation script that enforces an allowlist of repository paths
+  - 27 unit tests covering crypto round-trip, storage and health
+  - Production runtime: SvelteKit's adapter-node handler mounted as Fastify's `setNotFoundHandler`
+  - LAN test setup: `docker/Caddyfile.lan` and `docker/docker-compose.lan.yml`
+  - `docs/TROUBLESHOOTING.md` with build, runtime and TLS pitfalls
+
+- M1 — Initial monorepo skeleton
+  - pnpm workspaces, Turborepo, TypeScript baseline
+  - `packages/theme` with primitive tokens, light/dark presets and semantic CSS variables
+  - `packages/shared` with shared types and Zod validators
+  - `packages/crypto-spec` with the file-format and key-derivation specification
+  - `apps/web` SvelteKit skeleton with theme store, BrandMark component and icon library
+  - `apps/api` Fastify backend with `/health`, `/ready`, and API route scaffolding
+  - `docker/Dockerfile` (multi-stage, non-root, alpine)
+  - GitHub Actions CI: lint, typecheck, test, build, Trivy scan
+  - Brand assets: Paper Plane Crypt logo as standalone SVG
+  - Release validation script with allowlist enforcement
 
 ### Changed
 
 - svelte-i18n bundles are imported synchronously instead of registered as lazy loaders, eliminating a first-render race condition
-- SSR disabled globally (`ssr = false` in the root `+layout.ts`) so rendering and any decryption state stay in the browser
-- Pre-paint theme-apply script moved from inline `<script>` to `static/theme-init.js` to comply with the strict default CSP (`script-src 'self'`)
+- SSR disabled globally (`ssr = false` in the root `+layout.ts`) so rendering and decryption state stay in the browser
+- Pre-paint theme-apply script moved from inline `<script>` to `static/theme-init.js` to comply with the strict default CSP
+
+### Fixed
+
+- Reverse-proxy `X-Forwarded-For` was carrying `ip:port` (Caddy's `{remote}` placeholder), causing the rate limiter to treat each connection as a new client. Switched to `{remote_host}` so per-IP rate limits fire correctly.
+- Synchronous i18n bundle loading resolves a first-render flash where the locale was not yet resolved.
+- `default_sni` set in `Caddyfile.lan` so IP-literal HTTPS connections succeed during LAN testing.
+
+[1.0.0]: https://github.com/itsweber/itsweber-send/releases/tag/v1.0.0

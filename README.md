@@ -17,18 +17,18 @@
   <a href="#features">Features</a> ·
   <a href="#quickstart">Quickstart</a> ·
   <a href="#configuration">Configuration</a> ·
-  <a href="docs/IMPLEMENTATION_PLAN.md">Plan</a> ·
   <a href="docs/SECURITY.md">Security</a> ·
+  <a href="docs/API.md">API</a> ·
   <a href="LICENSE">License</a>
 </p>
 
 ---
 
-> **Status:** Pre-alpha. Active development. Not yet ready for production use.
+> **Status:** v1.0.0 — Release candidate. Verified locally and on Unraid. GitHub push pending final sign-off.
 
 ## What it is
 
-ITSWEBER Send is a modern, lightweight file-sharing service you run yourself. Files are encrypted in the browser (AES-256-GCM, key in URL fragment) before they touch the server — the server only ever sees ciphertext. You upload, get a link plus an optional QR code or four-word handoff phrase, and share it. After the configured number of downloads or expiry, the file is gone.
+ITSWEBER Send is a modern, lightweight file-sharing service you run yourself. Files are encrypted in the browser (AES-256-GCM, key in URL fragment) before they touch the server — the server only ever sees ciphertext. Upload one or more files, get a link plus an optional QR code or four-word handoff phrase, and share it. After the configured number of downloads or expiry time, the share is permanently deleted.
 
 Inspired by the original Firefox Send and the [timvisee/send](https://github.com/timvisee/send) fork, but rebuilt from scratch with a modern stack and a wider feature set.
 
@@ -36,101 +36,144 @@ Inspired by the original Firefox Send and the [timvisee/send](https://github.com
 
 ### Sharing
 
-- Drag-and-drop multi-file upload, automatic ZIP-streaming
-- Resumable, chunked uploads (tus.io protocol)
-- Per-share password (in addition to the URL key)
-- Configurable expiry (1 h / 24 h / 7 d / 30 d) and download limit (1× to ∞)
-- QR code for the share link
+- Drag-and-drop multi-file upload with automatic ZIP-streaming
+- Resumable, chunked uploads (tus.io protocol) — works over unstable connections
+- Per-share password (layered on top of the URL key)
+- Configurable expiry (1 h / 24 h / 7 d / 30 d) and download limit (1× to unlimited)
+- QR code generated client-side for the share link
 - Four-word handoff code as an alternative to the long URL
 - Optional Markdown note for the recipient
 
 ### Privacy & Security
 
-- Client-side AES-256-GCM encryption; the server never sees plaintext
-- Strict CSP, COOP/COEP, HSTS, no third-party requests
+- Client-side AES-256-GCM encryption — the server never receives plaintext or filenames
+- Argon2id password hashing (OWASP 2026 defaults) for user accounts
+- Strict CSP, COOP/COEP, HSTS, Permissions-Policy — no third-party requests
 - Rate limiting and progressive backoff for brute-force attempts
-- Container runs as non-root with a read-only root filesystem
+- Container runs as non-root with a read-only root filesystem and dropped capabilities
 - No telemetry, no trackers, no phone-home
 
 ### UX
 
 - Light, dark and system-preference themes
 - German and English UI (i18n-ready)
-- Installable as a PWA, Web Share Target on mobile
-- Anonymous by default; optional account adds upload history, higher quota and API tokens
+- Installable as a PWA
+- Anonymous by default; optional account adds upload history, higher quota and future API-token support
 
 ### Operations
 
-- Single container, target image size below 150 MB
-- SQLite by default, optional Redis and S3/MinIO backends
-- Health endpoint, optional Prometheus metrics
+- Single container, no external database or cache service required
+- SQLite by default
+- Health and readiness endpoints for container orchestrators
+- Optional Prometheus metrics (v1.1)
 - Webhooks for upload and download events (v1.1)
+
+---
+
+## Screenshots
+
+<!-- Screenshots will be added before the public GitHub release. -->
+<!-- Brand assets and screenshots live in brand/screenshots/ -->
+
+---
 
 ## Quickstart
 
+### Run with Docker Compose (production)
+
 ```bash
-# Clone (after the public release)
-git clone https://github.com/itsweber/itsweber-send
-cd itsweber-send
+# Download the Compose file and Caddyfile
+curl -O https://raw.githubusercontent.com/itsweber/itsweber-send/main/docker/docker-compose.yml
+curl -O https://raw.githubusercontent.com/itsweber/itsweber-send/main/docker/Caddyfile.example
 
-# Install dependencies
-pnpm install
-
-# Run web + api in development
-pnpm dev
+# Set your hostname and start
+BASE_URL=https://send.example.com docker compose up -d
 ```
 
-The web UI will be on http://localhost:5173, the API on http://localhost:3000.
+Edit `Caddyfile.example` to replace `send.example.com` with your domain. Caddy obtains a Let's Encrypt certificate automatically.
 
-### Run the container (once published)
+### Run without a reverse proxy (local / quick test)
 
 ```bash
 docker run -d \
   --name itsweber-send \
   -p 3000:3000 \
   -v send-data:/data \
+  -e NODE_ENV=production \
+  -e BASE_URL=http://localhost:3000 \
   ghcr.io/itsweber/itsweber-send:latest
 ```
 
-For a production setup including Caddy auto-HTTPS, see [`docker/docker-compose.yml`](docker/docker-compose.yml).
+Open `http://localhost:3000` in your browser.
+
+> Note: upload and download require a secure context. For local testing over HTTP, Web Crypto works in `localhost` specifically but not on an IP or arbitrary hostname. See [docs/INSTALL.md](docs/INSTALL.md) for the LAN setup with self-signed TLS.
+
+### Run from source
+
+```bash
+git clone https://github.com/itsweber/itsweber-send
+cd itsweber-send
+pnpm install
+pnpm dev
+```
+
+Web UI: `http://localhost:5173` — API: `http://localhost:3000`
+
+---
 
 ## Configuration
 
-All configuration is done via environment variables. The full reference lives in [`docs/CONFIG.md`](docs/CONFIG.md). The most important ones:
+All configuration is done via environment variables. Full reference: [docs/CONFIG.md](docs/CONFIG.md).
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
 | `BASE_URL` | `http://localhost:3000` | Public URL the service is reachable under |
-| `STORAGE_BACKEND` | `filesystem` | `filesystem` or `s3` |
-| `STORAGE_PATH` | `/data/uploads` | Filesystem-backend upload directory |
-| `MAX_FILE_SIZE_MB` | `5120` | Per-file upload limit |
-| `MAX_EXPIRY_HOURS` | `720` | Maximum expiry users can pick |
-| `RATE_LIMIT_PER_MIN` | `60` | Per-IP request rate limit |
+| `NODE_ENV` | `development` | Set to `production` for production deployments |
+| `STORAGE_BACKEND` | `filesystem` | `filesystem` (default) or `s3` (v1.1) |
+| `STORAGE_PATH` | `./data/uploads` | Filesystem-backend upload directory |
+| `DB_PATH` | `./data/shares.db` | SQLite database path |
+| `RATE_LIMIT_PER_MIN` | `60` | Per-IP request limit per minute |
 | `ENABLE_ACCOUNTS` | `true` | Allow optional user accounts |
+| `REGISTRATION_ENABLED` | `true` | Allow new registrations |
+| `DEFAULT_QUOTA_BYTES` | `5368709120` | Per-user quota (default: 5 GB) |
+
+---
+
+## Documentation
+
+| Document | Description |
+| --- | --- |
+| [docs/INSTALL.md](docs/INSTALL.md) | Installation guide for Docker and from source |
+| [docs/CONFIG.md](docs/CONFIG.md) | Full environment variable reference |
+| [docs/API.md](docs/API.md) | REST API reference |
+| [docs/SECURITY.md](docs/SECURITY.md) | Security architecture and threat model |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | System design and component overview |
+| [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | Known issues and build/runtime pitfalls |
+| [packages/crypto-spec/README.md](packages/crypto-spec/README.md) | Cryptographic format specification |
+| [CHANGELOG.md](CHANGELOG.md) | Release history |
+
+---
 
 ## Architecture
 
 | Layer | Choice | Notes |
 | --- | --- | --- |
-| Backend | Fastify 5 on Node.js 22 | Multipart + tus-node-server for uploads |
+| Backend | Fastify 5 on Node.js 22 | Multipart uploads, tus-node-server |
 | Frontend | SvelteKit 2 + Svelte 5 + Vite | TailwindCSS v4, svelte-i18n |
-| Crypto | Web Crypto API | AES-256-GCM, PBKDF2 200 k iter |
-| DB | better-sqlite3 | Embedded; no separate service needed |
-| Storage | Filesystem (default) / S3 (plugin) | Pluggable adapter pattern |
-| Container | node:22-alpine, multi-stage | Non-root, read-only rootfs |
+| Crypto | Web Crypto API | AES-256-GCM, PBKDF2 200 k iterations |
+| DB | better-sqlite3 | Embedded; no separate service |
+| Storage | Filesystem (default) / S3 plugin (v1.1) | Pluggable adapter |
+| Container | node:22-alpine, multi-stage | Non-root UID 10001, read-only rootfs |
+| Proxy | Caddy 2 | Automatic TLS, security headers |
 
-See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the longer write-up.
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full write-up.
 
-## Documentation
-
-- [Implementation plan](docs/IMPLEMENTATION_PLAN.md) — full roadmap, decisions, milestones
-- [HTML previews](docs/previews/index.html) — the visual reference for the UI
-- [Crypto specification](packages/crypto-spec/README.md) — file format and key derivation
+---
 
 ## License
 
-[AGPL-3.0-only](LICENSE). If you run a modified version of this software as a network service, you must make the source of your modifications available to the users of that service.
+[AGPL-3.0-only](LICENSE). Running a modified version as a network service requires making the source of your modifications available to the users of that service.
 
 ## Contributing
 
-Pull requests welcome once the project hits its first tagged release. See [CONTRIBUTING.md](CONTRIBUTING.md). For security reports, see [`.github/SECURITY.md`](.github/SECURITY.md).
+Pull requests are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for the development setup and conventions. For security issues, use the private reporting process described in [`.github/SECURITY.md`](.github/SECURITY.md).

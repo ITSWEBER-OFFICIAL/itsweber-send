@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { existsSync } from 'node:fs';
 import Fastify from 'fastify';
 import { config } from './config.js';
+import { registerOpenApi } from './plugins/openapi.js';
 import { registerCore } from './plugins/core.js';
 import { sessionMiddleware } from './plugins/session.js';
 import { healthRoutes } from './routes/health.js';
@@ -29,6 +30,8 @@ export async function buildServer() {
     bodyLimit: 1024 * 1024, // 1 MB for JSON/form bodies; multipart has its own limits
   });
 
+  // OpenAPI must be registered before routes so Fastify can collect schema definitions.
+  await registerOpenApi(app);
   await registerCore(app);
   await app.register(sessionMiddleware);
   await app.register(healthRoutes);
