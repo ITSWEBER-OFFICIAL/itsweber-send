@@ -4,6 +4,7 @@
   import type { Manifest } from '@itsweber-send/shared';
   import BrandMark from '$lib/components/BrandMark.svelte';
   import ThemeToggle from '$lib/components/ThemeToggle.svelte';
+  import FileIcon from '$lib/components/icons/FileIcon.svelte';
   import {
     importKeyBase64url,
     decrypt,
@@ -12,16 +13,10 @@
   } from '$lib/crypto/index.js';
   import type { DownloadManifestResponse } from '@itsweber-send/shared';
 
-  type Phase =
-    | 'loading'
-    | 'password_required'
-    | 'decrypting'
-    | 'ready'
-    | 'downloading'
-    | 'error';
+  type Phase = 'loading' | 'password_required' | 'decrypting' | 'ready' | 'error';
+  type FileState = 'idle' | 'downloading' | 'done';
 
   const { data } = $props<{ data: { id: string } }>();
-  // data.id is stable for the lifetime of this page (URL param)
   const shareId = $derived(data.id);
 
   let phase = $state<Phase>('loading');
@@ -29,18 +24,18 @@
   let passwordInput = $state('');
   let wrongPassword = $state(false);
 
-  // Fetched from manifest endpoint
   let manifestResponse = $state<DownloadManifestResponse | null>(null);
-
-  // Decrypted
   let manifest = $state<Manifest | null>(null);
   let masterKey = $state<CryptoKey | null>(null);
+
+  let fileStates = $state<FileState[]>([]);
+  let downloadingAll = $state(false);
 
   function formatBytes(bytes: number): string {
     if (bytes < 1024) return `${bytes} B`;
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-    if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-    return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+    if (bytes < 1024 * 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+    return `${(bytes / 1024 / 1024 / 1024).toFixed(2)} GB`;
   }
 
   async function fetchManifest(): Promise<void> {
@@ -65,7 +60,7 @@
 
   async function decryptWithFragmentKey(): Promise<void> {
     if (!manifestResponse) return;
-    const fragment = window.location.hash.slice(1); // strip leading #
+    const fragment = window.location.hash.slice(1);
     const params = new URLSearchParams(fragment);
     const keyB64 = params.get('k');
 
@@ -120,6 +115,7 @@
 
     masterKey = key;
     manifest = raw;
+    fileStates = Array.from({ length: raw.files.length }, () => 'idle' as FileState);
     phase = 'ready';
   }
 
@@ -128,19 +124,16 @@
     const file = manifest.files[fileIndex];
     if (!file) return;
 
-    phase = 'downloading';
+    fileStates[fileIndex] = 'downloading';
     try {
-      // Extract blob number from blobId e.g. "blob-0001" → 1
       const blobNum = parseInt(file.blobId.replace('blob-', ''), 10);
       const res = await fetch(`/api/v1/download/${shareId}/blob/${blobNum}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
-      // new Uint8Array(ArrayBuffer) → Uint8Array<ArrayBuffer> for WebCrypto BufferSource
       const ciphertext = new Uint8Array(await res.arrayBuffer());
       const iv = fromBase64url(file.iv);
       const plaintext = await decrypt(masterKey, iv, ciphertext);
 
-      // Trigger browser download
       const blob = new Blob([plaintext], { type: file.mime });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -151,11 +144,25 @@
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
 
-      phase = 'ready';
+      fileStates[fileIndex] = 'done';
     } catch {
-      phase = 'error';
+      fileStates[fileIndex] = 'idle';
       errorMsg = $_('download.error_decrypt');
     }
+  }
+
+  async function downloadAll(): Promise<void> {
+    if (!manifest || !masterKey || downloadingAll) return;
+    downloadingAll = true;
+    for (let i = 0; i < manifest.files.length; i++) {
+      if (fileStates[i] !== 'done') {
+        await downloadFile(i);
+        if (i < manifest.files.length - 1) {
+          await new Promise<void>((r) => setTimeout(r, 250));
+        }
+      }
+    }
+    downloadingAll = false;
   }
 
   onMount(() => {
@@ -173,6 +180,7 @@
 
 <main class="page">
   <div class="card-wrap">
+
     {#if phase === 'loading'}
       <div class="card center-card">
         <span class="spinner" aria-hidden="true"></span>
@@ -180,10 +188,10 @@
       </div>
 
     {:else if phase === 'password_required'}
-      <div class="card">
+      <div class="card lock-card">
         <div class="lock-icon">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
-               stroke-linecap="round" stroke-linejoin="round" width="36" height="36">
+               stroke-linecap="round" stroke-linejoin="round" width="36" height="36" aria-hidden="true">
             <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
             <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
           </svg>
@@ -212,39 +220,83 @@
         <p>{$_('download.decrypting')}</p>
       </div>
 
-    {:else if phase === 'downloading'}
-      <div class="card center-card">
-        <span class="spinner" aria-hidden="true"></span>
-        <p>{$_('download.downloading')}</p>
-      </div>
-
     {:else if phase === 'ready' && manifest}
       <div class="card ready-card">
         <h2>{$_('download.ready_title')}</h2>
-        <div class="file-list">
+
+        {#if manifest.note}
+          <div class="note-box">
+            <p class="note-label">{$_('download.note_from_sender')}</p>
+            <p class="note-text">{manifest.note}</p>
+          </div>
+        {/if}
+
+        {#if manifest.files.length > 1}
+          <button
+            class="btn-download-all"
+            onclick={() => void downloadAll()}
+            disabled={downloadingAll}
+          >
+            {#if downloadingAll}
+              <span class="spinner-sm" aria-hidden="true"></span>
+            {:else}
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
+                   stroke-linecap="round" stroke-linejoin="round" width="15" height="15" aria-hidden="true">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="7 10 12 15 17 10"/>
+                <line x1="12" y1="15" x2="12" y2="3"/>
+              </svg>
+            {/if}
+            {$_('download.download_all')}
+          </button>
+        {/if}
+
+        <ul class="file-list" aria-label="Dateien">
           {#each manifest.files as file, i}
-            <div class="file-entry">
+            <li class="file-entry">
+              <span class="file-icon"><FileIcon size={15} /></span>
               <div class="file-info">
                 <span class="file-name">{file.name}</span>
                 <span class="file-meta">{formatBytes(file.size)} · {file.mime}</span>
               </div>
-              <button class="btn-download" onclick={() => void downloadFile(i)}>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
-                     stroke-linecap="round" stroke-linejoin="round" width="16" height="16">
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                  <polyline points="7 10 12 15 17 10"/>
-                  <line x1="12" y1="15" x2="12" y2="3"/>
-                </svg>
+              <button
+                class="btn-download"
+                class:is-done={fileStates[i] === 'done'}
+                onclick={() => void downloadFile(i)}
+                disabled={fileStates[i] === 'downloading'}
+                aria-label="{file.name} {$_('download.download_button')}"
+              >
+                {#if fileStates[i] === 'downloading'}
+                  <span class="spinner-sm" aria-hidden="true"></span>
+                {:else if fileStates[i] === 'done'}
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                       stroke-linecap="round" stroke-linejoin="round" width="14" height="14" aria-hidden="true">
+                    <polyline points="20 6 9 17 4 12"/>
+                  </svg>
+                {:else}
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
+                       stroke-linecap="round" stroke-linejoin="round" width="14" height="14" aria-hidden="true">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                    <polyline points="7 10 12 15 17 10"/>
+                    <line x1="12" y1="15" x2="12" y2="3"/>
+                  </svg>
+                {/if}
                 {$_('download.download_button')}
               </button>
-            </div>
+            </li>
           {/each}
-        </div>
+        </ul>
+
         {#if manifestResponse?.remainingDownloads !== null && manifestResponse?.remainingDownloads !== undefined}
           <p class="remaining-note">
             Verbleibende Downloads: {manifestResponse.remainingDownloads}
           </p>
         {/if}
+
+        {#if errorMsg}
+          <p class="error-inline">{errorMsg}</p>
+        {/if}
+
         <p class="encrypted-note">{$_('download.encrypted_note')}</p>
       </div>
 
@@ -252,7 +304,7 @@
       <div class="card error-card">
         <div class="error-icon">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
-               stroke-linecap="round" stroke-linejoin="round" width="36" height="36">
+               stroke-linecap="round" stroke-linejoin="round" width="36" height="36" aria-hidden="true">
             <circle cx="12" cy="12" r="10"/>
             <line x1="15" y1="9" x2="9" y2="15"/>
             <line x1="9" y1="9" x2="15" y2="15"/>
@@ -262,6 +314,7 @@
         <a class="btn-secondary" href="/">{$_('upload.new_upload')}</a>
       </div>
     {/if}
+
   </div>
 </main>
 
@@ -310,9 +363,11 @@
     gap: 16px;
     color: var(--muted);
     font-size: 15px;
+    padding: 56px 28px;
   }
 
-  /* Lock / error icons */
+  /* Lock card */
+  .lock-card { text-align: center; }
   .lock-icon, .error-icon {
     display: inline-flex;
     padding: 14px;
@@ -344,24 +399,66 @@
   }
   .password-input:focus { outline: 2px solid var(--brand); outline-offset: 2px; }
 
+  /* Note box */
+  .note-box {
+    background: color-mix(in srgb, var(--brand) 7%, var(--surface-2));
+    border: 1px solid color-mix(in srgb, var(--brand) 25%, var(--border));
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin-bottom: 18px;
+  }
+  .note-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--brand);
+    margin: 0 0 4px;
+    font-weight: 600;
+  }
+  .note-text { font-size: 14px; line-height: 1.55; margin: 0; color: var(--text); white-space: pre-wrap; }
+
+  /* Download all button */
+  .btn-download-all {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    width: 100%;
+    padding: 11px 16px;
+    margin-bottom: 14px;
+    background: var(--brand);
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    justify-content: center;
+    transition: opacity 0.15s;
+    min-height: 44px;
+  }
+  .btn-download-all:disabled { opacity: 0.55; cursor: not-allowed; }
+  .btn-download-all:not(:disabled):hover { opacity: 0.88; }
+
   /* File list */
   .file-list {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 16px;
     display: flex;
     flex-direction: column;
-    gap: 10px;
-    margin-bottom: 16px;
+    gap: 8px;
   }
   .file-entry {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    gap: 12px;
+    gap: 10px;
     padding: 12px 14px;
     background: var(--surface-2);
     border: 1px solid var(--border);
     border-radius: 10px;
   }
-  .file-info { min-width: 0; }
+  .file-icon { color: var(--muted); flex-shrink: 0; }
+  .file-info { min-width: 0; flex: 1; }
   .file-name {
     display: block;
     font-weight: 600;
@@ -389,9 +486,17 @@
     cursor: pointer;
     white-space: nowrap;
     flex-shrink: 0;
-    transition: opacity 0.15s;
+    transition: opacity 0.15s, background 0.15s;
+    min-height: 36px;
   }
-  .btn-download:hover { opacity: 0.85; }
+  .btn-download:disabled { opacity: 0.55; cursor: not-allowed; }
+  .btn-download:not(:disabled):hover { opacity: 0.85; }
+  .btn-download.is-done {
+    background: color-mix(in srgb, var(--brand) 20%, transparent);
+    color: var(--brand);
+    border: 1px solid color-mix(in srgb, var(--brand) 35%, transparent);
+  }
+  .btn-download.is-done:hover { opacity: 1; }
 
   .remaining-note { color: var(--muted); font-size: 12px; margin: 0 0 8px; }
   .encrypted-note { color: var(--dim); font-size: 12px; margin: 0; }
@@ -412,6 +517,7 @@
     font-weight: 600;
     cursor: pointer;
     transition: opacity 0.15s;
+    min-height: 48px;
   }
   .btn-primary:disabled { opacity: 0.55; cursor: not-allowed; }
   .btn-primary:not(:disabled):hover { opacity: 0.88; }
@@ -430,15 +536,35 @@
   }
   .btn-secondary:hover { background: var(--surface-3); }
 
-  /* Spinner */
+  /* Spinners */
   .spinner {
     display: inline-block;
-    width: 22px;
-    height: 22px;
-    border: 2px solid var(--border);
+    width: 26px;
+    height: 26px;
+    border: 2.5px solid var(--border);
     border-top-color: var(--brand);
     border-radius: 50%;
     animation: spin 0.7s linear infinite;
   }
+  .spinner-sm {
+    display: inline-block;
+    width: 13px;
+    height: 13px;
+    border: 2px solid rgba(255,255,255,0.4);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    flex-shrink: 0;
+  }
   @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Mobile */
+  @media (max-width: 480px) {
+    .appbar { padding: 12px 16px; }
+    .page { padding: 40px 16px 60px; }
+    .card { padding: 20px 16px; }
+    .file-entry { flex-wrap: wrap; }
+    .btn-download { width: 100%; justify-content: center; }
+    .center-card { padding: 40px 16px; }
+  }
 </style>

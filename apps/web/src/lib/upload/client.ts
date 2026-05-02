@@ -8,73 +8,117 @@ import {
   toBase64url,
 } from '$lib/crypto/index.js';
 
-export interface UploadSettings {
+export interface UploadOptions {
   expiryHours: number;
   downloadLimit: number;
-  /** Set to a non-empty string to enable password protection. */
   password?: string;
+  note?: string;
+  onEncryptingStep?: (step: number, total: number) => void;
+  onProgress?: (progress: number) => void;
 }
 
 export interface UploadResult {
   id: string;
-  /** base64url master key — placed in the URL fragment, never sent to server. */
   key: string;
   expiresAt: string;
 }
 
-export async function uploadFile(file: File, settings: UploadSettings): Promise<UploadResult> {
+function xhrUpload(
+  form: FormData,
+  onProgress?: (p: number) => void,
+): Promise<{ id: string; expiresAt: string }> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.upload.addEventListener('progress', (e) => {
+      if (e.lengthComputable) onProgress?.(e.loaded / e.total);
+    });
+    xhr.addEventListener('load', () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try {
+          resolve(JSON.parse(xhr.responseText) as { id: string; expiresAt: string });
+        } catch {
+          reject(new Error('Invalid server response'));
+        }
+      } else {
+        let msg = `Upload fehlgeschlagen (${xhr.status})`;
+        try {
+          const body = JSON.parse(xhr.responseText) as { error?: string };
+          if (body.error) msg = body.error;
+        } catch { /* ignore */ }
+        reject(new Error(msg));
+      }
+    });
+    xhr.addEventListener('error', () => reject(new Error('Netzwerkfehler beim Upload')));
+    xhr.open('POST', '/api/v1/upload');
+    xhr.send(form);
+  });
+}
+
+export async function uploadFiles(
+  files: File[],
+  options: UploadOptions,
+): Promise<UploadResult> {
+  if (files.length === 0) throw new Error('Keine Dateien ausgewählt');
+
   const masterKey = await generateKey();
   const keyB64 = await exportKeyBase64url(masterKey);
 
-  // Encrypt file content
-  const blobIV = generateIV();
-  // new Uint8Array(ArrayBuffer) → Uint8Array<ArrayBuffer>, required by Web Crypto API
-  const fileBytes = new Uint8Array(await file.arrayBuffer());
-  const blobCiphertext = await encrypt(masterKey, blobIV, fileBytes);
+  const manifestFiles: ManifestFile[] = [];
+  const encryptedBlobs: { iv: string; data: Uint8Array<ArrayBuffer> }[] = [];
 
-  // Build plaintext manifest
-  const manifestFile: ManifestFile = {
-    name: file.name,
-    size: file.size,
-    mime: file.type || 'application/octet-stream',
-    blobId: 'blob-0001',
-    iv: toBase64url(blobIV),
+  for (let i = 0; i < files.length; i++) {
+    options.onEncryptingStep?.(i + 1, files.length);
+    const file = files[i]!;
+    const blobIV = generateIV();
+    const fileBytes = new Uint8Array(await file.arrayBuffer());
+    const blobCiphertext = await encrypt(masterKey, blobIV, fileBytes);
+    const idx = String(i + 1).padStart(4, '0');
+    manifestFiles.push({
+      name: file.name,
+      size: file.size,
+      mime: file.type || 'application/octet-stream',
+      blobId: `blob-${idx}`,
+      iv: toBase64url(blobIV),
+    });
+    encryptedBlobs.push({ iv: toBase64url(blobIV), data: blobCiphertext });
+  }
+
+  const manifest: Manifest = {
+    version: 1,
+    files: manifestFiles,
+    note: options.note?.trim() || null,
   };
-  const manifest: Manifest = { version: 1, files: [manifestFile], note: null };
-  // TextEncoder.encode() → Uint8Array<ArrayBufferLike>; wrapping via new Uint8Array()
-  // copies into a fresh ArrayBuffer, producing Uint8Array<ArrayBuffer> for WebCrypto.
-  const manifestBytes = new Uint8Array(new TextEncoder().encode(JSON.stringify(manifest)));
-
-  // Encrypt manifest
+  const manifestBytes = new Uint8Array(
+    new TextEncoder().encode(JSON.stringify(manifest)),
+  );
   const manifestIV = generateIV();
   const manifestCiphertext = await encrypt(masterKey, manifestIV, manifestBytes);
 
-  // Optional password wrap
-  const passwordProtected = Boolean(settings.password?.trim());
+  const passwordProtected = Boolean(options.password?.trim());
   let salt: string | null = null;
   let ivWrap: string | null = null;
   let wrappedKey: string | null = null;
 
-  if (passwordProtected && settings.password) {
-    const bundle = await wrapMasterKey(masterKey, settings.password);
+  if (passwordProtected && options.password) {
+    const bundle = await wrapMasterKey(masterKey, options.password);
     salt = bundle.salt;
     ivWrap = bundle.ivWrap;
     wrappedKey = bundle.wrappedKey;
   }
 
-  // Build multipart form
+  const totalSizeEncrypted = encryptedBlobs.reduce((s, b) => s + b.data.byteLength, 0);
   const form = new FormData();
   form.append(
     'meta',
     JSON.stringify({
-      expiryHours: settings.expiryHours,
-      downloadLimit: settings.downloadLimit,
+      expiryHours: options.expiryHours,
+      downloadLimit: options.downloadLimit,
       passwordProtected,
       salt,
       ivWrap,
       wrappedKey,
-      fileCount: 1,
-      totalSizeEncrypted: blobCiphertext.byteLength,
+      fileCount: files.length,
+      totalSizeEncrypted,
     }),
   );
   form.append('manifest-iv', toBase64url(manifestIV));
@@ -83,20 +127,17 @@ export async function uploadFile(file: File, settings: UploadSettings): Promise<
     new Blob([manifestCiphertext], { type: 'application/octet-stream' }),
     'manifest',
   );
-  form.append('blob-0001-iv', toBase64url(blobIV));
-  form.append(
-    'blob-0001',
-    new Blob([blobCiphertext], { type: 'application/octet-stream' }),
-    'blob-0001',
-  );
-
-  const res = await fetch('/api/v1/upload', { method: 'POST', body: form });
-
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({})) as { error?: string };
-    throw new Error(body.error ?? `Upload failed (${res.status})`);
+  for (let i = 0; i < encryptedBlobs.length; i++) {
+    const blob = encryptedBlobs[i]!;
+    const idx = String(i + 1).padStart(4, '0');
+    form.append(`blob-${idx}-iv`, blob.iv);
+    form.append(
+      `blob-${idx}`,
+      new Blob([blob.data], { type: 'application/octet-stream' }),
+      `blob-${idx}`,
+    );
   }
 
-  const json = (await res.json()) as { id: string; expiresAt: string };
+  const json = await xhrUpload(form, options.onProgress);
   return { id: json.id, key: keyB64, expiresAt: json.expiresAt };
 }
