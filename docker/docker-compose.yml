@@ -25,6 +25,10 @@ services:
       ENABLE_ACCOUNTS: 'true'
       STORAGE_BACKEND: filesystem
       STORAGE_PATH: /data/uploads
+      # v1.1 resumable upload tuning. Defaults are safe for >5 GB files.
+      # CHUNK_SIZE_BYTES: 16777216
+      # MAX_BLOB_BYTES: 107374182400          # 100 GB per file
+      # UPLOAD_RESUME_HOURS: 24
     volumes:
       - send-data:/data
     networks:

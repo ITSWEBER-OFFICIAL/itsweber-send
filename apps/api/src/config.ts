@@ -48,6 +48,19 @@ export const config = {
     registrationEnabled: bool('REGISTRATION_ENABLED', true),
     defaultQuotaBytes: num('DEFAULT_QUOTA_BYTES', 5 * 1024 * 1024 * 1024),
   },
+  uploads: {
+    // v1.1 resumable upload settings. See docs/V1.1_DECISIONS.md for the
+    // chunk-size rationale and the per-layer ceilings (Caddy, S3, browser).
+    chunkSizeBytes: num('CHUNK_SIZE_BYTES', 16 * 1024 * 1024), // 16 MiB plaintext per chunk
+    // Hard server-side ceiling per blob (one file). 100 GB by default; tune
+    // upward only after raising Caddy's request_body and, on S3, the chunk
+    // size (to stay under the 10000 multipart-parts limit).
+    maxBlobBytes: num('MAX_BLOB_BYTES', 100 * 1024 * 1024 * 1024),
+    // Lifetime of a pending resumable upload before the cleanup job removes
+    // it and frees the partial blobs. Resume across browser restarts MUST
+    // happen within this window.
+    resumeWindowHours: num('UPLOAD_RESUME_HOURS', 24),
+  },
   webhook: {
     url: str('WEBHOOK_URL', ''),
     secret: str('WEBHOOK_SECRET', ''),

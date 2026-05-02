@@ -1,7 +1,38 @@
-import type { FastifyInstance } from 'fastify';
+import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { getShare, incrementDownloads } from '../db/sqlite.js';
 import type { StorageAdapter } from '../storage/interface.js';
 import { emitWebhook } from '../plugins/webhooks.js';
+
+/** Parse a single-range HTTP `Range: bytes=start-end` header. Multi-range
+ *  is not supported; we return null and the caller falls back to a full
+ *  body. End is inclusive when present. */
+function parseRange(
+  headerValue: string | undefined,
+  size: number,
+): { start: number; end: number } | null {
+  if (!headerValue) return null;
+  const m = /^bytes=(\d+)?-(\d+)?$/.exec(headerValue.trim());
+  if (!m) return null;
+  const startStr = m[1];
+  const endStr = m[2];
+  let start: number;
+  let end: number;
+  if (startStr === undefined && endStr !== undefined) {
+    // suffix range: last N bytes
+    const suffix = Number(endStr);
+    if (!Number.isFinite(suffix) || suffix === 0) return null;
+    start = Math.max(0, size - suffix);
+    end = size - 1;
+  } else if (startStr !== undefined) {
+    start = Number(startStr);
+    end = endStr !== undefined ? Number(endStr) : size - 1;
+  } else {
+    return null;
+  }
+  if (!Number.isFinite(start) || !Number.isFinite(end)) return null;
+  if (start < 0 || end >= size || start > end) return null;
+  return { start, end };
+}
 
 export function createDownloadRoute(storage: StorageAdapter) {
   return async function downloadPlugin(app: FastifyInstance): Promise<void> {
@@ -41,15 +72,21 @@ export function createDownloadRoute(storage: StorageAdapter) {
         salt: share.salt,
         ivWrap: share.iv_wrap,
         wrappedKey: share.wrapped_key,
+        manifestVersion: share.manifest_version,
+        fileCount: share.file_count,
       });
     });
 
     // GET /api/v1/download/:id/blob/:n
-    // Streams the nth blob ciphertext (n is 1-based) and decrements downloads_used.
+    // Streams the nth blob ciphertext (n is 1-based) and decrements
+    // downloads_used on the LAST blob's first successful (non-Range)
+    // delivery. Range requests do not decrement so resumed/parallel range
+    // fetches stay free of double-counting.
     app.get<{ Params: { id: string; n: string } }>(
       '/api/v1/download/:id/blob/:n',
-      async (request, reply) => {
-        const { id, n } = request.params;
+      async (request: FastifyRequest, reply: FastifyReply) => {
+        const params = request.params as { id: string; n: string };
+        const { id, n } = params;
 
         const blobNum = parseInt(n, 10);
         if (!Number.isInteger(blobNum) || blobNum < 1) {
@@ -75,26 +112,25 @@ export function createDownloadRoute(storage: StorageAdapter) {
         }
 
         const blobName = `blob-${String(blobNum).padStart(4, '0')}`;
-        let blobBuf: Buffer;
-        try {
-          blobBuf = await storage.get(id, blobName);
-        } catch {
+        const fullSize = await storage.size(id, blobName);
+        if (fullSize === null) {
           return reply.status(404).send({ error: 'Blob not found' });
         }
 
-        // The download counter must measure full share-downloads, not blob fetches.
-        // We increment exactly once per share-download, on the LAST blob — by then
-        // the recipient has retrieved everything they need.
+        const range = parseRange(request.headers.range as string | undefined, fullSize);
         const isLastBlob = blobNum === share.file_count;
-        let remaining: number | null = null;
-        if (isLastBlob) {
+        const isFullDelivery = range === null;
+
+        // Counter increments only on a complete (non-Range) read of the
+        // last blob. Range fetches (browser refresh, ZIP partial reads)
+        // stay free.
+        if (isLastBlob && isFullDelivery) {
           incrementDownloads(id);
           const freshShare = getShare(id);
-          remaining =
+          const remaining =
             freshShare && freshShare.download_limit > 0
               ? freshShare.download_limit - freshShare.downloads_used
               : null;
-
           void emitWebhook(
             {
               type: 'download.completed',
@@ -104,15 +140,36 @@ export function createDownloadRoute(storage: StorageAdapter) {
             },
             request.log,
           );
-        } else {
-          remaining = share.download_limit > 0 ? share.download_limit - share.downloads_used : null;
         }
 
-        request.log.info({ shareId: id, blobNum, isLastBlob }, 'blob downloaded');
-        return reply
+        request.log.info(
+          { shareId: id, blobNum, isLastBlob, range: range ?? undefined, fullSize },
+          'blob downloaded',
+        );
+
+        let stream;
+        try {
+          stream = await storage.getStream(id, blobName, range ?? undefined);
+        } catch (err) {
+          request.log.error({ err, shareId: id, blobName }, 'blob stream open failed');
+          return reply.status(500).send({ error: 'Storage read failed' });
+        }
+
+        reply
           .header('Content-Type', 'application/octet-stream')
-          .header('Content-Length', blobBuf.byteLength)
-          .send(blobBuf);
+          .header('Accept-Ranges', 'bytes')
+          .header('Cache-Control', 'no-store');
+
+        if (range) {
+          const length = range.end - range.start + 1;
+          reply
+            .status(206)
+            .header('Content-Range', `bytes ${range.start}-${range.end}/${fullSize}`)
+            .header('Content-Length', length);
+        } else {
+          reply.header('Content-Length', fullSize);
+        }
+        return reply.send(stream);
       },
     );
   };

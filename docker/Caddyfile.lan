@@ -20,8 +20,10 @@
 
 	encode zstd gzip
 
+	# v1.1: resumable uploads stream chunks (~16 MiB each); overall blob
+	# ceiling is set by the server's MAX_BLOB_BYTES (default 100 GB).
 	request_body {
-		max_size 5GB
+		max_size 64GB
 	}
 
 	# Caddy auto-adds X-Forwarded-For (IP only, no port) and X-Forwarded-Proto.

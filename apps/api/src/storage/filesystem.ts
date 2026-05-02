@@ -1,6 +1,8 @@
-import { mkdir, writeFile, readFile, rm, readdir } from 'node:fs/promises';
-import { existsSync } from 'node:fs';
+import { mkdir, writeFile, readFile, rm, readdir, stat } from 'node:fs/promises';
+import { existsSync, createWriteStream, createReadStream } from 'node:fs';
+import { pipeline } from 'node:stream/promises';
 import { join } from 'node:path';
+import type { Readable } from 'node:stream';
 import type { StorageAdapter } from './interface.js';
 
 export class FilesystemStorage implements StorageAdapter {
@@ -10,13 +12,17 @@ export class FilesystemStorage implements StorageAdapter {
     return join(this.basePath, shareId);
   }
 
+  private path(shareId: string, name: string): string {
+    return join(this.dir(shareId), name);
+  }
+
   async put(shareId: string, name: string, data: Buffer): Promise<void> {
     await mkdir(this.dir(shareId), { recursive: true });
-    await writeFile(join(this.dir(shareId), name), data);
+    await writeFile(this.path(shareId, name), data);
   }
 
   async get(shareId: string, name: string): Promise<Buffer> {
-    return readFile(join(this.dir(shareId), name));
+    return readFile(this.path(shareId, name));
   }
 
   async exists(shareId: string): Promise<boolean> {
@@ -49,5 +55,48 @@ export class FilesystemStorage implements StorageAdapter {
       }
     }
     return expired;
+  }
+
+  async appendStream(
+    shareId: string,
+    name: string,
+    source: Readable,
+  ): Promise<{ bytesWritten: number }> {
+    await mkdir(this.dir(shareId), { recursive: true });
+
+    let bytesWritten = 0;
+    const counter = async function* (src: Readable): AsyncIterable<Buffer> {
+      for await (const chunk of src) {
+        const buf = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk as ArrayBufferLike);
+        bytesWritten += buf.byteLength;
+        yield buf;
+      }
+    };
+
+    const sink = createWriteStream(this.path(shareId, name), { flags: 'a' });
+    await pipeline(counter(source), sink);
+    return { bytesWritten };
+  }
+
+  async size(shareId: string, name: string): Promise<number | null> {
+    try {
+      const s = await stat(this.path(shareId, name));
+      return s.size;
+    } catch {
+      return null;
+    }
+  }
+
+  async getStream(
+    shareId: string,
+    name: string,
+    range?: { start: number; end?: number },
+  ): Promise<Readable> {
+    if (!range) {
+      return createReadStream(this.path(shareId, name));
+    }
+    const opts: { start: number; end?: number } = { start: range.start };
+    if (typeof range.end === 'number') opts.end = range.end;
+    return createReadStream(this.path(shareId, name), opts);
   }
 }

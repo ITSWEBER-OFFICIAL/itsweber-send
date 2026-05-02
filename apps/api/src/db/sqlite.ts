@@ -15,6 +15,8 @@ export interface ShareRecord {
   total_size_bytes: number;
   wordcode: string | null;
   file_count: number;
+  /** Manifest format version. 1 = legacy single-blob AES-GCM, 2 = chunked AES-GCM (v1.1+). */
+  manifest_version: number;
 }
 
 export interface UserRecord {
@@ -56,6 +58,42 @@ export interface AuditLogRecord {
   resource: string | null;
   ip: string | null;
   created_at: string;
+}
+
+/**
+ * Pending resumable upload. The upload reserves a share-id slot but the
+ * share row only exists once {@link finalizeUpload} commits. `blobs_json`
+ * is the JSON-serialised plan: `[{ blobId, expectedCipherSize, expectedChunks,
+ * receivedBytes, receivedChunks }, …]`.
+ */
+export interface UploadInProgressRecord {
+  id: string; // upload-id (24-hex)
+  share_id: string; // share-id reserved at create-time (24-hex)
+  user_id: string | null;
+  created_at: string;
+  expires_at: string; // resume window
+  chunk_size: number; // plaintext bytes per chunk; informational
+  declared_total_bytes: number;
+  expiry_hours: number;
+  download_limit: number;
+  password_protected: number;
+  salt: string | null;
+  iv_wrap: string | null;
+  wrapped_key: string | null;
+  blobs_json: string;
+  finalized: number; // 0 = pending, 1 = committed
+}
+
+/**
+ * One usable recovery code per row. Codes are hashed with Argon2id and
+ * marked `used_at` once consumed. See {@link consumeMfaRecoveryCode}.
+ */
+export interface MfaRecoveryCodeRecord {
+  id: string;
+  user_id: string;
+  code_hash: string;
+  created_at: string;
+  used_at: string | null;
 }
 
 let _db: Database.Database | null = null;
@@ -117,7 +155,38 @@ export function initDb(dbPath: string): void {
       value       TEXT NOT NULL,
       updated_at  TEXT NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS uploads_in_progress (
+      id                    TEXT PRIMARY KEY,
+      share_id              TEXT NOT NULL,
+      user_id               TEXT REFERENCES users(id) ON DELETE CASCADE,
+      created_at            TEXT NOT NULL,
+      expires_at            TEXT NOT NULL,
+      chunk_size            INTEGER NOT NULL,
+      declared_total_bytes  INTEGER NOT NULL,
+      expiry_hours          INTEGER NOT NULL,
+      download_limit        INTEGER NOT NULL,
+      password_protected    INTEGER NOT NULL DEFAULT 0,
+      salt                  TEXT,
+      iv_wrap               TEXT,
+      wrapped_key           TEXT,
+      blobs_json            TEXT NOT NULL,
+      finalized             INTEGER NOT NULL DEFAULT 0
+    );
+    CREATE INDEX IF NOT EXISTS idx_uploads_expires_at ON uploads_in_progress(expires_at);
+    CREATE INDEX IF NOT EXISTS idx_uploads_user_id ON uploads_in_progress(user_id);
+
+    CREATE TABLE IF NOT EXISTS mfa_recovery_codes (
+      id          TEXT PRIMARY KEY,
+      user_id     TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      code_hash   TEXT NOT NULL,
+      created_at  TEXT NOT NULL,
+      used_at     TEXT
+    );
+    CREATE INDEX IF NOT EXISTS idx_mfa_recovery_user ON mfa_recovery_codes(user_id);
   `);
+
+  _db.pragma('foreign_keys = ON');
 
   // Idempotent column migrations
   const sharesCols = (_db.prepare('PRAGMA table_info(shares)').all() as { name: string }[]).map(
@@ -137,6 +206,10 @@ export function initDb(dbPath: string): void {
   }
   if (!sharesCols.includes('file_count')) {
     _db.exec('ALTER TABLE shares ADD COLUMN file_count INTEGER NOT NULL DEFAULT 1');
+  }
+  if (!sharesCols.includes('manifest_version')) {
+    // Existing shares are v1; new shares from the resumable path declare 2.
+    _db.exec('ALTER TABLE shares ADD COLUMN manifest_version INTEGER NOT NULL DEFAULT 1');
   }
 
   const usersCols = (_db.prepare('PRAGMA table_info(users)').all() as { name: string }[]).map(
@@ -169,18 +242,19 @@ function db(): Database.Database {
 // ---------------------------------------------------------------------------
 
 export function insertShare(
-  share: Omit<ShareRecord, 'total_size_bytes' | 'wordcode' | 'file_count'> & {
+  share: Omit<ShareRecord, 'total_size_bytes' | 'wordcode' | 'file_count' | 'manifest_version'> & {
     total_size_bytes?: number;
     wordcode?: string | null;
     file_count?: number;
+    manifest_version?: number;
   },
 ): void {
   db()
     .prepare(
       `INSERT INTO shares
-         (id, created_at, expires_at, download_limit, downloads_used, salt, iv_wrap, wrapped_key, user_id, total_size_bytes, wordcode, file_count)
+         (id, created_at, expires_at, download_limit, downloads_used, salt, iv_wrap, wrapped_key, user_id, total_size_bytes, wordcode, file_count, manifest_version)
        VALUES
-         (@id, @created_at, @expires_at, @download_limit, @downloads_used, @salt, @iv_wrap, @wrapped_key, @user_id, @total_size_bytes, @wordcode, @file_count)`,
+         (@id, @created_at, @expires_at, @download_limit, @downloads_used, @salt, @iv_wrap, @wrapped_key, @user_id, @total_size_bytes, @wordcode, @file_count, @manifest_version)`,
     )
     .run({
       ...share,
@@ -188,6 +262,7 @@ export function insertShare(
       total_size_bytes: share.total_size_bytes ?? 0,
       wordcode: share.wordcode ?? null,
       file_count: share.file_count ?? 1,
+      manifest_version: share.manifest_version ?? 1,
     });
 }
 
@@ -491,6 +566,98 @@ export function getAllSettings(): Record<string, string> {
     value: string;
   }[];
   return Object.fromEntries(rows.map((r) => [r.key, r.value]));
+}
+
+// ---------------------------------------------------------------------------
+// Resumable uploads (uploads_in_progress)
+// ---------------------------------------------------------------------------
+
+export function insertUploadInProgress(record: UploadInProgressRecord): void {
+  db()
+    .prepare(
+      `INSERT INTO uploads_in_progress
+         (id, share_id, user_id, created_at, expires_at, chunk_size,
+          declared_total_bytes, expiry_hours, download_limit,
+          password_protected, salt, iv_wrap, wrapped_key, blobs_json, finalized)
+       VALUES
+         (@id, @share_id, @user_id, @created_at, @expires_at, @chunk_size,
+          @declared_total_bytes, @expiry_hours, @download_limit,
+          @password_protected, @salt, @iv_wrap, @wrapped_key, @blobs_json, @finalized)`,
+    )
+    .run(record);
+}
+
+export function getUploadInProgress(id: string): UploadInProgressRecord | undefined {
+  return db().prepare('SELECT * FROM uploads_in_progress WHERE id = ?').get(id) as
+    | UploadInProgressRecord
+    | undefined;
+}
+
+export function updateUploadBlobsJson(id: string, blobsJson: string): void {
+  db().prepare('UPDATE uploads_in_progress SET blobs_json = ? WHERE id = ?').run(blobsJson, id);
+}
+
+export function markUploadFinalized(id: string): void {
+  db().prepare('UPDATE uploads_in_progress SET finalized = 1 WHERE id = ?').run(id);
+}
+
+export function deleteUploadInProgress(id: string): void {
+  db().prepare('DELETE FROM uploads_in_progress WHERE id = ?').run(id);
+}
+
+export function getExpiredUploadIds(cutoff: Date): UploadInProgressRecord[] {
+  return db()
+    .prepare('SELECT * FROM uploads_in_progress WHERE finalized = 0 AND expires_at < ?')
+    .all(cutoff.toISOString()) as UploadInProgressRecord[];
+}
+
+export function getUserUploadInProgressBytes(userId: string): number {
+  const row = db()
+    .prepare(
+      `SELECT COALESCE(SUM(declared_total_bytes), 0) AS used
+       FROM uploads_in_progress
+       WHERE user_id = ? AND finalized = 0 AND expires_at > datetime('now')`,
+    )
+    .get(userId) as { used: number };
+  return row.used;
+}
+
+// ---------------------------------------------------------------------------
+// 2FA recovery codes (mfa_recovery_codes)
+// ---------------------------------------------------------------------------
+
+export function insertMfaRecoveryCodes(records: MfaRecoveryCodeRecord[]): void {
+  const insert = db().prepare(
+    `INSERT INTO mfa_recovery_codes (id, user_id, code_hash, created_at, used_at)
+     VALUES (@id, @user_id, @code_hash, @created_at, @used_at)`,
+  );
+  const tx = db().transaction((rows: MfaRecoveryCodeRecord[]) => {
+    for (const r of rows) insert.run(r);
+  });
+  tx(records);
+}
+
+export function getActiveMfaRecoveryCodes(userId: string): MfaRecoveryCodeRecord[] {
+  return db()
+    .prepare('SELECT * FROM mfa_recovery_codes WHERE user_id = ? AND used_at IS NULL')
+    .all(userId) as MfaRecoveryCodeRecord[];
+}
+
+export function countActiveMfaRecoveryCodes(userId: string): number {
+  const row = db()
+    .prepare('SELECT COUNT(*) AS cnt FROM mfa_recovery_codes WHERE user_id = ? AND used_at IS NULL')
+    .get(userId) as { cnt: number };
+  return row.cnt;
+}
+
+export function markMfaRecoveryCodeUsed(id: string, at: string): void {
+  db()
+    .prepare('UPDATE mfa_recovery_codes SET used_at = ? WHERE id = ? AND used_at IS NULL')
+    .run(at, id);
+}
+
+export function deleteMfaRecoveryCodes(userId: string): void {
+  db().prepare('DELETE FROM mfa_recovery_codes WHERE user_id = ?').run(userId);
 }
 
 // ---------------------------------------------------------------------------

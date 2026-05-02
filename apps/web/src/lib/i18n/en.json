@@ -41,7 +41,11 @@
     "copy_link": "Copy link",
     "copied": "Copied!",
     "new_upload": "Send another file",
-    "error_title": "Upload error"
+    "error_title": "Upload error",
+    "pause": "Pause upload",
+    "resume": "Resume upload",
+    "cancel": "Cancel upload",
+    "unknown_error": "Unknown error"
   },
   "download": {
     "loading": "Loading share …",

@@ -13,11 +13,11 @@
   import Eye from '$lib/components/icons/Eye.svelte';
   import EyeOff from '$lib/components/icons/EyeOff.svelte';
   import Check from '$lib/components/icons/Check.svelte';
-  import { uploadFiles } from '$lib/upload/client.js';
+  import { startResumableUpload, type ResumableUploadHandle } from '$lib/upload/resumable.js';
   import { wordCodeFromId } from '$lib/share/wordcode.js';
 
-  type FilePhase = 'queued' | 'encrypting' | 'encrypted' | 'uploading' | 'done';
-  type Phase = 'idle' | 'encrypting' | 'uploading' | 'done' | 'error';
+  type FilePhase = 'queued' | 'encrypting' | 'encrypted' | 'uploading' | 'paused' | 'done';
+  type Phase = 'idle' | 'encrypting' | 'uploading' | 'paused' | 'done' | 'error';
 
   let phase = $state<Phase>('idle');
   let selectedFiles = $state<File[]>([]);
@@ -36,6 +36,8 @@
 
   // Progress
   let uploadProgress = $state(0);
+  let uploadHandle = $state<ResumableUploadHandle | null>(null);
+  let isPaused = $state(false);
 
   // Result
   let shareUrl = $state('');
@@ -130,43 +132,74 @@
     if (selectedFiles.length === 0) return;
     errorMsg = '';
     uploadProgress = 0;
+    isPaused = false;
     phase = 'encrypting';
     filePhases = selectedFiles.map(() => 'queued');
 
+    const handle = startResumableUpload(selectedFiles, {
+      expiryHours,
+      downloadLimit,
+      password: usePassword ? password : undefined,
+      note: note.trim() || undefined,
+      onProgress: (sent, total) => {
+        uploadProgress = total === 0 ? 0 : sent / total;
+        if (phase === 'encrypting') phase = 'uploading';
+      },
+      onChunkAccepted: (blobIndex) => {
+        filePhases = filePhases.map((p, i) => {
+          if (i < blobIndex) return 'done';
+          if (i === blobIndex) return 'uploading';
+          return 'queued';
+        });
+      },
+    });
+    uploadHandle = handle;
+
     try {
-      const result = await uploadFiles(selectedFiles, {
-        expiryHours,
-        downloadLimit,
-        password: usePassword ? password : undefined,
-        note: note.trim() || undefined,
-        onEncryptingStep: (step, _total) => {
-          // step is 1-based; mark step-1 encrypted, step encrypting
-          filePhases = filePhases.map((p, i) => {
-            if (i < step - 1) return 'encrypted';
-            if (i === step - 1) return 'encrypting';
-            return 'queued';
-          });
-        },
-        onProgress: (p) => {
-          uploadProgress = p;
-          phase = 'uploading';
-          filePhases = filePhases.map(() => 'uploading');
-        },
-      });
+      const result = await handle.done;
       shareId = result.id;
       // Password-protected shares MUST NOT expose the master key in the URL —
       // the password is the second factor; embedding the key would defeat it.
       shareUrl = usePassword
         ? `${window.location.origin}/d/${result.id}`
         : `${window.location.origin}/d/${result.id}#k=${result.key}`;
-      wordCode = await wordCodeFromId(result.id);
+      wordCode = result.wordcode ?? (await wordCodeFromId(result.id));
       shareExpiresAt = result.expiresAt;
       filePhases = filePhases.map(() => 'done');
+      uploadProgress = 1;
       phase = 'done';
     } catch (e) {
-      errorMsg = e instanceof Error ? e.message : 'Unbekannter Fehler';
+      errorMsg = e instanceof Error ? e.message : $_('upload.unknown_error');
       phase = 'error';
+    } finally {
+      uploadHandle = null;
     }
+  }
+
+  async function pauseUpload(): Promise<void> {
+    if (!uploadHandle || isPaused) return;
+    await uploadHandle.pause();
+    isPaused = true;
+    phase = 'paused';
+    filePhases = filePhases.map((p) => (p === 'uploading' ? 'paused' : p));
+  }
+
+  function resumeUpload(): void {
+    if (!uploadHandle || !isPaused) return;
+    uploadHandle.resume();
+    isPaused = false;
+    phase = 'uploading';
+    filePhases = filePhases.map((p) => (p === 'paused' ? 'uploading' : p));
+  }
+
+  async function cancelUpload(): Promise<void> {
+    if (!uploadHandle) return;
+    await uploadHandle.cancel();
+    uploadHandle = null;
+    isPaused = false;
+    phase = 'idle';
+    uploadProgress = 0;
+    filePhases = filePhases.map(() => 'queued');
   }
 
   async function copyToClipboard(value: string, kind: 'link' | 'word') {
@@ -341,9 +374,23 @@
                     >
                       <X size={14} />
                     </button>
-                  {:else if fp === 'uploading'}
-                    <button type="button" title="Pause" aria-label="Pause" disabled>
+                  {:else if fp === 'uploading' && !isPaused}
+                    <button
+                      type="button"
+                      title={$_('upload.pause')}
+                      aria-label={$_('upload.pause')}
+                      onclick={() => void pauseUpload()}
+                    >
                       <Pause size={14} />
+                    </button>
+                  {:else if fp === 'paused' || isPaused}
+                    <button
+                      type="button"
+                      title={$_('upload.resume')}
+                      aria-label={$_('upload.resume')}
+                      onclick={() => resumeUpload()}
+                    >
+                      <Plus size={14} />
                     </button>
                   {/if}
                 </div>

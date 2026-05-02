@@ -8,6 +8,7 @@ import { registerCore } from './plugins/core.js';
 import { sessionMiddleware } from './plugins/session.js';
 import { healthRoutes } from './routes/health.js';
 import { createUploadRoute } from './routes/upload.js';
+import { createUploadsResumableRoute } from './routes/uploads-resumable.js';
 import { createDownloadRoute } from './routes/download.js';
 import { authRoutes } from './routes/auth.js';
 import { createAccountRoutes } from './routes/account.js';
@@ -58,8 +59,11 @@ export async function buildServer() {
   initDb(config.db.path);
   startCleanupJob(storage, app.log);
 
-  // Upload / download routes
+  // Upload / download routes. The legacy single-shot /api/v1/upload is
+  // retained for v1.0 client compatibility (manifest version 1, files up
+  // to 500 MB). New clients use the resumable /api/v1/uploads/* routes.
   await app.register(createUploadRoute(storage));
+  await app.register(createUploadsResumableRoute(storage));
   await app.register(createDownloadRoute(storage));
 
   // Auth, account, and admin routes

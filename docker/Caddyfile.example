@@ -4,9 +4,13 @@
 send.example.com {
     encode zstd gzip
 
-    # Long upload timeout for multi-GB transfers
+    # Resumable uploads stream chunks (default 16 MiB each) so the per-
+    # request body cap is small. The overall ceiling for a single
+    # finalized upload is set by the server's MAX_BLOB_BYTES (default
+    # 100 GB). The legacy /api/v1/upload single-shot route uploads the
+    # whole file in one request and is gated by max_size below.
     request_body {
-        max_size 5GB
+        max_size 64GB
     }
 
     # Caddy auto-adds X-Forwarded-For (IP only, no port) and X-Forwarded-Proto.

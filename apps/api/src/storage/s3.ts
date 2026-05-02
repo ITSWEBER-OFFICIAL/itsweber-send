@@ -6,6 +6,7 @@ import {
   ListObjectsV2Command,
   DeleteObjectsCommand,
 } from '@aws-sdk/client-s3';
+import type { Readable } from 'node:stream';
 import type { StorageAdapter } from './interface.js';
 
 function key(shareId: string, name: string): string {
@@ -139,5 +140,57 @@ export class S3Storage implements StorageAdapter {
     } while (continuationToken);
 
     return expired;
+  }
+
+  async appendStream(
+    _shareId: string,
+    _name: string,
+    _source: Readable,
+  ): Promise<{ bytesWritten: number }> {
+    // Resumable / chunked uploads against S3 require the multipart-upload
+    // implementation in the S3 adapter, tracked in TODO_V1.1.md and the
+    // decisions doc. The filesystem adapter is the supported backend for
+    // resumable uploads in v1.1; the legacy single-shot /api/v1/upload
+    // route still works against S3 for files within its 500 MB ceiling.
+    throw new Error(
+      'S3 backend does not yet support resumable chunked uploads. ' +
+        'Use the filesystem backend, or fall back to the single-shot /api/v1/upload route ' +
+        'for files up to 500 MB. Multipart support is tracked for a follow-up release.',
+    );
+  }
+
+  async size(shareId: string, name: string): Promise<number | null> {
+    try {
+      const head = await this.client.send(
+        new HeadObjectCommand({ Bucket: this.bucket, Key: key(shareId, name) }),
+      );
+      return head.ContentLength ?? null;
+    } catch {
+      return null;
+    }
+  }
+
+  async getStream(
+    shareId: string,
+    name: string,
+    range?: { start: number; end?: number },
+  ): Promise<Readable> {
+    const cmd = new GetObjectCommand({
+      Bucket: this.bucket,
+      Key: key(shareId, name),
+      ...(range
+        ? {
+            Range:
+              typeof range.end === 'number'
+                ? `bytes=${range.start}-${range.end}`
+                : `bytes=${range.start}-`,
+          }
+        : {}),
+    });
+    const response = await this.client.send(cmd);
+    if (!response.Body) {
+      throw new Error(`Empty response body for ${key(shareId, name)}`);
+    }
+    return response.Body as Readable;
   }
 }

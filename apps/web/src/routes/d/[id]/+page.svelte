@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { _ } from 'svelte-i18n';
-  import type { Manifest } from '@itsweber-send/shared';
+  import type { Manifest, ManifestV2 } from '@itsweber-send/shared';
   import FileIcon from '$lib/components/icons/FileIcon.svelte';
   import {
     importKeyBase64url,
@@ -9,6 +9,7 @@
     fromBase64url,
     unwrapMasterKey,
   } from '$lib/crypto/index.js';
+  import { decodeManifest, downloadV1, downloadV2 } from '$lib/download/client.js';
   import type { DownloadManifestResponse } from '@itsweber-send/shared';
 
   type Phase = 'loading' | 'password_required' | 'decrypting' | 'ready' | 'error';
@@ -23,7 +24,8 @@
   let wrongPassword = $state(false);
 
   let manifestResponse = $state<DownloadManifestResponse | null>(null);
-  let manifest = $state<Manifest | null>(null);
+  let manifest = $state<Manifest | ManifestV2 | null>(null);
+  let manifestVersion = $state<1 | 2>(1);
   let masterKey = $state<CryptoKey | null>(null);
 
   let fileStates = $state<FileState[]>([]);
@@ -111,18 +113,31 @@
     const iv = fromBase64url(manifestResponse.manifestIv);
 
     const plaintext = await decrypt(key, iv, ciphertext);
-    const raw = JSON.parse(new TextDecoder().decode(plaintext)) as Manifest;
-
-    if (raw.version !== 1) {
+    let decoded;
+    try {
+      decoded = decodeManifest(new TextDecoder().decode(plaintext));
+    } catch (err) {
       phase = 'error';
-      errorMsg = `Unknown manifest version: ${raw.version}`;
+      errorMsg = err instanceof Error ? err.message : $_('download.error_decrypt');
       return;
     }
 
     masterKey = key;
-    manifest = raw;
-    fileStates = Array.from({ length: raw.files.length }, () => 'idle' as FileState);
+    manifest = decoded.manifest;
+    manifestVersion = decoded.version;
+    fileStates = Array.from({ length: decoded.manifest.files.length }, () => 'idle' as FileState);
     phase = 'ready';
+  }
+
+  function saveBlob(blob: Blob, name: string): void {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   }
 
   async function downloadFile(fileIndex: number): Promise<void> {
@@ -133,23 +148,16 @@
     fileStates[fileIndex] = 'downloading';
     try {
       const blobNum = parseInt(file.blobId.replace('blob-', ''), 10);
-      const res = await fetch(`/api/v1/download/${shareId}/blob/${blobNum}`);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-
-      const ciphertext = new Uint8Array(await res.arrayBuffer());
-      const iv = fromBase64url(file.iv);
-      const plaintext = await decrypt(masterKey, iv, ciphertext);
-
-      const blob = new Blob([plaintext], { type: file.mime });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = file.name;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-
+      if (manifestVersion === 1) {
+        const v1file = file as Manifest['files'][number];
+        const iv = fromBase64url(v1file.iv);
+        const plaintext = await downloadV1(shareId, blobNum, iv, masterKey);
+        saveBlob(new Blob([plaintext], { type: v1file.mime }), v1file.name);
+      } else {
+        const v2file = file as ManifestV2['files'][number];
+        const blob = await downloadV2(shareId, blobNum, v2file.chunks, v2file.mime, masterKey);
+        saveBlob(blob, v2file.name);
+      }
       fileStates[fileIndex] = 'done';
     } catch {
       fileStates[fileIndex] = 'idle';

@@ -41,7 +41,11 @@
     "copy_link": "Link kopieren",
     "copied": "Kopiert!",
     "new_upload": "Neue Datei senden",
-    "error_title": "Fehler beim Upload"
+    "error_title": "Fehler beim Upload",
+    "pause": "Upload pausieren",
+    "resume": "Upload fortsetzen",
+    "cancel": "Upload abbrechen",
+    "unknown_error": "Unbekannter Fehler"
   },
   "download": {
     "loading": "Lade Share …",
