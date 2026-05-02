@@ -1,5 +1,7 @@
 import { createHash } from 'node:crypto';
 
+// IMPORTANT: This list must stay byte-for-byte identical to
+// apps/web/src/lib/share/wordcode.ts. Any change invalidates existing codes.
 const WORDS = [
   'apfel', 'wolke', 'pferd', 'hut', 'baum', 'stein', 'fluss', 'berg', 'meer', 'wind',
   'sonne', 'mond', 'stern', 'feuer', 'erde', 'blatt', 'blume', 'gras', 'sand', 'eis',
@@ -20,16 +22,16 @@ const WORDS = [
   'krone', 'thron', 'burg', 'turm', 'mauer', 'bruecke', 'pfad', 'strasse', 'platz', 'park',
   'wiese', 'wald', 'feld', 'weide', 'koppel', 'stall', 'scheune', 'hof', 'garten', 'beet',
   'zaun', 'gatter', 'pforte', 'kamin', 'rauch', 'asche', 'kohle', 'glut', 'flamme', 'kerze',
-  'docht', 'leuchte', 'fackel', 'laterne', 'kristall', 'edelstein', 'gold',
+  'docht', 'ampel', 'leuchte', 'fackel', 'laterne', 'scherbe', 'linse', 'kristall', 'edelstein', 'gold',
   'silber', 'kupfer', 'eisen', 'stahl', 'zinn', 'blei', 'bronze', 'messing', 'platin', 'titan',
   'malve', 'rose', 'tulpe', 'lilie', 'mohn', 'aster', 'krokus', 'narzisse', 'veilchen', 'klee',
-  'farn', 'moos', 'pilz', 'wurzel', 'rinde', 'zweig', 'ast', 'samen', 'frucht',
+  'farn', 'moos', 'pilz', 'wurzel', 'rinde', 'zweig', 'ast', 'wipfel', 'samen', 'frucht',
   'kern', 'knospe', 'bluete', 'duft', 'aroma', 'geist', 'seele', 'herz', 'kopf', 'hand',
   'fuss', 'arm', 'bein', 'auge', 'ohr', 'mund', 'zahn', 'lippe', 'wange', 'stirn',
-  'haar', 'flechte', 'tropfen', 'welle',
+  'haar', 'flechte', 'quelle', 'tropfen', 'welle',
 ];
 
-const TOTAL = WORDS.length;
+const TOTAL = WORDS.length; // 255
 
 export function generateWordcode(id: string): string {
   const digest = createHash('sha256').update(`itsweber-send/wordcode/${id}`).digest();

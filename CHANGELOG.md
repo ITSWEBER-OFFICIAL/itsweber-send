@@ -8,6 +8,19 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
+- Complete account management UI with nine sub-pages: uploads, API tokens, profile, security, notifications, locale, theme, quota and audit log
+- Complete admin panel with five sub-pages: users, shares, audit log, system health and settings
+- Four-word handoff code receive: the `/r` route resolves a four-word code to the share ID and redirects to the download page
+- Two-factor authentication (TOTP/RFC 6238): setup, activation and login flow with a six-digit code step; implemented without external dependencies using `node:crypto`
+- API token management: create named tokens with an optional expiry date, copy-once reveal, list and revoke
+- Full internal documentation site at `/docs` with sub-pages for Security, API reference, Installation and Configuration; no external links
+- Audit log stored per-user and accessible system-wide for admins
+
+- M7 — S3/MinIO storage and webhooks
+  - Pluggable storage adapter: `STORAGE_BACKEND=s3` uses `@aws-sdk/client-s3` for blob storage
+  - Webhook delivery (`upload.created`, `download.completed`) with optional HMAC-SHA256 request signing
+  - `docker-compose.full.yml` with a MinIO sidecar for local S3 testing
+
 - M6 — Release preparation
   - Full documentation suite: `docs/INSTALL.md`, `docs/CONFIG.md`, `docs/API.md`, `docs/SECURITY.md`, `docs/ARCHITECTURE.md`
   - OpenAPI 3.0 specification served at `/api/v1/openapi.json` via `@fastify/swagger`; interactive Swagger UI at `/api/v1/docs` in development mode

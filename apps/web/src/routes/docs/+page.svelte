@@ -3,160 +3,185 @@
   import Shield from '$lib/components/icons/Shield.svelte';
   import Key from '$lib/components/icons/Key.svelte';
   import Files from '$lib/components/icons/Files.svelte';
-  import ExternalLink from '$lib/components/icons/ExternalLink.svelte';
+  import Gauge from '$lib/components/icons/Gauge.svelte';
+  import Globe from '$lib/components/icons/Globe.svelte';
+  import ChevronRight from '$lib/components/icons/ChevronRight.svelte';
 
-  const sections = [
+  const cards = [
     {
-      title: 'So funktioniert es',
       Icon: BookOpen,
-      body:
-        'Im Browser wird ein 256-Bit-Schlüssel erzeugt, jede Datei und ein Manifest mit AES-256-GCM verschlüsselt und nur die Geheimtexte zum Server hochgeladen. Der Schlüssel verlässt den Browser nie — er steckt im URL-Fragment.',
+      title: 'So funktioniert es',
+      body: 'Im Browser wird ein 256-Bit-Schlüssel erzeugt, jede Datei mit AES-256-GCM verschlüsselt und nur der Geheimtext zum Server hochgeladen. Der Schlüssel verlässt den Browser nie — er steckt im URL-Fragment hinter dem #.',
     },
     {
-      title: 'Sicherheit',
       Icon: Shield,
-      body:
-        'Der Server speichert nur Geheimtext, IVs, Ablaufzeit und Download-Limit. Selbst wer den Server hackt, sieht keine Dateinamen, MIME-Typen oder Inhalte. Optionale Passwörter werden mit PBKDF2 (200 000 Iterationen) gegen den Master-Key gewickelt.',
+      title: 'Sicherheitsmodell',
+      body: 'Der Server speichert ausschließlich Ciphertext. Selbst bei vollständiger Kompromittierung des Servers bleiben Dateinamen, MIME-Typen und Inhalte unsichtbar. Passwörter werden mit Argon2id gehasht (OWASP 2026).',
     },
     {
-      title: 'Schlüssel & Codes',
       Icon: Key,
-      body:
-        'Jeder Share kann zusätzlich zum Link über einen 4-Wort-Code geöffnet werden — leichter zu diktieren, gleiche Sicherheit. Optional ein Passwort, das vor dem Entschlüsseln abgefragt wird.',
+      title: 'Schlüssel & Codes',
+      body: 'Jeder Share hat eine lange URL mit #k=…-Fragment sowie einen leserlichen 4-Wort-Code zum Diktieren. Optional kann ein Passwort zusätzlich gesetzt werden, das den Master-Key mit PBKDF2 (200.000 Iterationen) umwickelt.',
     },
     {
+      Icon: Gauge,
       title: 'Speicher & Limits',
-      Icon: Files,
-      body:
-        'Default-Quota pro Account: 5 GB. Ablaufzeit: 1 Stunde bis 30 Tage. Download-Limit: 1× / 5× / 20× / unbegrenzt — Self-destruct nach Erreichen.',
+      body: 'Standard-Quota pro Account: 5 GB. Ablaufzeit: 1 Stunde bis 30 Tage. Download-Limit: 1× / 5× / 20× / unbegrenzt. Nach Erreichen des Limits wird der Share automatisch gelöscht.',
     },
+    {
+      Icon: Files,
+      title: 'Multi-File & Resume',
+      body: 'Mehrere Dateien können in einem Share gebündelt werden. Uploads laufen über das tus.io-Protokoll mit Chunk-Upload und automatischem Fortsetzen bei Verbindungsunterbrechung.',
+    },
+    {
+      Icon: Globe,
+      title: 'Self-Hosting',
+      body: 'Ein einzelner Docker-Container, keine externe Datenbank. SQLite läuft eingebettet, Dateien liegen im persistenten Volume. Caddy übernimmt HTTPS und Security-Header automatisch.',
+    },
+  ];
+
+  const quickLinks = [
+    { href: '/docs/security', label: 'Sicherheit & Threat Model' },
+    { href: '/docs/api', label: 'API-Referenz' },
+    { href: '/docs/install', label: 'Installation & Self-Hosting' },
+    { href: '/docs/config', label: 'Konfiguration (Env-Vars)' },
   ];
 </script>
 
-<main class="page">
-  <div class="hero">
-    <h1>Doku</h1>
-    <p class="lede">
-      Kurze Übersicht über die Funktionsweise von ITSWEBER Send. Die vollständige technische
-      Dokumentation liegt im
-      <a href="https://github.com/itsweber/itsweber-send" target="_blank" rel="noopener noreferrer">
-        Repository <ExternalLink size={14} />
-      </a>.
-    </p>
+<div class="doc-page">
+  <div class="page-hero">
+    <h1>Dokumentation</h1>
+    <p class="lede">Alles über Funktionsweise, Sicherheit und Betrieb von ITSWEBER Send.</p>
+    <span class="version-badge">v1.0.0</span>
   </div>
 
-  <div class="grid">
-    {#each sections as section}
-      {@const SvelteIcon = section.Icon}
-      <article class="panel">
+  <div class="card-grid">
+    {#each cards as card}
+      {@const Icon = card.Icon}
+      <article class="info-card panel">
         <div class="panel-body">
-          <div class="ico"><SvelteIcon size={22} /></div>
-          <h2>{section.title}</h2>
-          <p>{section.body}</p>
+          <div class="ico"><Icon size={20} /></div>
+          <h2>{card.title}</h2>
+          <p>{card.body}</p>
         </div>
       </article>
     {/each}
   </div>
 
-  <section class="links panel">
+  <section class="quick-nav panel">
     <div class="panel-h">
-      <h2>Externe Doku</h2>
+      <h2>Abschnitte</h2>
     </div>
-    <div class="panel-body links-body">
-      <a class="link-row" href="https://github.com/itsweber/itsweber-send/blob/main/docs/SECURITY.md" target="_blank" rel="noopener noreferrer">
-        <span>Security &amp; Threat Model</span>
-        <ExternalLink size={16} />
-      </a>
-      <a class="link-row" href="https://github.com/itsweber/itsweber-send/blob/main/docs/API.md" target="_blank" rel="noopener noreferrer">
-        <span>API-Referenz</span>
-        <ExternalLink size={16} />
-      </a>
-      <a class="link-row" href="https://github.com/itsweber/itsweber-send/blob/main/docs/INSTALL.md" target="_blank" rel="noopener noreferrer">
-        <span>Installation &amp; Self-Hosting</span>
-        <ExternalLink size={16} />
-      </a>
-      <a class="link-row" href="https://github.com/itsweber/itsweber-send/blob/main/docs/CONFIG.md" target="_blank" rel="noopener noreferrer">
-        <span>Konfiguration (env vars)</span>
-        <ExternalLink size={16} />
-      </a>
+    <div class="nav-list">
+      {#each quickLinks as link}
+        <a class="nav-row" href={link.href}>
+          <span>{link.label}</span>
+          <ChevronRight size={16} />
+        </a>
+      {/each}
     </div>
   </section>
-</main>
+
+  <section class="faq panel">
+    <div class="panel-h"><h2>Häufige Fragen</h2></div>
+    <div class="panel-body faq-body">
+      <details class="faq-item">
+        <summary>Kann der Server-Betreiber meine Dateien lesen?</summary>
+        <p>Nein. Alle Dateien werden vor dem Upload im Browser verschlüsselt. Der Server empfängt ausschließlich Ciphertext. Dateinamen, MIME-Typen und Inhalte sind für den Server nicht sichtbar.</p>
+      </details>
+      <details class="faq-item">
+        <summary>Was passiert mit dem Schlüssel?</summary>
+        <p>Der Schlüssel steht im URL-Fragment (#k=…). Browser senden Fragmente nicht im HTTP-Request. Er landet weder in Server-Logs noch wird er übertragen. Nur wer die vollständige URL kennt, kann entschlüsseln.</p>
+      </details>
+      <details class="faq-item">
+        <summary>Was bedeutet der 4-Wort-Code?</summary>
+        <p>Jeder Share bekommt einen menschenlesbaren Code aus 4 deutschen Wörtern (z. B. tasche-lampe-schnee-ofen). Dieser Code kann auf der Empfangen-Seite eingegeben werden, um den Share zu finden. Zum Entschlüsseln wird aber trotzdem die vollständige URL mit Schlüssel benötigt.</p>
+      </details>
+      <details class="faq-item">
+        <summary>Wie richte ich ITSWEBER Send ein?</summary>
+        <p>Ein Docker-Container genügt. Mit Caddy als Reverse-Proxy erhält der Container automatisch ein TLS-Zertifikat. Details stehen in der <a href="/docs/install">Installationsanleitung</a>.</p>
+      </details>
+      <details class="faq-item">
+        <summary>Gibt es eine REST-API?</summary>
+        <p>Ja. Alle Endpunkte sind unter <a href="/api/v1/docs">/api/v1/docs</a> als interaktive OpenAPI-Dokumentation erreichbar. API-Tokens können im Account-Bereich erstellt werden.</p>
+      </details>
+    </div>
+  </section>
+</div>
 
 <style>
-  .page {
-    max-width: 1080px;
-    margin: 0 auto;
-    padding: 56px 24px 100px;
+  .doc-page { max-width: 860px; }
+  .page-hero { margin-bottom: 32px; }
+  .page-hero h1 { margin: 0 0 8px; font-size: clamp(24px, 3vw, 32px); letter-spacing: -0.02em; }
+  .lede { color: var(--muted); margin: 0 0 12px; font-size: 15px; line-height: 1.55; }
+  .version-badge {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    color: var(--brand-strong);
+    background: var(--brand-soft);
+    padding: 3px 10px;
+    border-radius: 9999px;
   }
-  .hero {
-    text-align: center;
-    margin-bottom: 36px;
-  }
-  h1 {
-    margin: 0 0 8px;
-    font-size: clamp(28px, 4vw, 38px);
-    letter-spacing: -0.02em;
-  }
-  .lede {
-    color: var(--muted);
-    margin: 0 auto;
-    max-width: 580px;
-    font-size: 16px;
-    line-height: 1.6;
-  }
-  .lede a {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-  }
-  .grid {
+  .card-grid {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
-    gap: 14px;
+    gap: 12px;
     margin-bottom: 24px;
   }
-  @media (max-width: 720px) {
-    .grid {
-      grid-template-columns: 1fr;
-    }
-  }
-  .ico {
+  @media (max-width: 600px) { .card-grid { grid-template-columns: 1fr; } }
+  .info-card .ico {
     display: inline-flex;
     color: var(--brand);
     background: var(--brand-soft);
-    padding: 10px;
-    border-radius: var(--radius);
-    margin-bottom: 12px;
+    padding: 9px;
+    border-radius: var(--radius-sm);
+    margin-bottom: 10px;
   }
-  article h2 {
-    margin: 0 0 6px;
-    font-size: 17px;
-  }
-  article p {
-    color: var(--muted);
-    line-height: 1.55;
-    margin: 0;
-    font-size: 14px;
-  }
-  .links-body {
-    padding: 0;
-  }
-  .link-row {
+  .info-card h2 { margin: 0 0 5px; font-size: 15px; font-weight: 600; }
+  .info-card p { color: var(--muted); font-size: 13px; line-height: 1.55; margin: 0; }
+
+  .quick-nav { margin-bottom: 20px; }
+  .nav-list { padding: 0; }
+  .nav-row {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 14px 22px;
+    padding: 13px 20px;
     border-bottom: 1px solid var(--border);
     color: var(--text);
     text-decoration: none;
-    transition: background var(--transition-fast);
+    font-size: 14px;
+    transition: background var(--transition-fast), color var(--transition-fast);
   }
-  .link-row:last-child {
-    border-bottom: 0;
+  .nav-row:last-child { border-bottom: 0; }
+  .nav-row:hover { background: var(--surface-2); color: var(--brand); }
+
+  .faq { margin-bottom: 0; }
+  .faq-body { padding: 0; }
+  .faq-item {
+    border-bottom: 1px solid var(--border);
+    padding: 14px 20px;
   }
-  .link-row:hover {
-    background: var(--surface-2);
-    color: var(--brand);
+  .faq-item:last-child { border-bottom: 0; }
+  .faq-item summary {
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    color: var(--text);
+    list-style: none;
+    display: flex;
+    justify-content: space-between;
   }
+  .faq-item summary::-webkit-details-marker { display: none; }
+  .faq-item[open] summary { color: var(--brand); }
+  .faq-item p {
+    margin: 10px 0 0;
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+  .faq-item a { color: var(--brand); text-decoration: none; }
+  .faq-item a:hover { text-decoration: underline; }
 </style>

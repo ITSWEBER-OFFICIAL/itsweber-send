@@ -58,15 +58,15 @@ Inspired by the original Firefox Send and the [timvisee/send](https://github.com
 - Light, dark and system-preference themes
 - German and English UI (i18n-ready)
 - Installable as a PWA
-- Anonymous by default; optional account adds upload history, higher quota and future API-token support
+- Anonymous by default; optional account adds upload history, higher quota and API token management
 
 ### Operations
 
 - Single container, no external database or cache service required
 - SQLite by default
 - Health and readiness endpoints for container orchestrators
-- Optional Prometheus metrics (v1.1)
-- Webhooks for upload and download events (v1.1)
+- Webhooks for upload and download events
+- S3 / MinIO storage backend
 
 ---
 
@@ -129,7 +129,7 @@ All configuration is done via environment variables. Full reference: [docs/CONFI
 | --- | --- | --- |
 | `BASE_URL` | `http://localhost:3000` | Public URL the service is reachable under |
 | `NODE_ENV` | `development` | Set to `production` for production deployments |
-| `STORAGE_BACKEND` | `filesystem` | `filesystem` (default) or `s3` (v1.1) |
+| `STORAGE_BACKEND` | `filesystem` | `filesystem` (default) or `s3` for S3/MinIO |
 | `STORAGE_PATH` | `./data/uploads` | Filesystem-backend upload directory |
 | `DB_PATH` | `./data/shares.db` | SQLite database path |
 | `RATE_LIMIT_PER_MIN` | `60` | Per-IP request limit per minute |
@@ -162,7 +162,7 @@ All configuration is done via environment variables. Full reference: [docs/CONFI
 | Frontend | SvelteKit 2 + Svelte 5 + Vite | TailwindCSS v4, svelte-i18n |
 | Crypto | Web Crypto API | AES-256-GCM, PBKDF2 200 k iterations |
 | DB | better-sqlite3 | Embedded; no separate service |
-| Storage | Filesystem (default) / S3 plugin (v1.1) | Pluggable adapter |
+| Storage | Filesystem (default) / S3 (MinIO) plugin | Pluggable adapter |
 | Container | node:22-alpine, multi-stage | Non-root UID 10001, read-only rootfs |
 | Proxy | Caddy 2 | Automatic TLS, security headers |
 

@@ -5,6 +5,7 @@ import { z } from 'zod';
 import {
   getSharesByUser,
   getUserQuotaUsed,
+  getUserById,
   deleteShare,
   getApiTokensByUser,
   insertApiToken,
@@ -81,7 +82,6 @@ export function createAccountRoutes(storage: StorageAdapter) {
 
     app.get('/api/v1/account/profile', { preHandler: requireAuth }, async (request, reply) => {
       const user = request.user!;
-      const { getUserById } = await import('../db/sqlite.js');
       const full = getUserById(user.id);
       return reply.send({
         id: user.id,
@@ -119,7 +119,6 @@ export function createAccountRoutes(storage: StorageAdapter) {
     // ------------------------------------------------------------------ security
 
     app.get('/api/v1/account/security', { preHandler: requireAuth }, async (request, reply) => {
-      const { getUserById } = await import('../db/sqlite.js');
       const full = getUserById(request.user!.id);
       return reply.send({ totpEnabled: full?.totp_enabled === 1 });
     });
@@ -130,7 +129,6 @@ export function createAccountRoutes(storage: StorageAdapter) {
     });
 
     app.post('/api/v1/account/security/change-password', { preHandler: requireAuth }, async (request, reply) => {
-      const { getUserById } = await import('../db/sqlite.js');
       const user = getUserById(request.user!.id);
       if (!user) return reply.status(404).send({ error: 'User not found' });
 
@@ -148,7 +146,6 @@ export function createAccountRoutes(storage: StorageAdapter) {
     });
 
     app.post('/api/v1/account/security/2fa/setup', { preHandler: requireAuth }, async (request, reply) => {
-      const { getUserById } = await import('../db/sqlite.js');
       const user = getUserById(request.user!.id);
       if (!user) return reply.status(404).send({ error: 'User not found' });
 
@@ -162,7 +159,6 @@ export function createAccountRoutes(storage: StorageAdapter) {
     const Verify2FABody = z.object({ code: z.string().length(6) });
 
     app.post('/api/v1/account/security/2fa/verify', { preHandler: requireAuth }, async (request, reply) => {
-      const { getUserById } = await import('../db/sqlite.js');
       const user = getUserById(request.user!.id);
       if (!user?.totp_secret) return reply.status(400).send({ error: '2FA setup not started' });
 
@@ -188,7 +184,6 @@ export function createAccountRoutes(storage: StorageAdapter) {
     // ------------------------------------------------------------------ notifications
 
     app.get('/api/v1/account/notifications', { preHandler: requireAuth }, async (request, reply) => {
-      const { getUserById } = await import('../db/sqlite.js');
       const user = getUserById(request.user!.id);
       return reply.send({
         emailOnDownload: user?.email_on_download === 1,
@@ -250,7 +245,7 @@ export function createAccountRoutes(storage: StorageAdapter) {
 
       insertAuditLog({ user_id: request.user!.id, action: 'token.created', resource: id, ip: request.ip, created_at: now });
 
-      return reply.status(201).send({ id, token: rawToken, name: parsed.data.name, createdAt: now });
+      return reply.status(201).send({ id, token: rawToken, name: parsed.data.name, createdAt: now, expiresAt: parsed.data.expiresAt ?? null });
     });
 
     app.delete<{ Params: { id: string } }>(

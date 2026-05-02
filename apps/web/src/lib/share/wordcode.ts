@@ -3,9 +3,10 @@
  * shown in the share UI; the link itself remains the source of truth.
  *
  * The wordlist is a small set of common, easy-to-spell German nouns. Four
- * words give ~32 bits of indexing — same order of magnitude as the share-id
- * collision space (96 bits) is reduced to via salted SHA-256 here, which is
- * fine for "you read this aloud" purposes, not for security.
+ * words give ~32 bits of indexing — fine for "you read this aloud" purposes.
+ *
+ * IMPORTANT: This list must stay byte-for-byte identical to
+ * apps/api/src/utils/wordcode.ts. Any change invalidates existing codes.
  */
 
 const WORDS = [
@@ -17,24 +18,24 @@ const WORDS = [
   'ring', 'kamm', 'spiegel', 'uhr', 'glas', 'flasche', 'krug', 'kanne', 'teller', 'loeffel',
   'gabel', 'messer', 'topf', 'pfanne', 'ofen', 'herd', 'brot', 'kaese', 'milch', 'honig',
   'salz', 'pfeffer', 'kraut', 'beere', 'kirsche', 'birne', 'pflaume', 'traube', 'nuss', 'zimt',
-  'zucker', 'sahne', 'butter', 'salat', 'gurke', 'tomate', 'kartoffel', 'mohrrübe', 'zwiebel', 'knoblauch',
+  'zucker', 'sahne', 'butter', 'salat', 'gurke', 'tomate', 'kartoffel', 'mohrruebe', 'zwiebel', 'knoblauch',
   'hund', 'katze', 'maus', 'fuchs', 'wolf', 'baer', 'reh', 'hirsch', 'hase', 'igel',
   'eichhorn', 'biber', 'otter', 'dachs', 'specht', 'eule', 'falke', 'adler', 'taube', 'schwalbe',
-  'amsel', 'sperling', 'meise', 'fink', 'rabe', 'krähe', 'storch', 'kranich', 'reiher', 'schwan',
+  'amsel', 'sperling', 'meise', 'fink', 'rabe', 'kraehe', 'storch', 'kranich', 'reiher', 'schwan',
   'ente', 'gans', 'huhn', 'hahn', 'fisch', 'forelle', 'lachs', 'aal', 'krebs', 'muschel',
   'koralle', 'qualle', 'delfin', 'wal', 'hai', 'rochen', 'auto', 'rad', 'bus', 'zug',
   'schiff', 'boot', 'segel', 'anker', 'flugzeug', 'rakete', 'ballon', 'drachen', 'wagen', 'kutsche',
-  'sattel', 'zaeumchen', 'helm', 'panzer', 'schwert', 'schild', 'bogen', 'pfeil', 'speer', 'lanze',
+  'sattel', 'zaum', 'helm', 'panzer', 'schwert', 'schild', 'bogen', 'pfeil', 'speer', 'lanze',
   'krone', 'thron', 'burg', 'turm', 'mauer', 'bruecke', 'pfad', 'strasse', 'platz', 'park',
   'wiese', 'wald', 'feld', 'weide', 'koppel', 'stall', 'scheune', 'hof', 'garten', 'beet',
   'zaun', 'gatter', 'pforte', 'kamin', 'rauch', 'asche', 'kohle', 'glut', 'flamme', 'kerze',
-  'docht', 'lampe2', 'leuchte', 'fackel', 'laterne', 'spiegel2', 'glas2', 'kristall', 'edelstein', 'gold',
+  'docht', 'ampel', 'leuchte', 'fackel', 'laterne', 'scherbe', 'linse', 'kristall', 'edelstein', 'gold',
   'silber', 'kupfer', 'eisen', 'stahl', 'zinn', 'blei', 'bronze', 'messing', 'platin', 'titan',
   'malve', 'rose', 'tulpe', 'lilie', 'mohn', 'aster', 'krokus', 'narzisse', 'veilchen', 'klee',
-  'farn', 'moos', 'pilz', 'wurzel', 'rinde', 'zweig', 'ast', 'krone2', 'samen', 'frucht',
+  'farn', 'moos', 'pilz', 'wurzel', 'rinde', 'zweig', 'ast', 'wipfel', 'samen', 'frucht',
   'kern', 'knospe', 'bluete', 'duft', 'aroma', 'geist', 'seele', 'herz', 'kopf', 'hand',
   'fuss', 'arm', 'bein', 'auge', 'ohr', 'mund', 'zahn', 'lippe', 'wange', 'stirn',
-  'haar', 'flechte', 'krone3', 'tropfen', 'welle',
+  'haar', 'flechte', 'quelle', 'tropfen', 'welle',
 ];
 
 const TOTAL = WORDS.length; // 255
