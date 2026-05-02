@@ -1,3 +1,6 @@
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { existsSync } from 'node:fs';
 import Fastify from 'fastify';
 import { config } from './config.js';
 import { registerCore } from './plugins/core.js';
@@ -33,6 +36,31 @@ export async function buildServer() {
   // Upload / download routes
   await app.register(createUploadRoute(storage));
   await app.register(createDownloadRoute(storage));
+
+  // Serve the SvelteKit app as a fallback for all non-API routes (production only).
+  // Registered via setNotFoundHandler so Fastify's own routes (/api/*, /health) win first;
+  // in development, Vite serves the frontend on its own port and proxies /api back here.
+  if (config.env === 'production') {
+    const here = dirname(fileURLToPath(import.meta.url));
+    const handlerPath = resolve(here, '../../web/build/handler.js');
+    if (existsSync(handlerPath)) {
+      const mod = (await import(handlerPath)) as {
+        handler: (req: import('node:http').IncomingMessage, res: import('node:http').ServerResponse, next: (err?: unknown) => void) => void;
+      };
+      app.setNotFoundHandler((request, reply) => {
+        reply.hijack();
+        return new Promise<void>((resolvePromise, rejectPromise) => {
+          mod.handler(request.raw, reply.raw, (err?: unknown) => {
+            if (err) rejectPromise(err);
+            else resolvePromise();
+          });
+        });
+      });
+      app.log.info({ handlerPath }, 'SvelteKit handler mounted as notFoundHandler');
+    } else {
+      app.log.warn({ handlerPath }, 'SvelteKit build not found — API only');
+    }
+  }
 
   return app;
 }
