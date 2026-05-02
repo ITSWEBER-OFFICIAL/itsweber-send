@@ -1,0 +1,10 @@
+<script lang="ts">
+  import IconBase from './IconBase.svelte';
+  let { size = 24, title }: { size?: number | string; title?: string } = $props();
+</script>
+
+<IconBase {size} {title}>
+  <circle cx="12" cy="12" r="10" />
+  <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20" />
+  <path d="M2 12h20" />
+</IconBase>

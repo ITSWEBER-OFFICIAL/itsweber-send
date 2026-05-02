@@ -6,9 +6,9 @@
   import Monitor from '$lib/components/icons/Monitor.svelte';
 
   const options = [
-    { value: 'light' as const, label: 'theme.light', Icon: Sun },
-    { value: 'system' as const, label: 'theme.system', Icon: Monitor },
-    { value: 'dark' as const, label: 'theme.dark', Icon: Moon },
+    { value: 'light' as const, labelKey: 'theme.light', Icon: Sun },
+    { value: 'system' as const, labelKey: 'theme.system', Icon: Monitor },
+    { value: 'dark' as const, labelKey: 'theme.dark', Icon: Moon },
   ];
 </script>
 
@@ -20,10 +20,11 @@
       role="radio"
       aria-checked={theme.value === opt.value}
       class:active={theme.value === opt.value}
+      title={$_(opt.labelKey)}
       onclick={() => theme.set(opt.value)}
     >
-      <SvelteIcon size={14} />
-      <span>{$_(opt.label)}</span>
+      <SvelteIcon size={16} />
+      <span class="sr-only">{$_(opt.labelKey)}</span>
     </button>
   {/each}
 </div>
@@ -31,7 +32,7 @@
 <style>
   .toggle {
     display: inline-flex;
-    gap: 4px;
+    gap: 2px;
     padding: 4px;
     background: var(--surface-2);
     border: 1px solid var(--border);
@@ -40,17 +41,18 @@
   button {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    padding: 6px 12px;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
     border: 0;
     background: transparent;
     color: var(--muted);
     font-family: inherit;
-    font-size: 13px;
-    line-height: 1;
     cursor: pointer;
     border-radius: 9999px;
-    transition: background var(--transition-fast), color var(--transition-fast);
+    transition:
+      background var(--transition-fast),
+      color var(--transition-fast);
   }
   button:hover {
     color: var(--text);
@@ -59,5 +61,16 @@
     background: var(--surface);
     color: var(--text);
     box-shadow: var(--shadow-sm);
+  }
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
   }
 </style>

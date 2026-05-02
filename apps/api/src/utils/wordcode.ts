@@ -1,0 +1,44 @@
+import { createHash } from 'node:crypto';
+
+const WORDS = [
+  'apfel', 'wolke', 'pferd', 'hut', 'baum', 'stein', 'fluss', 'berg', 'meer', 'wind',
+  'sonne', 'mond', 'stern', 'feuer', 'erde', 'blatt', 'blume', 'gras', 'sand', 'eis',
+  'schnee', 'regen', 'sturm', 'donner', 'blitz', 'tag', 'nacht', 'morgen', 'abend', 'jahr',
+  'woche', 'stunde', 'minute', 'haus', 'tor', 'fenster', 'tisch', 'stuhl', 'bett', 'lampe',
+  'buch', 'feder', 'tinte', 'brief', 'paket', 'koffer', 'tasche', 'schluessel', 'schloss', 'kette',
+  'ring', 'kamm', 'spiegel', 'uhr', 'glas', 'flasche', 'krug', 'kanne', 'teller', 'loeffel',
+  'gabel', 'messer', 'topf', 'pfanne', 'ofen', 'herd', 'brot', 'kaese', 'milch', 'honig',
+  'salz', 'pfeffer', 'kraut', 'beere', 'kirsche', 'birne', 'pflaume', 'traube', 'nuss', 'zimt',
+  'zucker', 'sahne', 'butter', 'salat', 'gurke', 'tomate', 'kartoffel', 'mohrruebe', 'zwiebel', 'knoblauch',
+  'hund', 'katze', 'maus', 'fuchs', 'wolf', 'baer', 'reh', 'hirsch', 'hase', 'igel',
+  'eichhorn', 'biber', 'otter', 'dachs', 'specht', 'eule', 'falke', 'adler', 'taube', 'schwalbe',
+  'amsel', 'sperling', 'meise', 'fink', 'rabe', 'kraehe', 'storch', 'kranich', 'reiher', 'schwan',
+  'ente', 'gans', 'huhn', 'hahn', 'fisch', 'forelle', 'lachs', 'aal', 'krebs', 'muschel',
+  'koralle', 'qualle', 'delfin', 'wal', 'hai', 'rochen', 'auto', 'rad', 'bus', 'zug',
+  'schiff', 'boot', 'segel', 'anker', 'flugzeug', 'rakete', 'ballon', 'drachen', 'wagen', 'kutsche',
+  'sattel', 'zaum', 'helm', 'panzer', 'schwert', 'schild', 'bogen', 'pfeil', 'speer', 'lanze',
+  'krone', 'thron', 'burg', 'turm', 'mauer', 'bruecke', 'pfad', 'strasse', 'platz', 'park',
+  'wiese', 'wald', 'feld', 'weide', 'koppel', 'stall', 'scheune', 'hof', 'garten', 'beet',
+  'zaun', 'gatter', 'pforte', 'kamin', 'rauch', 'asche', 'kohle', 'glut', 'flamme', 'kerze',
+  'docht', 'leuchte', 'fackel', 'laterne', 'kristall', 'edelstein', 'gold',
+  'silber', 'kupfer', 'eisen', 'stahl', 'zinn', 'blei', 'bronze', 'messing', 'platin', 'titan',
+  'malve', 'rose', 'tulpe', 'lilie', 'mohn', 'aster', 'krokus', 'narzisse', 'veilchen', 'klee',
+  'farn', 'moos', 'pilz', 'wurzel', 'rinde', 'zweig', 'ast', 'samen', 'frucht',
+  'kern', 'knospe', 'bluete', 'duft', 'aroma', 'geist', 'seele', 'herz', 'kopf', 'hand',
+  'fuss', 'arm', 'bein', 'auge', 'ohr', 'mund', 'zahn', 'lippe', 'wange', 'stirn',
+  'haar', 'flechte', 'tropfen', 'welle',
+];
+
+const TOTAL = WORDS.length;
+
+export function generateWordcode(id: string): string {
+  const digest = createHash('sha256').update(`itsweber-send/wordcode/${id}`).digest();
+  const out: string[] = [];
+  for (let i = 0; i < 4; i++) {
+    const b0 = digest[i * 2] ?? 0;
+    const b1 = digest[i * 2 + 1] ?? 0;
+    const idx = b0 * 256 + b1;
+    out.push(WORDS[idx % TOTAL] ?? 'wort');
+  }
+  return out.join('-');
+}

@@ -1,6 +1,5 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { _ } from 'svelte-i18n';
   import { goto } from '$app/navigation';
   import { auth } from '$lib/stores/auth.svelte.js';
   import type { AdminStats } from '@itsweber-send/shared';
@@ -30,6 +29,20 @@
     return `${(bytes / 1024 / 1024 / 1024).toFixed(2)} GB`;
   }
 
+  function relativeDate(iso: string | null): string {
+    if (!iso) return 'nie';
+    const d = new Date(iso).getTime();
+    const diff = Date.now() - d;
+    const minutes = Math.floor(diff / (1000 * 60));
+    if (minutes < 1) return 'gerade eben';
+    if (minutes < 60) return `vor ${minutes} min`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `vor ${hours} h`;
+    const days = Math.floor(hours / 24);
+    if (days < 30) return `vor ${days} ${days === 1 ? 'Tag' : 'Tagen'}`;
+    return new Date(iso).toLocaleDateString();
+  }
+
   async function load() {
     loading = true;
     try {
@@ -37,8 +50,14 @@
         fetch('/api/v1/admin/stats'),
         fetch('/api/v1/admin/users'),
       ]);
-      if (statsRes.status === 401 || usersRes.status === 401) { await goto('/login'); return; }
-      if (statsRes.status === 403 || usersRes.status === 403) { forbidden = true; return; }
+      if (statsRes.status === 401 || usersRes.status === 401) {
+        await goto('/login');
+        return;
+      }
+      if (statsRes.status === 403 || usersRes.status === 403) {
+        forbidden = true;
+        return;
+      }
       if (statsRes.ok && usersRes.ok) {
         const stats = (await statsRes.json()) as AdminStats;
         const users = (await usersRes.json()) as AdminUser[];
@@ -54,191 +73,353 @@
       const check = setInterval(() => {
         if (auth.loaded) {
           clearInterval(check);
-          if (!auth.user) { void goto('/login'); return; }
+          if (!auth.user) {
+            void goto('/login');
+            return;
+          }
           void load();
         }
       }, 50);
     } else {
-      if (!auth.user) { void goto('/login'); return; }
+      if (!auth.user) {
+        void goto('/login');
+        return;
+      }
       void load();
     }
   });
+
+  const expiredCount = $derived.by(() => {
+    if (!data) return 0;
+    return Math.max(0, data.stats.totalShares - data.stats.activeShares);
+  });
 </script>
 
-<main class="page">
-  {#if loading}
-    <div class="center">
-      <span class="spinner" aria-hidden="true"></span>
-    </div>
+{#if loading}
+  <div class="center"><span class="spinner" aria-hidden="true"></span></div>
+{:else if forbidden}
+  <div class="forbidden">
+    <h1>403 — Forbidden</h1>
+    <p>Dieses Konto hat keine Admin-Rolle.</p>
+  </div>
+{:else if data}
+  <div class="crumbs"><a href="/admin">Admin</a> · Übersicht</div>
+  <h1 class="hello">Admin-Dashboard</h1>
+  <p class="sub">
+    System-Status, Nutzer und Storage-Auslastung. Die Statistiken werden live vom Server geladen.
+  </p>
 
-  {:else if forbidden}
-    <div class="center">
-      <p class="forbidden-text">403 — Forbidden</p>
+  <!-- Stat Cards -->
+  <div class="stats">
+    <div class="stat-card">
+      <div class="label">Nutzer</div>
+      <div class="value">{data.stats.totalUsers}</div>
+      <div class="delta">registrierte Konten</div>
     </div>
-
-  {:else if data}
-    <div class="header-row">
-      <h1 class="title">{$_('admin.title')}</h1>
+    <div class="stat-card">
+      <div class="label">Aktive Shares</div>
+      <div class="value">{data.stats.activeShares}</div>
+      <div class="delta">{expiredCount} bereits abgelaufen</div>
     </div>
-
-    <!-- Stats card -->
-    <div class="card stats-card">
-      <p class="section-label">{$_('admin.stats_title')}</p>
-      <div class="stats-grid">
-        <div class="stat-item">
-          <span class="stat-value">{data.stats.totalUsers}</span>
-          <span class="stat-label">{$_('admin.total_users')}</span>
-        </div>
-        <div class="stat-item">
-          <span class="stat-value">{data.stats.totalShares}</span>
-          <span class="stat-label">{$_('admin.total_shares')}</span>
-        </div>
-        <div class="stat-item">
-          <span class="stat-value">{data.stats.activeShares}</span>
-          <span class="stat-label">{$_('admin.active_shares')}</span>
-        </div>
-        <div class="stat-item">
-          <span class="stat-value">{formatBytes(data.stats.totalStorageBytes)}</span>
-          <span class="stat-label">{$_('admin.total_storage')}</span>
-        </div>
-      </div>
+    <div class="stat-card">
+      <div class="label">Shares gesamt</div>
+      <div class="value">{data.stats.totalShares}</div>
+      <div class="delta">über alle Nutzer</div>
     </div>
+    <div class="stat-card">
+      <div class="label">Speicher</div>
+      <div class="value">{formatBytes(data.stats.totalStorageBytes)}</div>
+      <div class="delta">Gesamtbelegung</div>
+    </div>
+  </div>
 
-    <!-- Users card -->
-    <div class="card users-card">
-      <p class="section-label">{$_('admin.users_title')}</p>
+  <!-- Users Table -->
+  <section class="panel">
+    <div class="panel-h">
+      <h2>Nutzer</h2>
+      <span class="hint-pill">{data.users.length} Konten</span>
+    </div>
+    <div class="panel-body table-body">
       {#if data.users.length === 0}
-        <p class="empty">—</p>
+        <p class="empty">Keine Nutzer registriert.</p>
       {:else}
-        <div class="table-wrap">
-          <table class="users-table">
-            <thead>
+        <table>
+          <thead>
+            <tr>
+              <th>Konto</th>
+              <th>Rolle</th>
+              <th>Quota</th>
+              <th>Erstellt</th>
+              <th>Letzter Login</th>
+            </tr>
+          </thead>
+          <tbody>
+            {#each data.users as user}
               <tr>
-                <th>{$_('admin.user_email')}</th>
-                <th>{$_('admin.user_role')}</th>
-                <th>{$_('admin.user_quota')}</th>
-                <th>{$_('admin.user_created')}</th>
-                <th>{$_('admin.user_last_login')}</th>
+                <td>
+                  <div class="user-cell">
+                    <span class="avatar">{(user.email[0] ?? '?').toUpperCase()}</span>
+                    <div class="user-stack">
+                      <div class="user-email" title={user.email}>{user.email}</div>
+                      <div class="user-id" title={user.id}>{user.id.slice(0, 12)}…</div>
+                    </div>
+                  </div>
+                </td>
+                <td>
+                  {#if user.role === 'admin'}
+                    <span class="badge badge-busy">Admin</span>
+                  {:else}
+                    <span class="badge badge-queue">Nutzer</span>
+                  {/if}
+                </td>
+                <td class="mono">{formatBytes(user.quotaBytes)}</td>
+                <td class="muted">{new Date(user.createdAt).toLocaleDateString()}</td>
+                <td class="muted">{relativeDate(user.lastLoginAt)}</td>
               </tr>
-            </thead>
-            <tbody>
-              {#each data.users as user}
-                <tr>
-                  <td class="td-email">{user.email}</td>
-                  <td>
-                    <span class="role-badge" class:role-admin={user.role === 'admin'}>
-                      {user.role === 'admin' ? $_('admin.role_admin') : $_('admin.role_user')}
-                    </span>
-                  </td>
-                  <td class="td-mono">{formatBytes(user.quotaBytes)}</td>
-                  <td class="td-date">{new Date(user.createdAt).toLocaleDateString()}</td>
-                  <td class="td-date">
-                    {user.lastLoginAt ? new Date(user.lastLoginAt).toLocaleDateString() : $_('admin.never')}
-                  </td>
-                </tr>
-              {/each}
-            </tbody>
-          </table>
-        </div>
+            {/each}
+          </tbody>
+        </table>
       {/if}
     </div>
-  {/if}
-</main>
+  </section>
+
+  <!-- System placeholder -->
+  <section class="panel">
+    <div class="panel-h">
+      <h2>System</h2>
+    </div>
+    <div class="panel-body">
+      <div class="kv">
+        <div><span class="k">Health-Check</span><span class="v"><a href="/health" target="_blank" rel="noopener noreferrer">/health</a></span></div>
+        <div><span class="k">Ready-Check</span><span class="v"><a href="/ready" target="_blank" rel="noopener noreferrer">/ready</a></span></div>
+        <div><span class="k">OpenAPI</span><span class="v"><a href="/api/v1/openapi.json" target="_blank" rel="noopener noreferrer">/api/v1/openapi.json</a></span></div>
+        <div><span class="k">Logs</span><span class="v">via <code class="mono">docker logs itsweber-send</code></span></div>
+      </div>
+    </div>
+  </section>
+{/if}
 
 <style>
-  .page { max-width: 860px; margin: 0 auto; padding: 60px 24px 80px; }
-
-  .center { display: flex; justify-content: center; padding: 80px; }
+  .center {
+    display: flex;
+    justify-content: center;
+    padding: 80px;
+  }
   .spinner {
-    width: 28px; height: 28px;
+    width: 28px;
+    height: 28px;
     border: 2.5px solid var(--border);
     border-top-color: var(--brand);
     border-radius: 50%;
     animation: spin 0.7s linear infinite;
   }
-  @keyframes spin { to { transform: rotate(360deg); } }
-  .forbidden-text { color: var(--muted); font-size: 16px; }
-
-  .header-row { display: flex; align-items: baseline; gap: 12px; margin-bottom: 24px; }
-  .title { margin: 0; font-size: 24px; font-weight: 700; letter-spacing: -0.02em; }
-
-  .card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 16px;
-    padding: 20px 22px;
-    box-shadow: 0 2px 12px rgba(0,0,0,0.05);
-    margin-bottom: 16px;
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
   }
-  .section-label {
-    font-size: 11px; text-transform: uppercase; letter-spacing: 0.07em;
-    color: var(--muted); margin: 0 0 16px; font-weight: 600;
+  .forbidden {
+    text-align: center;
+    padding: 80px 24px;
+  }
+  .forbidden h1 {
+    color: var(--danger);
+    margin: 0 0 8px;
+  }
+  .forbidden p {
+    color: var(--muted);
   }
 
-  /* Stats */
-  .stats-grid {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 12px;
-  }
-  .stat-item {
-    display: flex; flex-direction: column; gap: 4px;
-    background: var(--surface-2);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 14px 16px;
-  }
-  .stat-value { font-size: 22px; font-weight: 700; letter-spacing: -0.02em; }
-  .stat-label { font-size: 12px; color: var(--muted); }
-
-  /* Users table */
-  .empty { color: var(--muted); font-size: 14px; margin: 0; }
-  .table-wrap { overflow-x: auto; }
-  .users-table {
-    width: 100%;
-    border-collapse: collapse;
+  .crumbs {
+    color: var(--muted);
     font-size: 13px;
+    margin-bottom: 12px;
   }
-  .users-table th {
-    text-align: left;
-    font-size: 11px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: var(--muted);
-    padding: 0 12px 10px 0;
-    white-space: nowrap;
-    border-bottom: 1px solid var(--border);
-  }
-  .users-table td {
-    padding: 10px 12px 10px 0;
-    border-bottom: 1px solid var(--border);
-    vertical-align: middle;
-  }
-  .users-table tbody tr:last-child td { border-bottom: none; }
-  .td-email { font-weight: 500; max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .td-mono { font-family: var(--font-mono); font-size: 12px; }
-  .td-date { font-size: 12px; color: var(--muted); white-space: nowrap; }
-
-  .role-badge {
-    display: inline-block;
-    border-radius: 4px;
-    padding: 1px 7px;
-    font-size: 11px;
-    font-weight: 600;
-    background: var(--surface-2);
-    border: 1px solid var(--border);
-    color: var(--muted);
-  }
-  .role-badge.role-admin {
-    background: color-mix(in srgb, var(--brand) 12%, transparent);
-    border-color: color-mix(in srgb, var(--brand) 30%, transparent);
+  .crumbs a {
     color: var(--brand);
   }
+  .hello {
+    margin: 0 0 4px;
+    font-size: 28px;
+    letter-spacing: -0.02em;
+  }
+  .sub {
+    color: var(--muted);
+    margin: 0 0 28px;
+    font-size: 14px;
+    max-width: 640px;
+  }
 
-  @media (max-width: 600px) {
-    .page { padding: 32px 16px 60px; }
-    .card { padding: 16px; }
-    .stats-grid { grid-template-columns: repeat(2, 1fr); }
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+    margin-bottom: 22px;
+  }
+  @media (max-width: 760px) {
+    .stats {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 18px;
+    box-shadow: var(--shadow-card);
+  }
+  .stat-card .label {
+    font-size: 11px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 6px;
+    font-weight: 600;
+  }
+  .stat-card .value {
+    font-size: 26px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.1;
+  }
+  .stat-card .delta {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 4px;
+  }
+
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-card);
+    margin-bottom: 22px;
+  }
+  .panel-h {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 18px 22px;
+    border-bottom: 1px solid var(--border);
+  }
+  .panel-h h2 {
+    margin: 0;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    font-weight: 600;
+  }
+  .panel-body {
+    padding: 22px;
+  }
+  .table-body {
+    padding: 0;
+    overflow-x: auto;
+  }
+  .hint-pill {
+    color: var(--dim);
+    font-size: 12px;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+  }
+  th,
+  td {
+    text-align: left;
+    padding: 14px 22px;
+    border-bottom: 1px solid var(--border);
+  }
+  thead th {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--dim);
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  tbody tr:hover {
+    background: var(--surface-2);
+  }
+  tbody tr:last-child td {
+    border-bottom: 0;
+  }
+  .user-cell {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--brand), var(--brand-strong));
+    color: #0a1a26;
+    display: grid;
+    place-items: center;
+    font-weight: 700;
+    font-size: 13px;
+    flex-shrink: 0;
+  }
+  .user-stack {
+    min-width: 0;
+  }
+  .user-email {
+    font-weight: 500;
+    color: var(--text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 260px;
+  }
+  .user-id {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--dim);
+  }
+  .mono {
+    font-family: var(--font-mono);
+    font-size: 13px;
+  }
+  .muted {
+    color: var(--muted);
+    font-size: 13px;
+    white-space: nowrap;
+  }
+  .empty {
+    color: var(--muted);
+    font-size: 14px;
+    margin: 22px;
+  }
+
+  .kv {
+    display: grid;
+    gap: 10px;
+  }
+  .kv > div {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 14px;
+  }
+  .kv > div:last-child {
+    border-bottom: 0;
+  }
+  .kv .k {
+    color: var(--muted);
+  }
+  .kv .v {
+    font-family: var(--font-mono);
+    font-size: 13px;
+  }
+  .kv .v code {
+    background: var(--surface-2);
+    padding: 2px 6px;
+    border-radius: 4px;
   }
 </style>

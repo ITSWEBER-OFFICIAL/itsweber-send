@@ -11,7 +11,8 @@ import { createUploadRoute } from './routes/upload.js';
 import { createDownloadRoute } from './routes/download.js';
 import { authRoutes } from './routes/auth.js';
 import { createAccountRoutes } from './routes/account.js';
-import { adminRoutes } from './routes/admin.js';
+import { createAdminRoutes } from './routes/admin.js';
+import { receiveRoutes } from './routes/receive.js';
 import { FilesystemStorage } from './storage/filesystem.js';
 import { S3Storage } from './storage/s3.js';
 import type { StorageAdapter } from './storage/interface.js';
@@ -64,7 +65,8 @@ export async function buildServer() {
   // Auth, account, and admin routes
   await app.register(authRoutes);
   await app.register(createAccountRoutes(storage));
-  await app.register(adminRoutes);
+  await app.register(createAdminRoutes(storage));
+  await app.register(receiveRoutes);
 
   // Serve the SvelteKit app as a fallback for all non-API routes (production only).
   // Registered via setNotFoundHandler so Fastify's own routes (/api/*, /health) win first;

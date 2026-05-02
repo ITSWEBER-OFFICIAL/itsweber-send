@@ -63,6 +63,9 @@
     "downloading": "Downloading …"
   },
   "nav": {
+    "send": "Send",
+    "receive": "Receive",
+    "docs": "Docs",
     "login": "Sign in",
     "register": "Register",
     "logout": "Sign out",

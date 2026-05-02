@@ -20,8 +20,10 @@ import {
   insertUser,
   deleteSession,
   updateLastLogin,
+  insertAuditLog,
 } from '../db/sqlite.js';
 import { requireAuth } from '../plugins/session.js';
+import { verifyTotp } from '../utils/totp.js';
 
 // OWASP 2026 Argon2id defaults
 const ARGON2_OPTIONS = {
@@ -59,6 +61,7 @@ const RegisterBody = z.object({
 const LoginBody = z.object({
   email: z.string().email().transform((e) => e.toLowerCase().trim()),
   password: z.string().min(1).max(128),
+  totpCode: z.string().length(6).optional(),
 });
 
 // Per-route rate limits. Login and register are the prime brute-force targets:
@@ -110,6 +113,7 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
     insertSession({ id: sessionId, user_id: id, created_at: now, expires_at: expiresAt.toISOString() });
     setCookie(reply, sessionId);
 
+    insertAuditLog({ user_id: id, action: 'user.register', resource: null, ip: request.ip, created_at: now });
     app.log.info({ userId: id, email, role: isFirstUser ? 'admin' : 'user' }, 'user registered');
     return reply.status(201).send({ id, email, role: isFirstUser ? 'admin' : 'user' });
   });
@@ -124,7 +128,7 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
     if (!parsed.success) {
       return reply.status(400).send({ error: 'Invalid request' });
     }
-    const { email, password } = parsed.data;
+    const { email, password, totpCode } = parsed.data;
 
     const user = getUserByEmail(email);
     if (!user) {
@@ -138,8 +142,19 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
       return reply.status(401).send({ error: 'Invalid email or password' });
     }
 
+    // 2FA check
+    if (user.totp_enabled === 1 && user.totp_secret) {
+      if (!totpCode) {
+        return reply.status(202).send({ requires2FA: true });
+      }
+      if (!verifyTotp(user.totp_secret, totpCode)) {
+        return reply.status(401).send({ error: 'Invalid authenticator code' });
+      }
+    }
+
     const now = new Date().toISOString();
     updateLastLogin(user.id, now);
+    insertAuditLog({ user_id: user.id, action: 'user.login', resource: null, ip: request.ip, created_at: now });
 
     const sessionId = randomBytes(32).toString('hex');
     const expiresAt = sessionExpiryDate();
@@ -153,9 +168,8 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
   // POST /api/v1/auth/logout
   app.post('/api/v1/auth/logout', { preHandler: requireAuth }, async (request, reply) => {
     const sid = request.cookies?.sid;
-    if (sid) {
-      deleteSession(sid);
-    }
+    if (sid) deleteSession(sid);
+    insertAuditLog({ user_id: request.user!.id, action: 'user.logout', resource: null, ip: request.ip, created_at: new Date().toISOString() });
     clearCookie(reply);
     return reply.send({ ok: true });
   });

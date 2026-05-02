@@ -1,13 +1,16 @@
 <script lang="ts">
   import '../app.css';
   import { onMount } from 'svelte';
-  import { goto } from '$app/navigation';
   import { _ } from 'svelte-i18n';
+  import { page } from '$app/stores';
   import { initI18n } from '$lib/i18n/index.js';
   import { theme } from '$lib/stores/theme.svelte.js';
+  import { locale } from '$lib/stores/locale.svelte.js';
   import { auth } from '$lib/stores/auth.svelte.js';
   import BrandMark from '$lib/components/BrandMark.svelte';
   import ThemeToggle from '$lib/components/ThemeToggle.svelte';
+  import LangPill from '$lib/components/LangPill.svelte';
+  import UserChip from '$lib/components/UserChip.svelte';
 
   interface Props {
     children?: import('svelte').Snippet;
@@ -18,35 +21,50 @@
 
   onMount(() => {
     theme.hydrate();
+    locale.hydrate();
     void auth.load();
   });
 
-  async function handleLogout() {
-    await auth.logout();
-    await goto('/');
-  }
+  const navItems = [
+    { href: '/', key: 'nav.send', match: (p: string) => p === '/' },
+    { href: '/r', key: 'nav.receive', match: (p: string) => p.startsWith('/r') },
+    { href: '/account', key: 'nav.account', match: (p: string) => p.startsWith('/account') },
+    { href: '/docs', key: 'nav.docs', match: (p: string) => p.startsWith('/docs') },
+  ];
+
+  const pathname = $derived($page.url?.pathname ?? '/');
 </script>
 
 <header class="appbar">
-  <a class="brand" href="/">
-    <BrandMark size={28} />
+  <a class="brand" href="/" aria-label="ITSWEBER Send">
+    <span class="brand-mark"><BrandMark size={28} /></span>
     <span class="brand-text">ITSWEBER<span class="accent"> · Send</span></span>
   </a>
-  <nav class="nav-right">
+
+  <nav class="nav" aria-label="Hauptnavigation">
+    {#each navItems as item (item.href)}
+      <a
+        href={item.href}
+        class:active={item.match(pathname)}
+        aria-current={item.match(pathname) ? 'page' : undefined}
+      >
+        {$_(item.key)}
+      </a>
+    {/each}
+  </nav>
+
+  <div class="right-tools">
+    <LangPill />
+    <ThemeToggle />
     {#if auth.loaded}
       {#if auth.user}
-        {#if auth.user.role === 'admin'}
-          <a class="nav-link" href="/admin">{$_('nav.admin')}</a>
-        {/if}
-        <a class="nav-link" href="/account">{$_('nav.account')}</a>
-        <button class="nav-btn" onclick={handleLogout}>{$_('nav.logout')}</button>
+        <UserChip />
       {:else}
-        <a class="nav-link" href="/login">{$_('nav.login')}</a>
-        <a class="nav-link nav-link--accent" href="/register">{$_('nav.register')}</a>
+        <a class="auth-link" href="/login">{$_('nav.login')}</a>
+        <a class="auth-link auth-link--accent" href="/register">{$_('nav.register')}</a>
       {/if}
     {/if}
-    <ThemeToggle />
-  </nav>
+  </div>
 </header>
 
 {@render children?.()}
@@ -56,12 +74,13 @@
     position: sticky;
     top: 0;
     z-index: 30;
-    display: flex;
-    justify-content: space-between;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
     align-items: center;
-    padding: 14px 28px;
+    gap: 16px;
+    padding: 12px 28px;
     background: color-mix(in srgb, var(--surface) 85%, transparent);
-    backdrop-filter: blur(14px);
+    backdrop-filter: blur(14px) saturate(140%);
     border-bottom: 1px solid var(--border);
   }
   .brand {
@@ -71,40 +90,91 @@
     color: var(--text);
     text-decoration: none;
     font-weight: 700;
+    font-size: 16px;
     letter-spacing: -0.01em;
   }
-  .accent { color: var(--brand); }
+  .brand-mark {
+    color: var(--brand);
+    display: inline-flex;
+  }
+  .accent {
+    color: var(--brand);
+  }
 
-  .nav-right {
+  .nav {
+    display: flex;
+    gap: 4px;
+    justify-content: center;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .nav::-webkit-scrollbar {
+    display: none;
+  }
+  .nav a {
+    color: var(--muted);
+    text-decoration: none;
+    padding: 6px 14px;
+    border-radius: 9999px;
+    font-size: 14px;
+    white-space: nowrap;
+    transition:
+      color var(--transition-fast),
+      background var(--transition-fast);
+  }
+  .nav a:hover {
+    color: var(--text);
+  }
+  .nav a.active {
+    background: var(--surface-2);
+    color: var(--text);
+  }
+
+  .right-tools {
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: 10px;
+    justify-self: end;
   }
-  .nav-link {
-    padding: 6px 10px;
+  .auth-link {
+    padding: 6px 12px;
     font-size: 14px;
     color: var(--muted);
     text-decoration: none;
-    border-radius: 7px;
-    transition: color 0.15s, background 0.15s;
+    border-radius: 9999px;
+    transition: color var(--transition-fast), background var(--transition-fast);
   }
-  .nav-link:hover { color: var(--text); background: var(--surface-2); }
-  .nav-link--accent { color: var(--brand); }
-  .nav-link--accent:hover { color: var(--brand); opacity: 0.8; }
-  .nav-btn {
-    padding: 6px 10px;
-    font-size: 14px;
-    color: var(--muted);
-    background: transparent;
-    border: none;
-    border-radius: 7px;
-    cursor: pointer;
-    transition: color 0.15s, background 0.15s;
+  .auth-link:hover {
+    color: var(--text);
+    background: var(--surface-2);
   }
-  .nav-btn:hover { color: var(--text); background: var(--surface-2); }
+  .auth-link--accent {
+    color: var(--brand);
+  }
+  .auth-link--accent:hover {
+    color: var(--brand);
+    background: var(--brand-soft);
+  }
 
-  @media (max-width: 480px) {
-    .appbar { padding: 12px 16px; }
-    .nav-link, .nav-btn { padding: 5px 7px; font-size: 13px; }
+  @media (max-width: 880px) {
+    .appbar {
+      grid-template-columns: auto auto;
+      grid-template-rows: auto auto;
+      padding: 10px 16px;
+    }
+    .brand {
+      grid-row: 1;
+      grid-column: 1;
+    }
+    .right-tools {
+      grid-row: 1;
+      grid-column: 2;
+    }
+    .nav {
+      grid-row: 2;
+      grid-column: 1 / -1;
+      justify-content: flex-start;
+      padding-top: 6px;
+    }
   }
 </style>

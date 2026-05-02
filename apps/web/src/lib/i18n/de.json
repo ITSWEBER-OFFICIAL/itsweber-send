@@ -63,6 +63,9 @@
     "downloading": "Lade Datei …"
   },
   "nav": {
+    "send": "Senden",
+    "receive": "Empfangen",
+    "docs": "Doku",
     "login": "Anmelden",
     "register": "Registrieren",
     "logout": "Abmelden",

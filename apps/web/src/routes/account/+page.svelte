@@ -1,9 +1,13 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { _ } from 'svelte-i18n';
   import { goto } from '$app/navigation';
   import { auth } from '$lib/stores/auth.svelte.js';
   import type { AccountUpload } from '@itsweber-send/shared';
+  import Copy from '$lib/components/icons/Copy.svelte';
+  import Trash from '$lib/components/icons/Trash.svelte';
+  import RefreshCw from '$lib/components/icons/RefreshCw.svelte';
+  import Plus from '$lib/components/icons/Plus.svelte';
+  import ChevronRight from '$lib/components/icons/ChevronRight.svelte';
 
   interface AccountData {
     uploads: AccountUpload[];
@@ -13,6 +17,7 @@
   let data = $state<AccountData | null>(null);
   let loading = $state(true);
   let deletingId = $state<string | null>(null);
+  let copyId = $state<string | null>(null);
 
   function formatBytes(bytes: number): string {
     if (bytes < 1024) return `${bytes} B`;
@@ -21,11 +26,35 @@
     return `${(bytes / 1024 / 1024 / 1024).toFixed(2)} GB`;
   }
 
+  function relativeExpiry(iso: string, expired: boolean): string {
+    if (expired) return '—';
+    const d = new Date(iso).getTime();
+    const diff = d - Date.now();
+    if (diff < 0) return '—';
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    if (hours < 1) return `${Math.floor(diff / (1000 * 60))} min`;
+    if (hours < 24) return `in ${hours} h`;
+    const days = Math.floor(hours / 24);
+    return `in ${days} ${days === 1 ? 'Tag' : 'Tagen'}`;
+  }
+
+  function fileTypeBadge(name: string): { label: string; tone: string } {
+    const ext = (name.split('.').pop() || '').toLowerCase();
+    if (ext === 'pdf') return { label: 'PDF', tone: 'pdf' };
+    if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].includes(ext)) return { label: ext.toUpperCase(), tone: 'img' };
+    if (['zip', 'tar', 'gz', '7z'].includes(ext)) return { label: ext.toUpperCase(), tone: 'zip' };
+    if (['md', 'txt', 'log'].includes(ext)) return { label: ext.toUpperCase(), tone: 'txt' };
+    return { label: 'FILE', tone: 'def' };
+  }
+
   async function load() {
     loading = true;
     try {
       const res = await fetch('/api/v1/account/uploads');
-      if (res.status === 401) { await goto('/login'); return; }
+      if (res.status === 401) {
+        await goto('/login');
+        return;
+      }
       if (res.ok) data = (await res.json()) as AccountData;
     } finally {
       loading = false;
@@ -34,6 +63,7 @@
 
   async function deleteUpload(id: string) {
     if (deletingId) return;
+    if (!confirm('Diesen Share endgültig löschen?')) return;
     deletingId = id;
     try {
       const res = await fetch(`/api/v1/account/uploads/${id}`, { method: 'DELETE' });
@@ -45,244 +75,513 @@
     }
   }
 
+  async function copyId_(id: string) {
+    try {
+      await navigator.clipboard.writeText(id);
+      copyId = id;
+      setTimeout(() => {
+        if (copyId === id) copyId = null;
+      }, 1200);
+    } catch {
+      /* ignore */
+    }
+  }
+
+  function pct(used: number, total: number): number {
+    if (total === 0) return 0;
+    return Math.min(100, (used / total) * 100);
+  }
+
   onMount(() => {
     if (!auth.loaded) {
-      // Wait for auth to load before deciding to redirect
       const check = setInterval(() => {
         if (auth.loaded) {
           clearInterval(check);
-          if (!auth.user) { void goto('/login'); return; }
+          if (!auth.user) {
+            void goto('/login');
+            return;
+          }
           void load();
         }
       }, 50);
     } else {
-      if (!auth.user) { void goto('/login'); return; }
+      if (!auth.user) {
+        void goto('/login');
+        return;
+      }
       void load();
     }
   });
 
-  function quotaPct(used: number, total: number): number {
-    if (total === 0) return 0;
-    return Math.min(100, Math.round((used / total) * 100));
-  }
+  const stats = $derived.by(() => {
+    if (!data) return null;
+    const active = data.uploads.filter((u) => !u.expired).length;
+    const totalDownloads = data.uploads.reduce((s, u) => s + u.downloadsUsed, 0);
+    return { active, totalDownloads };
+  });
+
+  const recentUploads = $derived(
+    (data?.uploads ?? []).slice(0, 5).map((u) => {
+      const firstFile = u.id; // Backend exposes only id; filename inside encrypted manifest, not here.
+      return { ...u, filename: u.id.slice(0, 12), firstFile };
+    }),
+  );
 </script>
 
-<main class="page">
-  {#if loading}
-    <div class="center">
-      <span class="spinner" aria-hidden="true"></span>
-    </div>
+{#if loading}
+  <div class="center"><span class="spinner" aria-hidden="true"></span></div>
+{:else if data}
+  <div class="crumbs"><a href="/account">Account</a> · Übersicht</div>
+  <h1 class="hello">Hallo {auth.user?.email.split('@')[0]}</h1>
+  <p class="sub">
+    {#if auth.user?.role === 'admin'}Administrator-Konto · {/if}
+    {auth.user?.email}
+  </p>
 
-  {:else if data}
-    <div class="header-row">
-      <h1 class="title">{$_('account.title')}</h1>
-      {#if auth.user}
-        <span class="email-badge">{auth.user.email}</span>
+  <!-- Stat Cards -->
+  <div class="stats">
+    <div class="stat-card">
+      <div class="label">Aktive Uploads</div>
+      <div class="value">{stats?.active ?? 0}</div>
+      <div class="delta">{data.uploads.length} insgesamt</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Genutzter Speicher</div>
+      <div class="value">{formatBytes(data.quota.usedBytes)}</div>
+      <div class="delta">von {formatBytes(data.quota.totalBytes)}</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Downloads gesamt</div>
+      <div class="value">{stats?.totalDownloads ?? 0}</div>
+      <div class="delta">über alle Shares</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">API-Tokens</div>
+      <div class="value">0</div>
+      <div class="delta dim">verfügbar ab v1.1</div>
+    </div>
+  </div>
+
+  <!-- Quota -->
+  <section class="quota panel">
+    <div class="panel-body quota-body">
+      <div class="quota-head">
+        <h2>Speicher-Quota</h2>
+        <div class="v">
+          <b>{formatBytes(data.quota.usedBytes)}</b>
+          von {formatBytes(data.quota.totalBytes)} ·
+          {formatBytes(data.quota.remainingBytes)} frei
+        </div>
+      </div>
+      <div class="quota-bar">
+        <div class="seg used" style="width: {pct(data.quota.usedBytes, data.quota.totalBytes)}%"></div>
+      </div>
+      <div class="quota-legend">
+        <span><span class="dot used"></span>Belegt · {formatBytes(data.quota.usedBytes)}</span>
+        <span><span class="dot free"></span>Frei · {formatBytes(data.quota.remainingBytes)}</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Recent Uploads -->
+  <section class="panel">
+    <div class="panel-h">
+      <h2>Letzte Uploads</h2>
+      {#if data.uploads.length > 5}
+        <a class="link-btn" href="/account">Alle anzeigen <ChevronRight size={14} /></a>
       {/if}
     </div>
+    <div class="panel-body table-body">
+      {#if data.uploads.length === 0}
+        <p class="empty">
+          Du hast noch keine Uploads.
+          <a href="/">Jetzt eine Datei senden</a>.
+        </p>
+      {:else}
+        <table>
+          <thead>
+            <tr>
+              <th>Share</th>
+              <th>Größe</th>
+              <th>Downloads</th>
+              <th>Ablauf</th>
+              <th>Status</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {#each recentUploads as upload}
+              {@const badge = fileTypeBadge(upload.filename)}
+              <tr>
+                <td>
+                  <div class="file-cell">
+                    <div class="file-icon" data-tone={badge.tone}>{badge.label}</div>
+                    <span class="file-id" title={upload.id}>{upload.id.slice(0, 12)}…</span>
+                  </div>
+                </td>
+                <td>{formatBytes(upload.totalSizeBytes)}</td>
+                <td>
+                  {upload.downloadsUsed} /
+                  {upload.downloadLimit === 0 ? '∞' : upload.downloadLimit}
+                </td>
+                <td>{relativeExpiry(upload.expiresAt, upload.expired)}</td>
+                <td>
+                  {#if upload.expired}
+                    <span class="badge badge-queue">Abgelaufen</span>
+                  {:else}
+                    <span class="badge badge-ok">Aktiv</span>
+                  {/if}
+                  {#if upload.passwordProtected}
+                    <span class="badge badge-busy" style="margin-left: 4px;">PW</span>
+                  {/if}
+                </td>
+                <td>
+                  <div class="row-actions">
+                    {#if !upload.expired}
+                      <button type="button" title="ID kopieren" aria-label="ID kopieren" onclick={() => void copyId_(upload.id)}>
+                        {#if copyId === upload.id}
+                          <span class="ok">✓</span>
+                        {:else}
+                          <Copy size={14} />
+                        {/if}
+                      </button>
+                    {:else}
+                      <button type="button" title="Erneut hochladen (folgt)" aria-label="Erneut hochladen" disabled>
+                        <RefreshCw size={14} />
+                      </button>
+                    {/if}
+                    <button
+                      type="button"
+                      title="Löschen"
+                      aria-label="Löschen"
+                      onclick={() => void deleteUpload(upload.id)}
+                      disabled={deletingId === upload.id}
+                      class="danger"
+                    >
+                      <Trash size={14} />
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            {/each}
+          </tbody>
+        </table>
+      {/if}
+    </div>
+  </section>
 
-    <!-- Quota card -->
-    <div class="card quota-card">
-      <p class="section-label">{$_('account.quota_label')}</p>
-      <div class="quota-bar-wrap">
-        <div class="quota-bar" style="width: {quotaPct(data.quota.usedBytes, data.quota.totalBytes)}%"></div>
-      </div>
-      <p class="quota-text">
-        {formatBytes(data.quota.usedBytes)} / {formatBytes(data.quota.totalBytes)}
-        ({quotaPct(data.quota.usedBytes, data.quota.totalBytes)}%)
+  <!-- API Tokens placeholder -->
+  <section class="panel">
+    <div class="panel-h">
+      <h2>API-Tokens</h2>
+      <button type="button" class="btn btn-primary btn-sm" disabled title="Verfügbar ab v1.1">
+        <Plus size={14} /> Neuer Token
+      </button>
+    </div>
+    <div class="panel-body empty-tokens">
+      <p>
+        Persönliche Access-Tokens für CLI-Uploads und CI/CD-Pipelines folgen in v1.1.
+        Du kannst Shares aktuell direkt über die Web-UI oder die
+        <a href="/docs">REST-API mit Session-Cookie</a> erstellen.
       </p>
     </div>
-
-    <!-- Uploads list -->
-    <div class="card uploads-card">
-      <p class="section-label">{$_('account.uploads_title')}</p>
-      {#if data.uploads.length === 0}
-        <p class="empty">{$_('account.no_uploads')}</p>
-      {:else}
-        <ul class="uploads-list">
-          {#each data.uploads as upload}
-            <li class="upload-entry" class:expired={upload.expired}>
-              <div class="upload-meta">
-                <span class="upload-id">{upload.id.slice(0, 12)}…</span>
-                <span class="upload-size">{formatBytes(upload.totalSizeBytes)}</span>
-                {#if upload.expired}
-                  <span class="badge badge--expired">{$_('account.expired_label')}</span>
-                {/if}
-                {#if upload.passwordProtected}
-                  <span class="badge badge--lock">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
-                         stroke-linecap="round" stroke-linejoin="round" width="11" height="11" aria-hidden="true">
-                      <rect x="3" y="11" width="18" height="11" rx="2"/>
-                      <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-                    </svg>
-                  </span>
-                {/if}
-              </div>
-              <div class="upload-details">
-                <span class="upload-detail">
-                  {$_('account.expires')} {new Date(upload.expiresAt).toLocaleDateString()}
-                </span>
-                <span class="upload-detail">
-                  {upload.downloadLimit === 0
-                    ? $_('account.downloads_unlimited', { values: { used: upload.downloadsUsed } })
-                    : $_('account.downloads', { values: { used: upload.downloadsUsed, limit: upload.downloadLimit } })}
-                </span>
-              </div>
-              <div class="upload-actions">
-                {#if !upload.expired}
-                  <a class="btn-link" href="/d/{upload.id}" target="_blank" rel="noopener" aria-label="{$_('account.open_upload')} {upload.id}">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
-                         stroke-linecap="round" stroke-linejoin="round" width="13" height="13" aria-hidden="true">
-                      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
-                      <polyline points="15 3 21 3 21 9"/>
-                      <line x1="10" y1="14" x2="21" y2="3"/>
-                    </svg>
-                  </a>
-                {/if}
-                <button
-                  class="btn-delete"
-                  onclick={() => void deleteUpload(upload.id)}
-                  disabled={deletingId === upload.id}
-                  aria-label="{$_('account.delete_upload')} {upload.id}"
-                >
-                  {#if deletingId === upload.id}
-                    <span class="spinner-sm" aria-hidden="true"></span>
-                  {:else}
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
-                         stroke-linecap="round" stroke-linejoin="round" width="14" height="14" aria-hidden="true">
-                      <polyline points="3 6 5 6 21 6"/>
-                      <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
-                      <path d="M10 11v6"/>
-                      <path d="M14 11v6"/>
-                      <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
-                    </svg>
-                  {/if}
-                </button>
-              </div>
-            </li>
-          {/each}
-        </ul>
-      {/if}
-    </div>
-  {/if}
-</main>
+  </section>
+{/if}
 
 <style>
-  .page { max-width: 680px; margin: 0 auto; padding: 60px 24px 80px; }
-
-  .center { display: flex; justify-content: center; padding: 80px; }
+  .center {
+    display: flex;
+    justify-content: center;
+    padding: 80px;
+  }
   .spinner {
-    width: 28px; height: 28px;
+    width: 28px;
+    height: 28px;
     border: 2.5px solid var(--border);
     border-top-color: var(--brand);
     border-radius: 50%;
     animation: spin 0.7s linear infinite;
   }
-  @keyframes spin { to { transform: rotate(360deg); } }
-  .spinner-sm {
-    width: 13px; height: 13px;
-    border: 2px solid var(--border);
-    border-top-color: var(--brand);
-    border-radius: 50%;
-    animation: spin 0.7s linear infinite;
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
   }
 
-  .header-row { display: flex; align-items: baseline; gap: 12px; margin-bottom: 24px; flex-wrap: wrap; }
-  .title { margin: 0; font-size: 24px; font-weight: 700; letter-spacing: -0.02em; }
-  .email-badge {
-    font-size: 13px; color: var(--muted);
-    background: var(--surface-2);
-    border: 1px solid var(--border);
-    border-radius: 20px;
-    padding: 2px 10px;
+  .crumbs {
+    color: var(--muted);
+    font-size: 13px;
+    margin-bottom: 12px;
+  }
+  .crumbs a {
+    color: var(--brand);
+  }
+  .hello {
+    margin: 0 0 4px;
+    font-size: 28px;
+    letter-spacing: -0.02em;
+  }
+  .sub {
+    color: var(--muted);
+    margin: 0 0 28px;
+    font-size: 14px;
   }
 
-  .card {
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+    margin-bottom: 22px;
+  }
+  @media (max-width: 760px) {
+    .stats {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+  .stat-card {
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: 16px;
-    padding: 20px 22px;
-    box-shadow: 0 2px 12px rgba(0,0,0,0.05);
-    margin-bottom: 16px;
+    border-radius: var(--radius-lg);
+    padding: 18px;
+    box-shadow: var(--shadow-card);
   }
-  .section-label {
-    font-size: 11px; text-transform: uppercase; letter-spacing: 0.07em;
-    color: var(--muted); margin: 0 0 12px; font-weight: 600;
+  .stat-card .label {
+    font-size: 11px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 6px;
+    font-weight: 600;
+  }
+  .stat-card .value {
+    font-size: 26px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.1;
+  }
+  .stat-card .delta {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 4px;
+  }
+  .stat-card .delta.dim {
+    color: var(--dim);
   }
 
   /* Quota */
-  .quota-bar-wrap {
-    height: 8px;
-    background: var(--surface-2);
-    border: 1px solid var(--border);
-    border-radius: 99px;
-    overflow: hidden;
-    margin-bottom: 8px;
+  .quota {
+    margin-bottom: 22px;
+  }
+  .quota-body {
+    padding: 22px;
+  }
+  .quota-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 12px;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  .quota-head h2 {
+    margin: 0;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    font-weight: 600;
+  }
+  .quota-head .v {
+    font-size: 14px;
+    color: var(--muted);
+  }
+  .quota-head .v b {
+    color: var(--text);
   }
   .quota-bar {
-    height: 100%;
-    background: var(--brand);
-    border-radius: 99px;
-    transition: width 0.3s ease;
-    min-width: 2px;
+    height: 10px;
+    background: var(--surface-3);
+    border-radius: 9999px;
+    overflow: hidden;
+    display: flex;
   }
-  .quota-text { font-size: 13px; color: var(--muted); margin: 0; }
+  .quota-bar .seg {
+    height: 100%;
+    transition: width 0.4s;
+  }
+  .quota-bar .seg.used {
+    background: var(--brand);
+  }
+  .quota-legend {
+    display: flex;
+    gap: 18px;
+    margin-top: 10px;
+    font-size: 12px;
+    color: var(--muted);
+    flex-wrap: wrap;
+  }
+  .quota-legend .dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-right: 6px;
+    vertical-align: -1px;
+  }
+  .quota-legend .dot.used {
+    background: var(--brand);
+  }
+  .quota-legend .dot.free {
+    background: var(--surface-3);
+  }
 
-  /* Uploads */
-  .empty { color: var(--muted); font-size: 14px; margin: 0; }
-  .uploads-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; }
-  .upload-entry {
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-card);
+    margin-bottom: 22px;
+  }
+  .panel-h {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 18px 22px;
+    border-bottom: 1px solid var(--border);
+  }
+  .panel-h h2 {
+    margin: 0;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    font-weight: 600;
+  }
+  .panel-body {
+    padding: 22px;
+  }
+  .table-body {
+    padding: 0;
+  }
+  .link-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    color: var(--brand);
+    font-size: 13px;
+    text-decoration: none;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+  }
+  th,
+  td {
+    text-align: left;
+    padding: 14px 22px;
+    border-bottom: 1px solid var(--border);
+  }
+  thead th {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--dim);
+    font-weight: 600;
+  }
+  tbody tr:hover {
+    background: var(--surface-2);
+  }
+  tbody tr:last-child td {
+    border-bottom: 0;
+  }
+  .file-cell {
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 10px 12px;
-    background: var(--surface-2);
+  }
+  .file-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    background: var(--surface-3);
+    color: var(--muted);
+    display: grid;
+    place-items: center;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+  }
+  .file-icon[data-tone='pdf'] {
+    background: color-mix(in srgb, var(--danger) 15%, var(--surface-3));
+    color: var(--danger);
+  }
+  .file-icon[data-tone='img'] {
+    background: color-mix(in srgb, var(--warning) 15%, var(--surface-3));
+    color: var(--warning);
+  }
+  .file-icon[data-tone='zip'] {
+    background: color-mix(in srgb, var(--brand) 15%, var(--surface-3));
+    color: var(--brand-strong);
+  }
+  .file-icon[data-tone='txt'] {
+    background: color-mix(in srgb, var(--muted) 15%, var(--surface-3));
+    color: var(--muted);
+  }
+  .file-id {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--text);
+  }
+  .row-actions {
+    display: flex;
+    gap: 6px;
+    justify-content: flex-end;
+  }
+  .row-actions button {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
     border: 1px solid var(--border);
-    border-radius: 10px;
-    flex-wrap: wrap;
+    background: var(--surface);
+    color: var(--muted);
+    cursor: pointer;
+    display: grid;
+    place-items: center;
+    font-family: inherit;
+    transition: color var(--transition-fast), border-color var(--transition-fast);
   }
-  .upload-entry.expired { opacity: 0.55; }
-
-  .upload-meta { display: flex; align-items: center; gap: 6px; flex: 1; min-width: 0; flex-wrap: wrap; }
-  .upload-id { font-family: var(--font-mono); font-size: 13px; font-weight: 500; }
-  .upload-size { font-size: 12px; color: var(--muted); }
-
-  .badge {
-    display: inline-flex; align-items: center; gap: 3px;
-    border-radius: 4px; padding: 1px 6px; font-size: 11px; font-weight: 600;
+  .row-actions button:hover:not(:disabled) {
+    color: var(--text);
+    border-color: var(--border-strong);
   }
-  .badge--expired { background: color-mix(in srgb, #d9534f 15%, transparent); color: #d9534f; }
-  .badge--lock { background: color-mix(in srgb, var(--brand) 12%, transparent); color: var(--brand); }
-
-  .upload-details { display: flex; gap: 12px; flex-wrap: wrap; flex: 1; }
-  .upload-detail { font-size: 12px; color: var(--muted); white-space: nowrap; }
-
-  .upload-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
-  .btn-link {
-    display: inline-flex; align-items: center; justify-content: center;
-    width: 28px; height: 28px;
-    background: transparent; border: 1px solid var(--border);
-    border-radius: 6px; color: var(--muted);
-    cursor: pointer; transition: background 0.1s, color 0.1s;
-    text-decoration: none;
+  .row-actions button.danger:hover:not(:disabled) {
+    color: var(--danger);
+    border-color: color-mix(in srgb, var(--danger) 30%, var(--border));
   }
-  .btn-link:hover { background: var(--surface-3); color: var(--text); }
-  .btn-delete {
-    display: inline-flex; align-items: center; justify-content: center;
-    width: 28px; height: 28px;
-    background: transparent; border: 1px solid var(--border);
-    border-radius: 6px; color: var(--muted);
-    cursor: pointer; transition: background 0.1s, color 0.1s;
+  .row-actions button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
   }
-  .btn-delete:disabled { opacity: 0.5; cursor: not-allowed; }
-  .btn-delete:not(:disabled):hover {
-    background: color-mix(in srgb, #d9534f 12%, transparent);
-    color: #d9534f;
-    border-color: color-mix(in srgb, #d9534f 35%, transparent);
+  .row-actions .ok {
+    color: var(--success);
+    font-size: 16px;
+    font-weight: 700;
   }
-
-  @media (max-width: 480px) {
-    .page { padding: 32px 16px 60px; }
-    .card { padding: 16px; }
+  .empty {
+    color: var(--muted);
+    font-size: 14px;
+    margin: 0;
+  }
+  .empty-tokens p {
+    margin: 0;
+    color: var(--muted);
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  .btn-primary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
   }
 </style>

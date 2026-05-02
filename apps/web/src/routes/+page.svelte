@@ -1,13 +1,27 @@
 <script lang="ts">
   import { _ } from 'svelte-i18n';
   import { toCanvas as qrToCanvas } from 'qrcode';
-  import FileIcon from '$lib/components/icons/FileIcon.svelte';
+  import Upload from '$lib/components/icons/Upload.svelte';
+  import Lock from '$lib/components/icons/Lock.svelte';
+  import Folder from '$lib/components/icons/Folder.svelte';
+  import Plus from '$lib/components/icons/Plus.svelte';
+  import X from '$lib/components/icons/X.svelte';
+  import Pause from '$lib/components/icons/Pause.svelte';
+  import ShieldCheck from '$lib/components/icons/ShieldCheck.svelte';
+  import Mail from '$lib/components/icons/Mail.svelte';
+  import QrCode from '$lib/components/icons/QrCode.svelte';
+  import Eye from '$lib/components/icons/Eye.svelte';
+  import EyeOff from '$lib/components/icons/EyeOff.svelte';
+  import Check from '$lib/components/icons/Check.svelte';
   import { uploadFiles } from '$lib/upload/client.js';
+  import { wordCodeFromId } from '$lib/share/wordcode.js';
 
+  type FilePhase = 'queued' | 'encrypting' | 'encrypted' | 'uploading' | 'done';
   type Phase = 'idle' | 'encrypting' | 'uploading' | 'done' | 'error';
 
   let phase = $state<Phase>('idle');
   let selectedFiles = $state<File[]>([]);
+  let filePhases = $state<FilePhase[]>([]);
   let isDragOver = $state(false);
 
   // Settings
@@ -15,26 +29,29 @@
   let downloadLimit = $state(5);
   let usePassword = $state(false);
   let password = $state('');
+  let showPassword = $state(false);
+  let useWordcode = $state(true);
+  let useNotify = $state(false);
   let note = $state('');
 
   // Progress
   let uploadProgress = $state(0);
-  let encryptingStep = $state(0);
-  let encryptingTotal = $state(0);
 
   // Result
   let shareUrl = $state('');
+  let shareId = $state('');
+  let wordCode = $state('');
   let shareExpiresAt = $state('');
   let errorMsg = $state('');
-  let copiedLink = $state(false);
+  let copiedField = $state<'link' | 'word' | ''>('');
   let qrCanvas: HTMLCanvasElement | undefined = $state();
 
   $effect(() => {
     if (qrCanvas && shareUrl) {
       void qrToCanvas(qrCanvas, shareUrl, {
-        width: 180,
-        margin: 2,
-        color: { dark: '#111111', light: '#ffffff' },
+        width: 160,
+        margin: 1,
+        color: { dark: '#0a1a26', light: '#ffffff' },
       });
     }
   });
@@ -42,40 +59,37 @@
   function addFiles(incoming: FileList | null) {
     if (!incoming) return;
     const next = Array.from(incoming);
-    // Deduplicate by name+size
     const existing = new Set(selectedFiles.map((f) => `${f.name}|${f.size}`));
-    for (const f of next) {
-      if (!existing.has(`${f.name}|${f.size}`)) {
-        selectedFiles = [...selectedFiles, f];
-      }
-    }
+    const toAdd = next.filter((f) => !existing.has(`${f.name}|${f.size}`));
+    selectedFiles = [...selectedFiles, ...toAdd];
+    filePhases = [...filePhases, ...toAdd.map(() => 'queued' as FilePhase)];
   }
 
   function removeFile(index: number) {
     selectedFiles = selectedFiles.filter((_, i) => i !== index);
+    filePhases = filePhases.filter((_, i) => i !== index);
   }
 
   function onDragOver(e: DragEvent) {
     e.preventDefault();
     isDragOver = true;
   }
-
   function onDragLeave(e: DragEvent) {
-    // Only clear when leaving the drop zone itself, not a child element
     const related = e.relatedTarget as Node | null;
     if (related && (e.currentTarget as HTMLElement).contains(related)) return;
     isDragOver = false;
   }
-
   function onDrop(e: DragEvent) {
     e.preventDefault();
     isDragOver = false;
     addFiles(e.dataTransfer?.files ?? null);
   }
-
   function onFileInput(e: Event) {
     addFiles((e.target as HTMLInputElement).files);
     (e.target as HTMLInputElement).value = '';
+  }
+  function openPicker() {
+    (document.getElementById('file-input') as HTMLInputElement | null)?.click();
   }
 
   function formatBytes(bytes: number): string {
@@ -84,14 +98,34 @@
     if (bytes < 1024 * 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
     return `${(bytes / 1024 / 1024 / 1024).toFixed(2)} GB`;
   }
+  function formatExpiry(iso: string): string {
+    if (!iso) return '';
+    const d = new Date(iso);
+    return d.toLocaleString(undefined, {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  }
+  function fileTypeBadge(name: string, mime: string): { label: string; tone: 'pdf' | 'img' | 'zip' | 'doc' | 'def' } {
+    const ext = (name.split('.').pop() || '').toLowerCase();
+    if (ext === 'pdf') return { label: 'PDF', tone: 'pdf' };
+    if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'avif', 'svg', 'heic'].includes(ext)) return { label: ext.toUpperCase(), tone: 'img' };
+    if (['zip', 'tar', 'gz', '7z', 'rar'].includes(ext)) return { label: ext.toUpperCase(), tone: 'zip' };
+    if (mime.startsWith('image/')) return { label: 'IMG', tone: 'img' };
+    if (mime.startsWith('text/') || ['md', 'txt', 'doc', 'docx'].includes(ext)) return { label: ext.toUpperCase() || 'DOC', tone: 'doc' };
+    return { label: (ext || 'FILE').slice(0, 4).toUpperCase(), tone: 'def' };
+  }
+  const totalSelectedBytes = $derived(selectedFiles.reduce((s, f) => s + f.size, 0));
 
   async function startUpload() {
     if (selectedFiles.length === 0) return;
     errorMsg = '';
     uploadProgress = 0;
-    encryptingStep = 0;
-    encryptingTotal = selectedFiles.length;
     phase = 'encrypting';
+    filePhases = selectedFiles.map(() => 'queued');
 
     try {
       const result = await uploadFiles(selectedFiles, {
@@ -99,17 +133,25 @@
         downloadLimit,
         password: usePassword ? password : undefined,
         note: note.trim() || undefined,
-        onEncryptingStep: (step, total) => {
-          encryptingStep = step;
-          encryptingTotal = total;
+        onEncryptingStep: (step, _total) => {
+          // step is 1-based; mark step-1 encrypted, step encrypting
+          filePhases = filePhases.map((p, i) => {
+            if (i < step - 1) return 'encrypted';
+            if (i === step - 1) return 'encrypting';
+            return 'queued';
+          });
         },
         onProgress: (p) => {
           uploadProgress = p;
           phase = 'uploading';
+          filePhases = filePhases.map(() => 'uploading');
         },
       });
+      shareId = result.id;
       shareUrl = `${window.location.origin}/d/${result.id}#k=${result.key}`;
+      wordCode = await wordCodeFromId(result.id);
       shareExpiresAt = result.expiresAt;
+      filePhases = filePhases.map(() => 'done');
       phase = 'done';
     } catch (e) {
       errorMsg = e instanceof Error ? e.message : 'Unbekannter Fehler';
@@ -117,136 +159,113 @@
     }
   }
 
-  async function copyLink() {
-    await navigator.clipboard.writeText(shareUrl);
-    copiedLink = true;
-    setTimeout(() => { copiedLink = false; }, 2000);
+  async function copyToClipboard(value: string, kind: 'link' | 'word') {
+    try {
+      await navigator.clipboard.writeText(value);
+      copiedField = kind;
+      setTimeout(() => {
+        if (copiedField === kind) copiedField = '';
+      }, 1800);
+    } catch {
+      /* clipboard denied */
+    }
   }
 
-  function reset() {
+  function newUpload() {
     phase = 'idle';
     selectedFiles = [];
+    filePhases = [];
     shareUrl = '';
+    shareId = '';
+    wordCode = '';
     shareExpiresAt = '';
     errorMsg = '';
     password = '';
     note = '';
     usePassword = false;
-    copiedLink = false;
+    showPassword = false;
+    copiedField = '';
     uploadProgress = 0;
-    encryptingStep = 0;
   }
 
-  const expiryOptions = [
-    { value: 1, label: 'upload.expiry_1h' },
-    { value: 24, label: 'upload.expiry_24h' },
-    { value: 24 * 7, label: 'upload.expiry_7d' },
-    { value: 24 * 30, label: 'upload.expiry_30d' },
-  ] as const;
+  function downloadQrPng() {
+    if (!qrCanvas) return;
+    const link = document.createElement('a');
+    link.download = `share-${shareId}.png`;
+    link.href = qrCanvas.toDataURL('image/png');
+    link.click();
+  }
+  function emailShare() {
+    const subject = encodeURIComponent('Datei für dich');
+    const body = encodeURIComponent(
+      `Hi,\n\nhier ist dein verschlüsselter Share-Link:\n${shareUrl}\n\nDer Link verfällt automatisch.\n`,
+    );
+    window.location.href = `mailto:?subject=${subject}&body=${body}`;
+  }
 
-  const dlOptions = [
-    { value: 1, label: 'upload.dl_1' },
-    { value: 5, label: 'upload.dl_5' },
-    { value: 20, label: 'upload.dl_20' },
-    { value: 0, label: 'upload.dl_unlimited' },
-  ] as const;
+  const expiryChips = [
+    { value: 1, label: '1 h' },
+    { value: 24, label: '24 h' },
+    { value: 24 * 7, label: '7 Tage' },
+    { value: 24 * 30, label: '30 Tage' },
+  ];
+  const dlChips = [
+    { value: 1, label: '1×' },
+    { value: 5, label: '5×' },
+    { value: 20, label: '20×' },
+    { value: 0, label: '∞' },
+  ];
+
+  const remainingDownloadsLabel = $derived(downloadLimit === 0 ? '∞' : String(downloadLimit));
 </script>
 
 <main class="page">
   <section class="hero">
     <h1>{$_('home.title')}</h1>
     <p class="lede">{$_('home.lede')}</p>
+    <div class="pill-row">
+      <span class="pill"><span class="dot"></span>AES-256-GCM im Browser</span>
+      <span class="pill">Bis 5 GB pro Datei</span>
+      <span class="pill">Keine Registrierung nötig</span>
+    </div>
   </section>
 
-  <div class="card-wrap">
-
-    {#if phase === 'done'}
-      <div class="card result-card">
-        <div class="result-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
-               stroke-linecap="round" stroke-linejoin="round" width="40" height="40" aria-hidden="true">
-            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-            <polyline points="22 4 12 14.01 9 11.01"/>
-          </svg>
-        </div>
-        <h2>{$_('upload.result_title')}</h2>
-
-        <p class="result-label">{$_('upload.result_link_label')}</p>
-        <div class="link-row">
-          <input class="link-input" type="text" readonly value={shareUrl} aria-label="Share URL" />
-          <button class="btn-copy" onclick={copyLink}>
-            {copiedLink ? $_('upload.copied') : $_('upload.copy_link')}
-          </button>
-        </div>
-
-        <div class="qr-section">
-          <p class="qr-label">{$_('upload.qr_label')}</p>
-          <div class="qr-wrap">
-            <canvas bind:this={qrCanvas} width="180" height="180" aria-label="QR-Code"></canvas>
+  <div class="bento">
+    <!-- LEFT: Upload Panel -->
+    <section class="panel">
+      <div class="panel-h">
+        <h2>Upload</h2>
+        <span class="enc-pill"><Lock size={14} /> wird im Browser verschlüsselt</span>
+      </div>
+      <div class="panel-body">
+        {#if phase === 'idle' || phase === 'error'}
+          <!-- Drop zone -->
+          <!-- svelte-ignore a11y_interactive_supports_focus -->
+          <div
+            class="dropzone"
+            class:active={isDragOver}
+            class:has-files={selectedFiles.length > 0}
+            role="button"
+            ondragover={onDragOver}
+            ondragleave={onDragLeave}
+            ondrop={onDrop}
+            onclick={openPicker}
+            onkeydown={(e) => e.key === 'Enter' && openPicker()}
+            tabindex="0"
+            aria-label="Dateien hochladen"
+          >
+            <Upload size={44} />
+            <div class="title">Dateien hierher ziehen</div>
+            <div class="sub">
+              oder Ordner — Multi-Upload wird automatisch als ZIP gepackt
+            </div>
+            <div class="or">oder</div>
+            <button type="button" class="btn btn-primary" onclick={(e) => { e.stopPropagation(); openPicker(); }}>
+              <Folder size={16} />
+              Dateien auswählen
+            </button>
           </div>
-        </div>
-
-        {#if shareExpiresAt}
-          <p class="expiry-note">
-            Link läuft ab: {new Date(shareExpiresAt).toLocaleString()}
-          </p>
         {/if}
-        <button class="btn-secondary" onclick={reset}>{$_('upload.new_upload')}</button>
-      </div>
-
-    {:else if phase === 'error'}
-      <div class="card error-card">
-        <h2>{$_('upload.error_title')}</h2>
-        <p class="error-msg">{errorMsg}</p>
-        <button class="btn-primary" onclick={reset}>{$_('upload.new_upload')}</button>
-      </div>
-
-    {:else if phase === 'encrypting'}
-      <div class="card center-card">
-        <span class="spinner" aria-hidden="true"></span>
-        <p>
-          {$_('upload.encrypting_step', { values: { step: encryptingStep, total: encryptingTotal } })}
-        </p>
-      </div>
-
-    {:else if phase === 'uploading'}
-      <div class="card center-card">
-        <p class="progress-label">{$_('upload.uploading')}</p>
-        <div class="progress-bar-wrap" role="progressbar" aria-valuenow={Math.round(uploadProgress * 100)} aria-valuemin={0} aria-valuemax={100}>
-          <div class="progress-bar" style="width: {Math.round(uploadProgress * 100)}%"></div>
-        </div>
-        <p class="progress-pct">{Math.round(uploadProgress * 100)}%</p>
-      </div>
-
-    {:else}
-      <div class="card upload-card">
-        <!-- Drop zone -->
-        <!-- svelte-ignore a11y_interactive_supports_focus -->
-        <div
-          class="drop-zone"
-          class:drag-over={isDragOver}
-          class:has-files={selectedFiles.length > 0}
-          role="button"
-          ondragover={onDragOver}
-          ondragleave={onDragLeave}
-          ondrop={onDrop}
-          onclick={() => (document.getElementById('file-input') as HTMLInputElement | null)?.click()}
-          onkeydown={(e) => e.key === 'Enter' && (document.getElementById('file-input') as HTMLInputElement | null)?.click()}
-          tabindex="0"
-          aria-label="Dateien hochladen"
-        >
-          <svg class="drop-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-               stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"
-               width="36" height="36" aria-hidden="true">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-            <polyline points="17 8 12 3 7 8"/>
-            <line x1="12" y1="3" x2="12" y2="15"/>
-          </svg>
-          <p class="drop-hint">
-            {$_('upload.drop_hint')}
-            <span class="browse-text">{$_('upload.browse')}</span>
-          </p>
-        </div>
 
         <input
           id="file-input"
@@ -256,480 +275,802 @@
           onchange={onFileInput}
         />
 
-        <!-- File list -->
-        {#if selectedFiles.length > 0}
-          <ul class="file-list" aria-label="Ausgewählte Dateien">
-            {#each selectedFiles as file, i}
-              <li class="file-entry">
-                <span class="file-entry-icon"><FileIcon size={15} /></span>
-                <span class="file-entry-name" title={file.name}>{file.name}</span>
-                <span class="file-entry-size">{formatBytes(file.size)}</span>
-                <button
-                  class="btn-remove"
-                  onclick={() => removeFile(i)}
-                  aria-label="{$_('upload.remove_file')}: {file.name}"
-                >
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                       stroke-linecap="round" stroke-linejoin="round" width="13" height="13" aria-hidden="true">
-                    <line x1="18" y1="6" x2="6" y2="18"/>
-                    <line x1="6" y1="6" x2="18" y2="18"/>
-                  </svg>
-                </button>
-              </li>
-            {/each}
-          </ul>
-          <button
-            class="btn-add-files"
-            onclick={() => (document.getElementById('file-input') as HTMLInputElement | null)?.click()}
-          >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
-                 stroke-linecap="round" stroke-linejoin="round" width="14" height="14" aria-hidden="true">
-              <line x1="12" y1="5" x2="12" y2="19"/>
-              <line x1="5" y1="12" x2="19" y2="12"/>
-            </svg>
-            {$_('upload.add_files')}
-          </button>
+        {#if errorMsg}
+          <div class="err-banner">{errorMsg}</div>
         {/if}
 
-        <!-- Settings -->
-        <div class="settings">
-          <div class="setting-row">
-            <label class="setting-label" for="expiry">{$_('upload.expiry_label')}</label>
-            <select id="expiry" class="select" bind:value={expiryHours}>
-              {#each expiryOptions as opt}
-                <option value={opt.value}>{$_(opt.label)}</option>
-              {/each}
-            </select>
+        <!-- File list -->
+        {#if selectedFiles.length > 0}
+          <div class="file-list">
+            {#each selectedFiles as file, i}
+              {@const badge = fileTypeBadge(file.name, file.type)}
+              {@const fp = filePhases[i] ?? 'queued'}
+              <div class="file-row" class:done={fp === 'encrypted' || fp === 'done'} class:active={fp === 'encrypting' || fp === 'uploading'}>
+                <div class="file-icon" data-tone={badge.tone}>{badge.label}</div>
+                <div class="file-meta">
+                  <div class="file-name" title={file.name}>{file.name}</div>
+                  <div class="file-sub">
+                    <span>{formatBytes(file.size)}</span>
+                    {#if fp === 'queued'}
+                      <span class="badge badge-queue">Warteschlange</span>
+                    {:else if fp === 'encrypting'}
+                      <span class="badge badge-busy">Verschlüsselt</span>
+                    {:else if fp === 'encrypted'}
+                      <span class="badge badge-ok"><Check size={10} /> Verschlüsselt</span>
+                    {:else if fp === 'uploading'}
+                      <span class="badge badge-busy">Lädt {Math.round(uploadProgress * 100)}%</span>
+                    {:else if fp === 'done'}
+                      <span class="badge badge-ok"><Check size={10} /> Übertragen</span>
+                    {/if}
+                  </div>
+                  {#if fp === 'uploading'}
+                    <div class="progress"><span style="width: {Math.round(uploadProgress * 100)}%"></span></div>
+                  {/if}
+                </div>
+                <div class="file-actions">
+                  {#if phase === 'idle' || phase === 'error'}
+                    <button type="button" title="Entfernen" aria-label="Entfernen" onclick={() => removeFile(i)}>
+                      <X size={14} />
+                    </button>
+                  {:else if fp === 'uploading'}
+                    <button type="button" title="Pause" aria-label="Pause" disabled>
+                      <Pause size={14} />
+                    </button>
+                  {/if}
+                </div>
+              </div>
+            {/each}
           </div>
 
-          <div class="setting-row">
-            <label class="setting-label" for="dl-limit">{$_('upload.dl_label')}</label>
-            <select id="dl-limit" class="select" bind:value={downloadLimit}>
-              {#each dlOptions as opt}
-                <option value={opt.value}>{$_(opt.label)}</option>
-              {/each}
-            </select>
-          </div>
+          {#if phase === 'idle' || phase === 'error'}
+            <button class="btn-add" type="button" onclick={openPicker}>
+              <Plus size={14} /> Weitere Dateien
+            </button>
+          {/if}
+        {/if}
 
-          <div class="setting-row">
-            <label class="setting-label toggle-label">
-              <span>{$_('upload.password_label')}</span>
-              <input type="checkbox" bind:checked={usePassword} class="toggle-input" />
-              <span class="toggle-track" aria-hidden="true"></span>
-            </label>
-          </div>
+        <!-- Result card after success -->
+        {#if phase === 'done'}
+          <div class="result">
+            <h3><span class="ico"><ShieldCheck size={20} /></span> Bereit zum Teilen</h3>
+            <p class="subtitle">
+              {selectedFiles.length === 1 ? selectedFiles[0]!.name : `${selectedFiles.length} Dateien`}
+              · läuft ab am {formatExpiry(shareExpiresAt)}
+            </p>
 
+            <div class="share-grid">
+              <div class="qr">
+                <canvas bind:this={qrCanvas} width="160" height="160" aria-label="QR-Code"></canvas>
+              </div>
+              <div class="share-fields">
+                <div class="field">
+                  <div class="field-stack">
+                    <div class="label">Sharing-Link</div>
+                    <div class="val" title={shareUrl}>{shareUrl}</div>
+                  </div>
+                  <button class="copy-btn" type="button" onclick={() => copyToClipboard(shareUrl, 'link')}>
+                    {copiedField === 'link' ? 'Kopiert' : 'Kopieren'}
+                  </button>
+                </div>
+                {#if useWordcode}
+                  <div class="field">
+                    <div class="field-stack">
+                      <div class="label">4-Wort-Code</div>
+                      <div class="val">{wordCode}</div>
+                    </div>
+                    <button class="copy-btn" type="button" onclick={() => copyToClipboard(wordCode, 'word')}>
+                      {copiedField === 'word' ? 'Kopiert' : 'Kopieren'}
+                    </button>
+                  </div>
+                {/if}
+                {#if usePassword && password}
+                  <div class="field">
+                    <div class="field-stack">
+                      <div class="label">Passwort</div>
+                      <div class="val">{showPassword ? password : '•'.repeat(Math.min(password.length, 12))}</div>
+                    </div>
+                    <button class="copy-btn ghost" type="button" onclick={() => (showPassword = !showPassword)}>
+                      {showPassword ? 'Verbergen' : 'Anzeigen'}
+                    </button>
+                  </div>
+                {/if}
+              </div>
+            </div>
+
+            <div class="meta-row">
+              <span><b>{remainingDownloadsLabel}</b> Downloads übrig</span>
+              <span>Ablauf: <b>{formatExpiry(shareExpiresAt)}</b></span>
+              <span><b>{formatBytes(totalSelectedBytes)}</b> · {selectedFiles.length} {selectedFiles.length === 1 ? 'Datei' : 'Dateien'}</span>
+              <span class="meta-actions">
+                <button type="button" class="btn btn-ghost btn-sm" onclick={downloadQrPng}>
+                  <QrCode size={14} /> QR speichern
+                </button>
+                <button type="button" class="btn btn-ghost btn-sm" onclick={emailShare}>
+                  <Mail size={14} /> Als E-Mail
+                </button>
+              </span>
+            </div>
+
+            <button type="button" class="new-upload" onclick={newUpload}>Neuer Upload</button>
+          </div>
+        {/if}
+
+        {#if (phase === 'idle' || phase === 'error') && selectedFiles.length > 0}
+          <button
+            class="btn btn-primary upload-btn"
+            type="button"
+            disabled={selectedFiles.length === 0}
+            onclick={startUpload}
+          >
+            <Lock size={16} /> Verschlüsseln &amp; hochladen
+          </button>
+        {/if}
+      </div>
+    </section>
+
+    <!-- RIGHT: Settings Panel -->
+    <aside class="panel">
+      <div class="panel-h">
+        <h2>Einstellungen</h2>
+        <span class="hint-pill">gilt für diesen Upload</span>
+      </div>
+      <div class="panel-body settings-body">
+        <div class="opt">
+          <div class="opt-label">
+            <span>Ablaufzeit</span>
+            <span class="hint">max. 30 Tage</span>
+          </div>
+          <div class="opt-control">
+            {#each expiryChips as chip}
+              <button
+                type="button"
+                class="chip"
+                class:active={expiryHours === chip.value}
+                onclick={() => (expiryHours = chip.value)}
+              >
+                {chip.label}
+              </button>
+            {/each}
+          </div>
+        </div>
+
+        <div class="opt">
+          <div class="opt-label">
+            <span>Download-Limit</span>
+            <span class="hint">Self-destruct nach Downloads</span>
+          </div>
+          <div class="opt-control">
+            {#each dlChips as chip}
+              <button
+                type="button"
+                class="chip"
+                class:active={downloadLimit === chip.value}
+                onclick={() => (downloadLimit = chip.value)}
+              >
+                {chip.label}
+              </button>
+            {/each}
+          </div>
+        </div>
+
+        <div class="opt">
+          <div class="opt-label">
+            <span>Passwortschutz</span>
+            <button
+              type="button"
+              class="switch"
+              class:on={usePassword}
+              role="switch"
+              aria-checked={usePassword}
+              aria-label="Passwortschutz aktivieren"
+              onclick={() => (usePassword = !usePassword)}
+            >
+              <span class="switch-track"></span>
+            </button>
+          </div>
           {#if usePassword}
-            <input
-              type="password"
-              class="password-input"
-              placeholder={$_('upload.password_placeholder')}
-              bind:value={password}
-              autocomplete="new-password"
-            />
+            <div class="pw-row">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                class="input"
+                placeholder="Passwort eingeben"
+                bind:value={password}
+                autocomplete="new-password"
+              />
+              <button
+                type="button"
+                class="ico-btn"
+                onclick={() => (showPassword = !showPassword)}
+                aria-label={showPassword ? 'Verbergen' : 'Anzeigen'}
+                title={showPassword ? 'Verbergen' : 'Anzeigen'}
+              >
+                {#if showPassword}<EyeOff size={16} />{:else}<Eye size={16} />{/if}
+              </button>
+            </div>
+            <span class="hint-line">Wird zusätzlich zur URL-Verschlüsselung genutzt</span>
           {/if}
         </div>
 
-        <!-- Note textarea -->
-        <div class="note-section">
-          <label class="note-label" for="note-input">{$_('upload.note_label')}</label>
+        <div class="opt">
+          <div class="opt-label">
+            <span>4-Wort-Code generieren</span>
+            <button
+              type="button"
+              class="switch"
+              class:on={useWordcode}
+              role="switch"
+              aria-checked={useWordcode}
+              aria-label="4-Wort-Code generieren"
+              onclick={() => (useWordcode = !useWordcode)}
+            >
+              <span class="switch-track"></span>
+            </button>
+          </div>
+          <span class="hint-line">Alternative zum langen Link, leichter zu diktieren</span>
+        </div>
+
+        <div class="opt">
+          <div class="opt-label">
+            <span>Notiz an Empfänger</span>
+            <span class="hint">verschlüsselt mit</span>
+          </div>
           <textarea
-            id="note-input"
-            class="note-input"
+            class="input"
             rows="3"
-            placeholder={$_('upload.note_placeholder')}
+            placeholder="Optional: Markdown-Text …"
             bind:value={note}
             maxlength="500"
           ></textarea>
         </div>
 
-        <!-- Upload button -->
-        <button
-          class="btn-primary"
-          disabled={selectedFiles.length === 0}
-          onclick={startUpload}
-        >
-          {$_('upload.button')}
-        </button>
+        <div class="opt">
+          <div class="opt-label">
+            <span>Empfänger-Notification</span>
+            <button
+              type="button"
+              class="switch"
+              class:on={useNotify}
+              role="switch"
+              aria-checked={useNotify}
+              aria-label="Empfänger benachrichtigen"
+              onclick={() => (useNotify = !useNotify)}
+              disabled
+            >
+              <span class="switch-track"></span>
+            </button>
+          </div>
+          <span class="hint-line">Per E-Mail benachrichtigen, wenn heruntergeladen wurde (nur mit Account)</span>
+        </div>
       </div>
-    {/if}
-
+    </aside>
   </div>
+
+  <p class="footnote">
+    ITSWEBER Send läuft in deinem Browser · keine Telemetrie · Open-Source unter
+    <a href="https://github.com/itsweber/itsweber-send" target="_blank" rel="noopener noreferrer"
+      >github.com/itsweber/itsweber-send</a
+    >
+  </p>
 </main>
 
 <style>
   .page {
-    max-width: 600px;
+    max-width: 1240px;
     margin: 0 auto;
-    padding: 60px 24px 80px;
+    padding: 56px 28px 100px;
   }
-
   .hero {
     text-align: center;
     margin-bottom: 40px;
   }
   .hero h1 {
-    font-size: clamp(22px, 4vw, 36px);
+    font-size: clamp(32px, 5vw, 48px);
     margin: 0 0 12px;
     letter-spacing: -0.03em;
-    line-height: 1.15;
+    line-height: 1.1;
   }
   .lede {
     color: var(--muted);
-    font-size: 15px;
-    line-height: 1.6;
-    margin: 0;
+    margin: 0 auto;
+    max-width: 580px;
+    font-size: 17px;
+    line-height: 1.5;
+  }
+  .pill-row {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    margin-top: 20px;
+    flex-wrap: wrap;
   }
 
-  .card-wrap { width: 100%; }
+  .bento {
+    display: grid;
+    gap: 16px;
+    grid-template-columns: 1fr 380px;
+    align-items: start;
+  }
+  @media (max-width: 980px) {
+    .bento {
+      grid-template-columns: 1fr;
+    }
+  }
 
-  .card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 16px;
-    padding: 28px;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+  /* Pills inside panel header */
+  .enc-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 12px;
+    background: var(--brand-soft);
+    color: var(--brand-strong);
+    border-radius: 9999px;
+    font-size: 12px;
+    font-weight: 500;
+  }
+  :global([data-theme='dark']) .enc-pill {
+    color: var(--brand);
+  }
+  @media (prefers-color-scheme: dark) {
+    :global([data-theme='system']) .enc-pill {
+      color: var(--brand);
+    }
+  }
+  .hint-pill {
+    color: var(--dim);
+    font-size: 12px;
   }
 
   /* Drop zone */
-  .drop-zone {
-    border: 1.5px dashed var(--border);
-    border-radius: 10px;
-    padding: 28px 20px;
+  .dropzone {
+    border: 2px dashed var(--border-strong);
+    border-radius: var(--radius-lg);
+    padding: 56px 24px;
     text-align: center;
+    background: linear-gradient(180deg, var(--surface-2), transparent);
     cursor: pointer;
-    transition: border-color 0.15s, background 0.15s;
+    transition:
+      border-color var(--transition-base),
+      background var(--transition-base),
+      box-shadow var(--transition-base);
+    color: var(--brand);
+  }
+  .dropzone:hover,
+  .dropzone:focus-visible {
+    border-color: var(--brand);
+    background: linear-gradient(180deg, var(--brand-soft), transparent);
     outline: none;
-    user-select: none;
-    min-height: 80px;
   }
-  .drop-zone:hover, .drop-zone:focus-visible {
+  .dropzone.active {
     border-color: var(--brand);
-    background: color-mix(in srgb, var(--brand) 5%, transparent);
+    background: var(--brand-soft);
+    box-shadow: var(--shadow-glow);
   }
-  .drop-zone.drag-over {
-    border-color: var(--brand);
-    background: color-mix(in srgb, var(--brand) 10%, transparent);
+  .dropzone.has-files {
+    padding: 28px 24px;
   }
-  .drop-zone.has-files {
-    padding: 18px 20px;
+  .dropzone .title {
+    color: var(--text);
+    font-size: 18px;
+    font-weight: 600;
+    margin-top: 10px;
+    margin-bottom: 4px;
   }
-  .drop-icon { color: var(--muted); margin-bottom: 10px; }
-  .drop-hint { color: var(--muted); font-size: 14px; margin: 0; }
-  .browse-text { color: var(--brand); text-decoration: underline; cursor: pointer; }
+  .dropzone .sub {
+    color: var(--muted);
+    font-size: 14px;
+  }
+  .dropzone .or {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    color: var(--dim);
+    font-size: 12px;
+    max-width: 240px;
+    margin: 16px auto 8px;
+  }
+  .dropzone .or::before,
+  .dropzone .or::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  /* Error banner */
+  .err-banner {
+    margin-top: 16px;
+    padding: 12px 14px;
+    background: color-mix(in srgb, var(--danger) 15%, transparent);
+    color: var(--danger);
+    border: 1px solid color-mix(in srgb, var(--danger) 25%, transparent);
+    border-radius: var(--radius);
+    font-size: 14px;
+  }
 
   /* File list */
   .file-list {
-    list-style: none;
-    margin: 14px 0 0;
-    padding: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
+    display: grid;
+    gap: 10px;
+    margin-top: 22px;
   }
-  .file-entry {
-    display: flex;
+  .file-row {
+    display: grid;
+    grid-template-columns: 36px 1fr auto;
+    gap: 14px;
     align-items: center;
-    gap: 8px;
-    padding: 8px 10px;
+    padding: 12px 14px;
     background: var(--surface-2);
     border: 1px solid var(--border);
-    border-radius: 8px;
-    font-size: 13px;
+    border-radius: var(--radius);
+    transition: border-color var(--transition-fast);
   }
-  .file-entry-icon { color: var(--muted); flex-shrink: 0; }
-  .file-entry-name {
-    flex: 1;
+  .file-row.active {
+    border-color: var(--brand);
+  }
+  .file-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    background: var(--surface-3);
+    color: var(--muted);
+    display: grid;
+    place-items: center;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+  }
+  .file-icon[data-tone='pdf'] {
+    background: color-mix(in srgb, var(--danger) 15%, var(--surface-3));
+    color: var(--danger);
+  }
+  .file-icon[data-tone='img'] {
+    background: color-mix(in srgb, var(--warning) 15%, var(--surface-3));
+    color: var(--warning);
+  }
+  .file-icon[data-tone='zip'] {
+    background: color-mix(in srgb, var(--brand) 15%, var(--surface-3));
+    color: var(--brand);
+  }
+  .file-icon[data-tone='doc'] {
+    background: color-mix(in srgb, var(--brand) 12%, var(--surface-3));
+    color: var(--brand-strong);
+  }
+  .file-meta {
     min-width: 0;
+  }
+  .file-name {
+    font-size: 14px;
+    font-weight: 500;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    font-weight: 500;
   }
-  .file-entry-size { color: var(--muted); white-space: nowrap; flex-shrink: 0; font-size: 12px; }
-  .btn-remove {
-    flex-shrink: 0;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 22px;
-    height: 22px;
-    padding: 0;
-    background: transparent;
-    border: none;
-    border-radius: 4px;
+  .file-sub {
+    font-size: 12px;
     color: var(--muted);
-    cursor: pointer;
-    transition: background 0.1s, color 0.1s;
-  }
-  .btn-remove:hover { background: color-mix(in srgb, #d9534f 15%, transparent); color: #d9534f; }
-
-  .btn-add-files {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    margin-top: 10px;
-    padding: 6px 12px;
-    background: transparent;
-    border: 1px dashed var(--border);
-    border-radius: 7px;
-    color: var(--brand);
-    font-size: 13px;
-    cursor: pointer;
-    transition: background 0.15s, border-color 0.15s;
-  }
-  .btn-add-files:hover {
-    background: color-mix(in srgb, var(--brand) 8%, transparent);
-    border-color: var(--brand);
-  }
-
-  /* Settings */
-  .settings {
-    margin-top: 20px;
+    margin-top: 2px;
     display: flex;
-    flex-direction: column;
-    gap: 14px;
-  }
-  .setting-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-  }
-  .setting-label {
-    font-size: 14px;
-    color: var(--text);
-    flex-shrink: 0;
-  }
-  .select {
-    background: var(--surface-2);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    color: var(--text);
-    font-size: 14px;
-    padding: 6px 10px;
-    cursor: pointer;
-    min-width: 130px;
-  }
-  .select:focus { outline: 2px solid var(--brand); outline-offset: 2px; }
-
-  /* Toggle */
-  .toggle-label {
-    display: flex;
-    align-items: center;
     gap: 10px;
-    cursor: pointer;
-    width: 100%;
-    justify-content: space-between;
-  }
-  .toggle-input { display: none; }
-  .toggle-track {
-    display: inline-block;
-    width: 38px;
-    height: 22px;
-    border-radius: 11px;
-    background: var(--border);
-    position: relative;
-    transition: background 0.2s;
-    flex-shrink: 0;
-  }
-  .toggle-track::after {
-    content: '';
-    position: absolute;
-    top: 3px;
-    left: 3px;
-    width: 16px;
-    height: 16px;
-    border-radius: 50%;
-    background: white;
-    transition: transform 0.2s;
-  }
-  .toggle-input:checked ~ .toggle-track { background: var(--brand); }
-  .toggle-input:checked ~ .toggle-track::after { transform: translateX(16px); }
-
-  .password-input {
-    width: 100%;
-    background: var(--surface-2);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    color: var(--text);
-    font-size: 14px;
-    padding: 8px 12px;
-    box-sizing: border-box;
-  }
-  .password-input:focus { outline: 2px solid var(--brand); outline-offset: 2px; }
-
-  /* Note */
-  .note-section {
-    margin-top: 18px;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
-  .note-label {
-    font-size: 13px;
-    color: var(--muted);
-  }
-  .note-input {
-    width: 100%;
-    background: var(--surface-2);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    color: var(--text);
-    font-size: 14px;
-    padding: 8px 12px;
-    box-sizing: border-box;
-    resize: vertical;
-    line-height: 1.5;
-    font-family: inherit;
-    min-height: 70px;
-  }
-  .note-input:focus { outline: 2px solid var(--brand); outline-offset: 2px; }
-
-  /* Buttons */
-  .btn-primary {
-    width: 100%;
-    margin-top: 20px;
-    padding: 13px 20px;
-    background: var(--brand);
-    color: #fff;
-    border: none;
-    border-radius: 10px;
-    font-size: 15px;
-    font-weight: 600;
-    cursor: pointer;
-    display: flex;
     align-items: center;
-    justify-content: center;
-    gap: 8px;
-    transition: opacity 0.15s;
-    min-height: 48px;
+    flex-wrap: wrap;
   }
-  .btn-primary:disabled { opacity: 0.45; cursor: not-allowed; }
-  .btn-primary:not(:disabled):hover { opacity: 0.88; }
-
-  .btn-secondary {
-    margin-top: 16px;
-    padding: 10px 18px;
-    background: var(--surface-2);
-    color: var(--text);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    font-size: 14px;
-    cursor: pointer;
-    transition: background 0.15s;
-  }
-  .btn-secondary:hover { background: var(--surface-3); }
-
-  /* Spinner */
-  .spinner {
-    display: inline-block;
-    width: 26px;
-    height: 26px;
-    border: 2.5px solid var(--border);
-    border-top-color: var(--brand);
-    border-radius: 50%;
-    animation: spin 0.7s linear infinite;
-    flex-shrink: 0;
-  }
-  @keyframes spin { to { transform: rotate(360deg); } }
-
-  /* Center card (encrypting/uploading) */
-  .center-card {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 14px;
-    color: var(--muted);
-    font-size: 15px;
-    padding: 48px 28px;
-    text-align: center;
-  }
-
-  /* Progress bar */
-  .progress-label { margin: 0; color: var(--text); font-size: 15px; font-weight: 500; }
-  .progress-bar-wrap {
-    width: 100%;
-    height: 8px;
-    background: var(--surface-2);
+  .progress {
+    height: 4px;
+    background: var(--surface-3);
     border-radius: 99px;
     overflow: hidden;
+    margin-top: 8px;
   }
-  .progress-bar {
+  .progress > span {
+    display: block;
     height: 100%;
     background: var(--brand);
     border-radius: 99px;
-    transition: width 0.2s ease;
+    transition: width 0.3s;
   }
-  .progress-pct { margin: 0; color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; }
+  .file-actions {
+    display: flex;
+    gap: 6px;
+  }
+  .file-actions button {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--muted);
+    cursor: pointer;
+    display: grid;
+    place-items: center;
+    font-family: inherit;
+    transition: color var(--transition-fast), border-color var(--transition-fast);
+  }
+  .file-actions button:hover:not(:disabled) {
+    color: var(--danger);
+    border-color: color-mix(in srgb, var(--danger) 30%, var(--border));
+  }
+  .file-actions button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .btn-add {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 14px;
+    padding: 6px 12px;
+    background: transparent;
+    border: 1px dashed var(--border);
+    border-radius: var(--radius);
+    color: var(--brand);
+    font-size: 13px;
+    cursor: pointer;
+    transition: border-color var(--transition-fast), background var(--transition-fast);
+    font-family: inherit;
+  }
+  .btn-add:hover {
+    border-color: var(--brand);
+    background: var(--brand-soft);
+  }
+
+  .upload-btn {
+    width: 100%;
+    margin-top: 22px;
+    padding: 14px 20px;
+    font-size: 15px;
+    font-weight: 600;
+    justify-content: center;
+  }
+
+  /* Settings */
+  .settings-body {
+    padding: 0 22px;
+  }
+  .opt {
+    display: grid;
+    gap: 8px;
+    padding: 16px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .opt:last-child {
+    border-bottom: 0;
+  }
+  .opt-label {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 14px;
+    color: var(--text);
+  }
+  .opt-label .hint {
+    font-size: 12px;
+    color: var(--dim);
+    font-weight: 400;
+  }
+  .opt-control {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .hint-line {
+    font-size: 12px;
+    color: var(--dim);
+  }
+
+  /* Switch */
+  .switch {
+    position: relative;
+    display: inline-block;
+    width: 36px;
+    height: 20px;
+    background: transparent;
+    border: 0;
+    padding: 0;
+    cursor: pointer;
+  }
+  .switch:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
+  .switch-track {
+    position: absolute;
+    inset: 0;
+    background: var(--surface-3);
+    border-radius: 9999px;
+    transition: background var(--transition-fast);
+  }
+  .switch-track::after {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 16px;
+    height: 16px;
+    background: white;
+    border-radius: 50%;
+    transition: transform var(--transition-fast);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  }
+  .switch.on .switch-track {
+    background: var(--brand);
+  }
+  .switch.on .switch-track::after {
+    transform: translateX(16px);
+  }
+
+  /* Password row with eye toggle */
+  .pw-row {
+    display: flex;
+    gap: 6px;
+    align-items: stretch;
+  }
+  .pw-row .input {
+    flex: 1;
+  }
+  .ico-btn {
+    width: 38px;
+    border: 1px solid var(--border);
+    background: var(--surface-2);
+    border-radius: var(--radius);
+    color: var(--muted);
+    cursor: pointer;
+    display: grid;
+    place-items: center;
+  }
+  .ico-btn:hover {
+    color: var(--text);
+  }
 
   /* Result card */
-  .result-card { text-align: center; }
-  .result-icon {
-    display: inline-flex;
-    padding: 14px;
-    background: color-mix(in srgb, var(--brand) 12%, transparent);
-    border-radius: 50%;
-    color: var(--brand);
-    margin-bottom: 14px;
-  }
-  .result-card h2 { margin: 0 0 6px; font-size: 22px; }
-  .result-label { color: var(--muted); font-size: 13px; margin: 0 0 10px; }
-  .link-row {
-    display: flex;
-    gap: 8px;
-    margin-bottom: 20px;
-  }
-  .link-input {
-    flex: 1;
-    background: var(--surface-2);
+  .result {
+    margin-top: 24px;
+    padding: 28px;
+    border-radius: var(--radius-lg);
+    background:
+      radial-gradient(80% 100% at 100% 0%, var(--brand-soft), transparent 60%),
+      var(--surface);
     border: 1px solid var(--border);
-    border-radius: 8px;
-    color: var(--text);
-    font-size: 12px;
-    padding: 8px 10px;
-    min-width: 0;
-    font-family: var(--font-mono);
+    box-shadow: var(--shadow-glow);
   }
-  .btn-copy {
-    padding: 8px 14px;
-    background: var(--brand);
-    color: #fff;
-    border: none;
-    border-radius: 8px;
-    font-size: 13px;
-    font-weight: 600;
-    cursor: pointer;
-    white-space: nowrap;
-    transition: opacity 0.15s;
-    min-width: 100px;
-  }
-  .btn-copy:hover { opacity: 0.85; }
-
-  /* QR code */
-  .qr-section {
-    display: flex;
-    flex-direction: column;
+  .result h3 {
+    margin: 0 0 6px;
+    font-size: 20px;
+    letter-spacing: -0.01em;
+    display: inline-flex;
     align-items: center;
     gap: 8px;
-    margin-bottom: 16px;
   }
-  .qr-label { color: var(--muted); font-size: 12px; margin: 0; text-transform: uppercase; letter-spacing: 0.06em; }
-  .qr-wrap {
-    background: #ffffff;
-    border-radius: 10px;
+  .result .ico {
+    color: var(--brand);
+    display: inline-flex;
+  }
+  .result .subtitle {
+    color: var(--muted);
+    font-size: 14px;
+    margin: 0 0 20px;
+  }
+  .share-grid {
+    display: grid;
+    gap: 16px;
+    grid-template-columns: 160px 1fr;
+  }
+  @media (max-width: 700px) {
+    .share-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+  .qr {
+    background: white;
     padding: 8px;
-    display: inline-block;
-    line-height: 0;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    display: grid;
+    place-items: center;
+    aspect-ratio: 1;
+  }
+  .share-fields {
+    display: grid;
+    gap: 12px;
+    align-content: start;
+  }
+  .field {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 10px 12px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .field .label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--dim);
+    margin-bottom: 2px;
+  }
+  .field .val {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--text);
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .field-stack {
+    display: grid;
+    gap: 1px;
+    flex: 1;
+    min-width: 0;
+  }
+  .copy-btn {
+    background: var(--brand);
+    color: #0a1a26;
+    border: 0;
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+    flex-shrink: 0;
+  }
+  .copy-btn.ghost {
+    background: transparent;
+    color: var(--muted);
+    border: 1px solid var(--border);
+  }
+  .copy-btn.ghost:hover {
+    color: var(--text);
+    border-color: var(--border-strong);
+  }
+  .meta-row {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-top: 18px;
+    padding-top: 18px;
+    border-top: 1px solid var(--border);
+    font-size: 13px;
+    color: var(--muted);
+    align-items: center;
+  }
+  .meta-row b {
+    color: var(--text);
+  }
+  .meta-actions {
+    margin-left: auto;
+    display: flex;
+    gap: 8px;
+  }
+  .new-upload {
+    margin-top: 18px;
+    padding: 8px 14px;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--muted);
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 13px;
+  }
+  .new-upload:hover {
+    color: var(--text);
+    border-color: var(--border-strong);
   }
 
-  .expiry-note { color: var(--dim); font-size: 12px; margin: 0 0 16px; }
-
-  /* Error card */
-  .error-card { text-align: center; }
-  .error-card h2 { margin: 0 0 8px; color: var(--danger, #d9534f); }
-  .error-msg { color: var(--muted); font-size: 14px; margin: 0 0 20px; }
+  .footnote {
+    color: var(--dim);
+    font-size: 12px;
+    text-align: center;
+    margin: 60px 0 0;
+  }
+  .footnote a {
+    color: var(--brand);
+  }
 
   .visually-hidden {
     position: absolute;
@@ -738,21 +1079,20 @@
     padding: 0;
     margin: -1px;
     overflow: hidden;
-    clip: rect(0,0,0,0);
+    clip: rect(0, 0, 0, 0);
     white-space: nowrap;
     border: 0;
   }
 
-  /* Mobile */
   @media (max-width: 480px) {
-    .page { padding: 40px 16px 60px; }
-    .card { padding: 20px 16px; }
-    .hero { margin-bottom: 28px; }
-    .setting-row { flex-wrap: wrap; gap: 8px; }
-    .setting-row .setting-label { width: 100%; }
-    .select { min-width: unset; width: 100%; }
-    .link-row { flex-direction: column; }
-    .btn-copy { min-width: unset; }
-    .center-card { padding: 36px 16px; }
+    .page {
+      padding: 32px 16px 60px;
+    }
+    .dropzone {
+      padding: 40px 16px;
+    }
+    .meta-row {
+      font-size: 12px;
+    }
   }
 </style>

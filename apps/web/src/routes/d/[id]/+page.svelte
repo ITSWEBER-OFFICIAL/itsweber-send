@@ -393,7 +393,7 @@
     padding: 11px 16px;
     margin-bottom: 14px;
     background: var(--brand);
-    color: #fff;
+    color: #0a1a26;
     border: none;
     border-radius: 10px;
     font-size: 14px;
@@ -445,7 +445,7 @@
     gap: 6px;
     padding: 8px 14px;
     background: var(--brand);
-    color: #fff;
+    color: #0a1a26;
     border: none;
     border-radius: 8px;
     font-size: 13px;
@@ -477,7 +477,7 @@
     width: 100%;
     padding: 12px 20px;
     background: var(--brand);
-    color: #fff;
+    color: #0a1a26;
     border: none;
     border-radius: 10px;
     font-size: 15px;
@@ -517,8 +517,8 @@
     display: inline-block;
     width: 13px;
     height: 13px;
-    border: 2px solid rgba(255,255,255,0.4);
-    border-top-color: #fff;
+    border: 2px solid rgba(10,26,38,0.3);
+    border-top-color: #0a1a26;
     border-radius: 50%;
     animation: spin 0.7s linear infinite;
     flex-shrink: 0;

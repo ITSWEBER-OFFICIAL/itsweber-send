@@ -1,8 +1,9 @@
 import { randomBytes } from 'node:crypto';
 import multipart from '@fastify/multipart';
+import { generateWordcode } from '../utils/wordcode.js';
 import type { FastifyInstance } from 'fastify';
 import { UploadMetaSchema } from '@itsweber-send/shared';
-import { insertShare, getUserById, getUserQuotaUsed } from '../db/sqlite.js';
+import { insertShare, getUserById, getUserQuotaUsed, insertAuditLog } from '../db/sqlite.js';
 import type { StorageAdapter } from '../storage/interface.js';
 import { emitWebhook } from '../plugins/webhooks.js';
 
@@ -104,6 +105,7 @@ export function createUploadRoute(storage: StorageAdapter) {
 
       // Generate share ID and timestamps
       const id = randomBytes(12).toString('hex');
+      const wordcode = generateWordcode(id);
       const now = new Date();
       const expiresAt = new Date(now.getTime() + meta.expiryHours * 60 * 60 * 1000);
 
@@ -142,9 +144,11 @@ export function createUploadRoute(storage: StorageAdapter) {
         wrapped_key: meta.wrappedKey,
         user_id: userId,
         total_size_bytes: meta.totalSizeEncrypted,
+        wordcode,
       });
 
       request.log.info({ shareId: id, fileCount: meta.fileCount, userId }, 'share created');
+      insertAuditLog({ user_id: userId, action: 'share.created', resource: id, ip: request.ip, created_at: now.toISOString() });
 
       void emitWebhook(
         {
@@ -158,7 +162,7 @@ export function createUploadRoute(storage: StorageAdapter) {
         request.log,
       );
 
-      return reply.status(201).send({ id, expiresAt: expiresAt.toISOString() });
+      return reply.status(201).send({ id, wordcode, expiresAt: expiresAt.toISOString() });
     });
   };
 }
