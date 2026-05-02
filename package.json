@@ -1,0 +1,34 @@
+{
+  "name": "itsweber-send",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Self-hosted, end-to-end encrypted file sharing in a single Docker container.",
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "engines": {
+    "node": ">=22",
+    "pnpm": ">=9"
+  },
+  "scripts": {
+    "dev": "turbo run dev --parallel",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "test:e2e": "turbo run test:e2e",
+    "clean": "turbo run clean",
+    "format": "prettier --write \"**/*.{ts,js,svelte,json,md,css,yml,yaml}\"",
+    "format:check": "prettier --check \"**/*.{ts,js,svelte,json,md,css,yml,yaml}\"",
+    "release:check": "node scripts/prepare-release.mjs --check"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^19.8.0",
+    "@commitlint/config-conventional": "^19.8.0",
+    "husky": "^9.1.7",
+    "prettier": "^3.4.2",
+    "prettier-plugin-svelte": "^3.3.3",
+    "turbo": "^2.5.3",
+    "typescript": "^5.7.2"
+  },
+  "packageManager": "pnpm@9.15.9"
+}

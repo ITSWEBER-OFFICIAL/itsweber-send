@@ -1,0 +1,19 @@
+{
+  "name": "ITSWEBER Send",
+  "short_name": "Send",
+  "description": "Self-hosted, end-to-end encrypted file sharing.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0a1a26",
+  "theme_color": "#3ba7a7",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

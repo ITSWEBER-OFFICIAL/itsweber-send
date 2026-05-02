@@ -1,0 +1,64 @@
+{
+  "app": {
+    "name": "ITSWEBER Send"
+  },
+  "theme": {
+    "aria_label": "Color scheme",
+    "light": "Light",
+    "dark": "Dark",
+    "system": "System"
+  },
+  "home": {
+    "title": "Share files without leaving a trace.",
+    "lede": "End-to-end encrypted in your browser, self-hosted, no trackers. Drop a file, share the link, done."
+  },
+  "upload": {
+    "drop_hint": "Drop a file here or",
+    "browse": "browse",
+    "settings": "Settings",
+    "expiry_label": "Expires after",
+    "expiry_1h": "1 hour",
+    "expiry_24h": "24 hours",
+    "expiry_7d": "7 days",
+    "expiry_30d": "30 days",
+    "dl_label": "Download limit",
+    "dl_1": "1×",
+    "dl_5": "5×",
+    "dl_20": "20×",
+    "dl_unlimited": "Unlimited",
+    "password_label": "Password protection",
+    "password_placeholder": "Enter password",
+    "button": "Encrypt & upload",
+    "encrypting": "Encrypting file …",
+    "uploading": "Uploading …",
+    "result_title": "Done!",
+    "result_link_label": "Share this link:",
+    "copy_link": "Copy link",
+    "copied": "Copied!",
+    "new_upload": "Send another file",
+    "error_title": "Upload error"
+  },
+  "download": {
+    "loading": "Loading share …",
+    "not_found": "Share not found or expired.",
+    "expired": "This link has expired.",
+    "exhausted": "Download limit reached.",
+    "password_required": "Password required",
+    "password_placeholder": "Enter password",
+    "unlock": "Decrypt",
+    "wrong_password": "Wrong password. Please try again.",
+    "decrypting": "Decrypting …",
+    "ready_title": "File ready",
+    "download_button": "Download",
+    "encrypted_note": "Decrypted in your browser. The server only sees encrypted data.",
+    "error_decrypt": "Decryption failed. Check the link.",
+    "no_key": "No key in URL fragment. Make sure you are using the full link including the # part.",
+    "downloading": "Downloading …"
+  },
+  "common": {
+    "cancel": "Cancel",
+    "copy": "Copy",
+    "download": "Download",
+    "loading": "Loading …"
+  }
+}

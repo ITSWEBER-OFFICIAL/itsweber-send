@@ -1,0 +1,68 @@
+import Fastify from 'fastify';
+import { config } from './config.js';
+import { registerCore } from './plugins/core.js';
+import { healthRoutes } from './routes/health.js';
+import { createUploadRoute } from './routes/upload.js';
+import { createDownloadRoute } from './routes/download.js';
+import { FilesystemStorage } from './storage/filesystem.js';
+import { initDb } from './db/sqlite.js';
+import { startCleanupJob } from './jobs/cleanup.js';
+
+export async function buildServer() {
+  const app = Fastify({
+    logger: {
+      level: config.logLevel,
+      transport:
+        config.env === 'development'
+          ? { target: 'pino-pretty', options: { colorize: true, translateTime: 'HH:MM:ss.l' } }
+          : undefined,
+    },
+    disableRequestLogging: false,
+    trustProxy: true,
+    bodyLimit: 1024 * 1024, // 1 MB for JSON/form bodies; multipart has its own limits
+  });
+
+  await registerCore(app);
+  await app.register(healthRoutes);
+
+  // Storage and DB
+  const storage = new FilesystemStorage(config.storage.path);
+  initDb(config.db.path);
+  startCleanupJob(storage, app.log);
+
+  // Upload / download routes
+  await app.register(createUploadRoute(storage));
+  await app.register(createDownloadRoute(storage));
+
+  return app;
+}
+
+async function main() {
+  const app = await buildServer();
+
+  const shutdown = async (signal: string) => {
+    app.log.info({ signal }, 'shutting down');
+    try {
+      await app.close();
+      process.exit(0);
+    } catch (err) {
+      app.log.error({ err }, 'error during shutdown');
+      process.exit(1);
+    }
+  };
+
+  process.on('SIGTERM', () => void shutdown('SIGTERM'));
+  process.on('SIGINT', () => void shutdown('SIGINT'));
+
+  try {
+    await app.listen({ host: config.host, port: config.port });
+  } catch (err) {
+    app.log.error({ err }, 'failed to start server');
+    process.exit(1);
+  }
+}
+
+const isMain = import.meta.url === `file://${process.argv[1]}`;
+if (isMain) {
+  void main();
+}

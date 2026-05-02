@@ -1,0 +1,45 @@
+# Version control
+.git/
+.gitignore
+
+# Dependencies (installed in image)
+node_modules/
+**/node_modules/
+
+# Build artifacts (rebuilt in image)
+.svelte-kit/
+dist/
+build/
+.turbo/
+
+# Dev tooling
+.vscode/
+.idea/
+*.swp
+
+# Environment (injected at runtime)
+.env
+.env.*
+
+# Data & uploads (mounted at runtime)
+uploads/
+data/
+*.db
+*.sqlite
+
+# Docs & brand (not needed at runtime)
+docs/
+brand/screenshots/
+
+# Test & CI
+coverage/
+*.test.*
+*.spec.*
+playwright-report/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Scripts not needed in image
+scripts/seed-dev.mjs

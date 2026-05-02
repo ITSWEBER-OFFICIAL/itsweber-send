@@ -1,0 +1,43 @@
+{
+  "name": "@itsweber-send/web",
+  "version": "0.1.0",
+  "private": true,
+  "description": "SvelteKit frontend for ITSWEBER Send.",
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "scripts": {
+    "dev": "vite dev --host 127.0.0.1 --port 5173",
+    "build": "vite build",
+    "preview": "vite preview --host 127.0.0.1 --port 5174",
+    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+    "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
+    "lint": "prettier --check . && eslint .",
+    "typecheck": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+    "test": "vitest run --passWithNoTests",
+    "test:e2e": "playwright test",
+    "clean": "rm -rf .svelte-kit build"
+  },
+  "dependencies": {
+    "@itsweber-send/shared": "workspace:*",
+    "@itsweber-send/theme": "workspace:*",
+    "svelte-i18n": "^4.0.1"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.49.1",
+    "@sveltejs/adapter-node": "^5.2.11",
+    "@sveltejs/kit": "^2.15.1",
+    "@sveltejs/vite-plugin-svelte": "^5.0.3",
+    "@tailwindcss/postcss": "^4.0.0",
+    "@types/node": "^22.10.5",
+    "eslint": "^9.17.0",
+    "eslint-plugin-svelte": "^2.46.1",
+    "jsdom": "^29.1.1",
+    "svelte": "^5.16.1",
+    "svelte-check": "^4.1.1",
+    "tailwindcss": "^4.0.0",
+    "typescript": "^5.7.2",
+    "typescript-eslint": "^8.19.1",
+    "vite": "^6.0.7",
+    "vitest": "^4.1.5"
+  }
+}

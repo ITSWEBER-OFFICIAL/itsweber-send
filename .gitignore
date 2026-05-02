@@ -1,0 +1,42 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build outputs
+dist/
+build/
+.svelte-kit/
+.turbo/
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Data & uploads
+uploads/
+data/
+*.db
+*.sqlite
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+logs/
+
+# Coverage
+coverage/
+
+# Temp
+tmp/
+temp/

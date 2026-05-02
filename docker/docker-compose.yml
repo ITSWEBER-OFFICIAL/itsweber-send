@@ -1,0 +1,70 @@
+# Minimal production setup: ITSWEBER Send + Caddy auto-HTTPS reverse proxy.
+# Suitable for single-server deployments (VPS, Unraid, home lab).
+#
+# Bring it up:   docker compose -f docker/docker-compose.yml up -d
+# Logs:          docker compose -f docker/docker-compose.yml logs -f
+# Tear down:     docker compose -f docker/docker-compose.yml down
+
+services:
+  send:
+    image: ghcr.io/itsweber/itsweber-send:latest
+    container_name: itsweber-send
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      NODE_ENV: production
+      BASE_URL: ${BASE_URL:-http://localhost:3000}
+      LOG_LEVEL: info
+      RATE_LIMIT_PER_MIN: 60
+      ENABLE_ACCOUNTS: 'true'
+      STORAGE_BACKEND: filesystem
+      STORAGE_PATH: /data/uploads
+    volumes:
+      - send-data:/data
+    networks:
+      - send-net
+    expose:
+      - '3000'
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: itsweber-send-caddy
+    restart: unless-stopped
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+      - CHOWN
+      - SETUID
+      - SETGID
+    security_opt:
+      - no-new-privileges:true
+    ports:
+      - '80:80'
+      - '443:443'
+      - '443:443/udp'
+    volumes:
+      - ./Caddyfile.example:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    networks:
+      - send-net
+    depends_on:
+      - send
+
+networks:
+  send-net:
+    driver: bridge
+
+volumes:
+  send-data:
+  caddy-data:
+  caddy-config:

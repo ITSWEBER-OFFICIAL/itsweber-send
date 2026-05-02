@@ -1,0 +1,30 @@
+# Replace `send.example.com` with your actual hostname and reload Caddy.
+# Caddy will obtain a Let's Encrypt certificate automatically.
+
+send.example.com {
+    encode zstd gzip
+
+    # Long upload timeout for multi-GB transfers
+    request_body {
+        max_size 5GB
+    }
+
+    reverse_proxy send:3000 {
+        header_up X-Real-IP {remote}
+        header_up X-Forwarded-For {remote}
+        header_up X-Forwarded-Proto {scheme}
+    }
+
+    header {
+        Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
+        X-Content-Type-Options "nosniff"
+        Referrer-Policy "no-referrer"
+        Permissions-Policy "camera=(), microphone=(), geolocation=()"
+        -Server
+    }
+
+    log {
+        output stdout
+        format console
+    }
+}

@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120">
+  <defs>
+    <mask id="m">
+      <rect width="120" height="120" fill="#fff" />
+      <path d="M 38 72 L 86 50 L 60 86 L 60 72 Z" fill="#000" />
+      <path d="M 38 72 L 60 72 L 60 86 Z" fill="#000" />
+    </mask>
+  </defs>
+  <path
+    d="M 42 50 L 42 38 a 18 18 0 0 1 36 0 L 78 50"
+    fill="none"
+    stroke="#3ba7a7"
+    stroke-width="9"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+  <rect x="26" y="50" width="68" height="56" rx="11" fill="#3ba7a7" mask="url(#m)" />
+</svg>

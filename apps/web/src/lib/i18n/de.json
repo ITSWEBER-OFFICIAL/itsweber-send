@@ -1,0 +1,64 @@
+{
+  "app": {
+    "name": "ITSWEBER Send"
+  },
+  "theme": {
+    "aria_label": "Farbschema",
+    "light": "Hell",
+    "dark": "Dunkel",
+    "system": "System"
+  },
+  "home": {
+    "title": "Dateien senden, ohne Spuren zu hinterlassen.",
+    "lede": "Ende-zu-Ende verschlüsselt im Browser, selbst gehostet, ohne Tracker. Lade hoch, teile den Link, fertig."
+  },
+  "upload": {
+    "drop_hint": "Datei hierher ziehen oder",
+    "browse": "Durchsuchen",
+    "settings": "Einstellungen",
+    "expiry_label": "Läuft ab nach",
+    "expiry_1h": "1 Stunde",
+    "expiry_24h": "24 Stunden",
+    "expiry_7d": "7 Tage",
+    "expiry_30d": "30 Tage",
+    "dl_label": "Download-Limit",
+    "dl_1": "1×",
+    "dl_5": "5×",
+    "dl_20": "20×",
+    "dl_unlimited": "Unbegrenzt",
+    "password_label": "Passwortschutz",
+    "password_placeholder": "Passwort eingeben",
+    "button": "Verschlüsseln & hochladen",
+    "encrypting": "Verschlüssele Datei …",
+    "uploading": "Lade hoch …",
+    "result_title": "Fertig!",
+    "result_link_label": "Teile diesen Link:",
+    "copy_link": "Link kopieren",
+    "copied": "Kopiert!",
+    "new_upload": "Neue Datei senden",
+    "error_title": "Fehler beim Upload"
+  },
+  "download": {
+    "loading": "Lade Share …",
+    "not_found": "Share nicht gefunden oder abgelaufen.",
+    "expired": "Dieser Link ist abgelaufen.",
+    "exhausted": "Das Download-Limit wurde erreicht.",
+    "password_required": "Passwort erforderlich",
+    "password_placeholder": "Passwort eingeben",
+    "unlock": "Entschlüsseln",
+    "wrong_password": "Falsches Passwort. Bitte erneut versuchen.",
+    "decrypting": "Entschlüssele …",
+    "ready_title": "Datei bereit",
+    "download_button": "Herunterladen",
+    "encrypted_note": "Die Datei wird im Browser entschlüsselt. Der Server sieht nur verschlüsselte Daten.",
+    "error_decrypt": "Entschlüsselung fehlgeschlagen. Prüfe den Link.",
+    "no_key": "Kein Schlüssel im Link. Stelle sicher, dass du die vollständige URL inklusive dem # Fragment verwendest.",
+    "downloading": "Lade Datei …"
+  },
+  "common": {
+    "cancel": "Abbrechen",
+    "copy": "Kopieren",
+    "download": "Herunterladen",
+    "loading": "Lädt …"
+  }
+}
