@@ -8,6 +8,14 @@ import type { StorageAdapter } from '../storage/interface.js';
 const MAX_FILE_SIZE = 5 * 1024 * 1024 * 1024; // 5 GB
 const MAX_FIELD_SIZE = 64 * 1024;              // 64 KB for text fields
 
+// Upload throttle: per-IP cap on the number of upload requests. Each request
+// carries up to MAX_FILE_SIZE, so the count limit is the real lever — large
+// transfers are bounded by Caddy's request_body cap and the multipart limits.
+const UPLOAD_RATE_LIMIT = {
+  max: 20,
+  timeWindow: '1 hour',
+} as const;
+
 export function createUploadRoute(storage: StorageAdapter) {
   return async function uploadPlugin(app: FastifyInstance): Promise<void> {
     await app.register(multipart, {
@@ -18,7 +26,7 @@ export function createUploadRoute(storage: StorageAdapter) {
       },
     });
 
-    app.post('/api/v1/upload', async (request, reply) => {
+    app.post('/api/v1/upload', { config: { rateLimit: UPLOAD_RATE_LIMIT } }, async (request, reply) => {
       // Collect all multipart parts into a map
       type FieldEntry = { type: 'field'; value: string };
       type FileEntry = { type: 'file'; value: Buffer };

@@ -2,12 +2,22 @@
 # Bring up:    docker compose -f docker/docker-compose.lan.yml up -d
 # Tear down:   docker compose -f docker/docker-compose.lan.yml down
 # Open:        https://<host-ip>:8443  (accept the cert warning once)
+#
+# Container hardening matches docker-compose.yml so the LAN test environment
+# exercises the same security posture as production.
 
 services:
   send:
     image: itsweber-send:latest
     container_name: itsweber-send
     restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
     environment:
       NODE_ENV: production
       HOST: 0.0.0.0
@@ -28,6 +38,15 @@ services:
     image: caddy:2-alpine
     container_name: itsweber-send-caddy
     restart: unless-stopped
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+      - CHOWN
+      - SETUID
+      - SETGID
+    security_opt:
+      - no-new-privileges:true
     ports:
       - '8443:8443'
     volumes:

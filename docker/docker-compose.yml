@@ -12,11 +12,9 @@ services:
     restart: unless-stopped
     read_only: true
     tmpfs:
-      - /tmp:size=64m
+      - /tmp:size=64m,mode=1777
     cap_drop:
       - ALL
-    cap_add:
-      - NET_BIND_SERVICE
     security_opt:
       - no-new-privileges:true
     environment:

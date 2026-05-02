@@ -9,18 +9,30 @@ send.example.com {
         max_size 5GB
     }
 
+    # Caddy auto-adds X-Forwarded-For (IP only, no port) and X-Forwarded-Proto.
+    # We add X-Real-IP for compatibility with non-Fastify tooling. Using
+    # `{remote_host}` (not `{remote}`) so the value is just the IP — Fastify's
+    # rate limiter uses request.ip and would otherwise key on a port-bearing
+    # value that changes per connection.
     reverse_proxy send:3000 {
-        header_up X-Real-IP {remote}
-        header_up X-Forwarded-For {remote}
-        header_up X-Forwarded-Proto {scheme}
+        header_up X-Real-IP {remote_host}
     }
 
+    # Defense-in-depth security headers. Backend (helmet + SvelteKit) sets
+    # the same baseline; Caddy guarantees they are present on responses
+    # generated outside Node (5xx pages, redirects, static error pages).
     header {
         Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
         X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
         Referrer-Policy "no-referrer"
-        Permissions-Policy "camera=(), microphone=(), geolocation=()"
+        Cross-Origin-Opener-Policy "same-origin"
+        Cross-Origin-Embedder-Policy "credentialless"
+        Cross-Origin-Resource-Policy "same-origin"
+        Origin-Agent-Cluster "?1"
+        Permissions-Policy "accelerometer=(), autoplay=(), camera=(), clipboard-write=(self), cross-origin-isolated=(), display-capture=(), encrypted-media=(), fullscreen=(self), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), midi=(), payment=(), picture-in-picture=(), publickey-credentials-get=(), screen-wake-lock=(), sync-xhr=(), usb=(), xr-spatial-tracking=()"
         -Server
+        -X-Powered-By
     }
 
     log {

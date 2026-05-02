@@ -24,13 +24,29 @@
 		max_size 5GB
 	}
 
-	reverse_proxy send:3000
+	# Caddy auto-adds X-Forwarded-For (IP only, no port) and X-Forwarded-Proto.
+	# We add X-Real-IP for compatibility with non-Fastify tooling. Using
+	# `{remote_host}` (not `{remote}`) so the value is just the IP — Fastify's
+	# rate limiter uses request.ip and would otherwise key on a port-bearing
+	# value that changes per connection.
+	reverse_proxy send:3000 {
+		header_up X-Real-IP {remote_host}
+	}
 
+	# Defense-in-depth security headers. HSTS is omitted for the LAN config
+	# because browsers would then refuse the self-signed cert on first visit;
+	# enable HSTS only with a real publicly-trusted certificate.
 	header {
 		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
 		Referrer-Policy "no-referrer"
-		Permissions-Policy "camera=(), microphone=(), geolocation=()"
+		Cross-Origin-Opener-Policy "same-origin"
+		Cross-Origin-Embedder-Policy "credentialless"
+		Cross-Origin-Resource-Policy "same-origin"
+		Origin-Agent-Cluster "?1"
+		Permissions-Policy "accelerometer=(), autoplay=(), camera=(), clipboard-write=(self), cross-origin-isolated=(), display-capture=(), encrypted-media=(), fullscreen=(self), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), midi=(), payment=(), picture-in-picture=(), publickey-credentials-get=(), screen-wake-lock=(), sync-xhr=(), usb=(), xr-spatial-tracking=()"
 		-Server
+		-X-Powered-By
 	}
 
 	log {

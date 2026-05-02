@@ -4,7 +4,11 @@ import { getShare } from '../db/sqlite.js';
 const startedAt = Date.now();
 
 export async function healthRoutes(app: FastifyInstance): Promise<void> {
-  app.get('/health', async () => {
+  // Health and readiness probes opt out of the global rate limit so that
+  // container orchestrators / Caddy's healthchecks are never throttled.
+  const noRateLimit = { config: { rateLimit: false } } as const;
+
+  app.get('/health', noRateLimit, async () => {
     return {
       status: 'ok',
       uptimeMs: Date.now() - startedAt,
@@ -12,7 +16,7 @@ export async function healthRoutes(app: FastifyInstance): Promise<void> {
     };
   });
 
-  app.get('/ready', async (_request, reply) => {
+  app.get('/ready', noRateLimit, async (_request, reply) => {
     try {
       // Verify DB is responsive with a lightweight query
       getShare('__probe__');

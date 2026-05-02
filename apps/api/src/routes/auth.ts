@@ -61,9 +61,22 @@ const LoginBody = z.object({
   password: z.string().min(1).max(128),
 });
 
+// Per-route rate limits. Login and register are the prime brute-force targets:
+// keep them aggressive. The keys include the IP (default keyGenerator) so a
+// single attacker is throttled regardless of which email they iterate over.
+const LOGIN_RATE_LIMIT = {
+  max: 5,
+  timeWindow: '1 minute',
+} as const;
+
+const REGISTER_RATE_LIMIT = {
+  max: 3,
+  timeWindow: '10 minutes',
+} as const;
+
 export async function authRoutes(app: FastifyInstance): Promise<void> {
   // POST /api/v1/auth/register
-  app.post('/api/v1/auth/register', async (request, reply) => {
+  app.post('/api/v1/auth/register', { config: { rateLimit: REGISTER_RATE_LIMIT } }, async (request, reply) => {
     if (!config.enableAccounts || !config.auth.registrationEnabled) {
       return reply.status(404).send({ error: 'Accounts are disabled' });
     }
@@ -102,7 +115,7 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
   });
 
   // POST /api/v1/auth/login
-  app.post('/api/v1/auth/login', async (request, reply) => {
+  app.post('/api/v1/auth/login', { config: { rateLimit: LOGIN_RATE_LIMIT } }, async (request, reply) => {
     if (!config.enableAccounts) {
       return reply.status(404).send({ error: 'Accounts are disabled' });
     }

@@ -188,6 +188,50 @@ Bei fehlender SNI behandelt Caddy die Verbindung dann so, als wäre sie für `19
 
 ---
 
+## 8. Rate-Limit greift hinter Caddy nicht — `X-RateLimit-Remaining` bleibt konstant
+
+**Symptom**
+Login-Endpoint hat `max: 5, timeWindow: '1 minute'`, aber 30 Aufrufe vom selben Host bekommen weiter `401`. Im Header-Dump zeigt jeder Versuch `X-RateLimit-Remaining: 4`.
+
+**Ursache**
+Im Caddyfile war `header_up X-Forwarded-For {remote}` gesetzt. Caddy 2 expandiert `{remote}` zu `address:port`, also z. B. `172.19.0.1:42090`. Der Port ändert sich pro TCP-Verbindung, Fastifys `request.ip` (mit `trustProxy`) übernimmt den linkesten X-Forwarded-For-Wert — und damit ist der Rate-Limit-Schlüssel pro Request unterschiedlich.
+
+**Fix**
+- `header_up X-Forwarded-For {remote}` weglassen — Caddy setzt den Header bereits korrekt mit reiner IP.
+- Falls `X-Real-IP` o. Ä. gewünscht: `{remote_host}` statt `{remote}` verwenden.
+```caddy
+reverse_proxy send:3000 {
+    header_up X-Real-IP {remote_host}
+}
+```
+
+---
+
+## 9. Container-Start mit `read_only: true` schlägt fehl
+
+**Symptom**
+Beim Hochfahren mit Härtung (`docker-compose.yml`):
+```
+EROFS: read-only file system, mkdir '/app/...'
+```
+
+**Ursache**
+Node-Prozesse oder Multipart-Parser möchten temporäre Dateien anlegen. Bei `read_only: true` ist nur das gemountete Volume schreibbar.
+
+**Fix**
+- Compose-Block:
+```yaml
+read_only: true
+tmpfs:
+  - /tmp:size=64m,mode=1777
+volumes:
+  - send-data:/data
+```
+- Storage und SQLite explizit unter `/data` verorten (`STORAGE_PATH`, `DB_PATH`).
+- Multipart in der Upload-Route nicht auf Disk spillen lassen — wir verwenden `part.toBuffer()`, daher kein `/tmp`-Bedarf für Uploads selbst.
+
+---
+
 ## Handhabe
 
 Beim Hinzufügen eines neuen Eintrags: knappes Symptom (was sieht der Entwickler in Logs/UI), präzise Ursache (warum, nicht bloß was), und konkreter Fix (Code-Snippet oder Link auf Datei). Keine Lehrbuch-Erklärungen — wer das hier liest, braucht die Lösung.
