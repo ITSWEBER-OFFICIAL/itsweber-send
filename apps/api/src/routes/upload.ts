@@ -4,6 +4,7 @@ import type { FastifyInstance } from 'fastify';
 import { UploadMetaSchema } from '@itsweber-send/shared';
 import { insertShare, getUserById, getUserQuotaUsed } from '../db/sqlite.js';
 import type { StorageAdapter } from '../storage/interface.js';
+import { emitWebhook } from '../plugins/webhooks.js';
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024 * 1024; // 5 GB
 const MAX_FIELD_SIZE = 64 * 1024;              // 64 KB for text fields
@@ -144,6 +145,19 @@ export function createUploadRoute(storage: StorageAdapter) {
       });
 
       request.log.info({ shareId: id, fileCount: meta.fileCount, userId }, 'share created');
+
+      void emitWebhook(
+        {
+          type: 'upload.created',
+          shareId: id,
+          fileCount: meta.fileCount,
+          totalSizeBytes: meta.totalSizeEncrypted,
+          userId,
+          expiresAt: expiresAt.toISOString(),
+        },
+        request.log,
+      );
+
       return reply.status(201).send({ id, expiresAt: expiresAt.toISOString() });
     });
   };

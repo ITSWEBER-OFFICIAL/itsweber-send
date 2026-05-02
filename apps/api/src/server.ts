@@ -13,6 +13,8 @@ import { authRoutes } from './routes/auth.js';
 import { createAccountRoutes } from './routes/account.js';
 import { adminRoutes } from './routes/admin.js';
 import { FilesystemStorage } from './storage/filesystem.js';
+import { S3Storage } from './storage/s3.js';
+import type { StorageAdapter } from './storage/interface.js';
 import { initDb } from './db/sqlite.js';
 import { startCleanupJob } from './jobs/cleanup.js';
 
@@ -37,7 +39,21 @@ export async function buildServer() {
   await app.register(healthRoutes);
 
   // Storage and DB
-  const storage = new FilesystemStorage(config.storage.path);
+  let storage: StorageAdapter;
+  if (config.storage.backend === 's3') {
+    if (!config.storage.s3.bucket) {
+      throw new Error('S3_BUCKET must be set when STORAGE_BACKEND=s3');
+    }
+    storage = new S3Storage(config.storage.s3.bucket, {
+      endpoint: config.storage.s3.endpoint || undefined,
+      region: config.storage.s3.region,
+      forcePathStyle: config.storage.s3.forcePathStyle,
+    });
+    app.log.info({ backend: 's3', bucket: config.storage.s3.bucket }, 'storage adapter');
+  } else {
+    storage = new FilesystemStorage(config.storage.path);
+    app.log.info({ backend: 'filesystem', path: config.storage.path }, 'storage adapter');
+  }
   initDb(config.db.path);
   startCleanupJob(storage, app.log);
 

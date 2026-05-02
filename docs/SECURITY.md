@@ -24,7 +24,7 @@ The full cryptographic specification lives in [`packages/crypto-spec/README.md`]
 ### Primitives
 
 | Primitive | Parameters |
-|---|---|
+| --- | --- |
 | Symmetric cipher | AES-256-GCM (256-bit key, 96-bit IV, 128-bit auth tag) |
 | Key derivation (password) | PBKDF2-SHA-256, 200 000 iterations, 128-bit random salt |
 | Random source | `crypto.getRandomValues` (browser) / `crypto.randomBytes` (Node) |
@@ -68,7 +68,7 @@ The server **cannot** observe: file contents, filenames, MIME types, or the mast
 The following headers are set on every response by `@fastify/helmet` and enforced as a defense-in-depth layer by Caddy:
 
 | Header | Value |
-|---|---|
+| --- | --- |
 | `Content-Security-Policy` | `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; ...` |
 | `Cross-Origin-Opener-Policy` | `same-origin` |
 | `Cross-Origin-Embedder-Policy` | `credentialless` |

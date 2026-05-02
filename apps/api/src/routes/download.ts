@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { getShare, incrementDownloads } from '../db/sqlite.js';
 import type { StorageAdapter } from '../storage/interface.js';
+import { emitWebhook } from '../plugins/webhooks.js';
 
 export function createDownloadRoute(storage: StorageAdapter) {
   return async function downloadPlugin(app: FastifyInstance): Promise<void> {
@@ -84,6 +85,17 @@ export function createDownloadRoute(storage: StorageAdapter) {
 
         // Decrement after successful read, before sending, to avoid double-counting retries
         incrementDownloads(id);
+
+        const freshShare = getShare(id);
+        const remaining =
+          freshShare && freshShare.download_limit > 0
+            ? freshShare.download_limit - freshShare.downloads_used
+            : null;
+
+        void emitWebhook(
+          { type: 'download.completed', shareId: id, blobIndex: blobNum, remainingDownloads: remaining },
+          request.log,
+        );
 
         request.log.info({ shareId: id, blobNum }, 'blob downloaded');
         return reply

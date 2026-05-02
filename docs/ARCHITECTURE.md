@@ -108,7 +108,7 @@ SQLite via better-sqlite3. The database is single-file, in-process, and requires
 **shares**
 
 | Column | Type | Notes |
-|---|---|---|
+| --- | --- | --- |
 | `id` | TEXT PK | 24-character hex string (12 random bytes) |
 | `created_at` | TEXT | ISO 8601 |
 | `expires_at` | TEXT | ISO 8601 |
@@ -123,7 +123,7 @@ SQLite via better-sqlite3. The database is single-file, in-process, and requires
 **users**
 
 | Column | Type | Notes |
-|---|---|---|
+| --- | --- | --- |
 | `id` | TEXT PK | 24-character hex string |
 | `email` | TEXT UNIQUE | Stored lowercase |
 | `password_hash` | TEXT | Argon2id PHC string |
@@ -135,7 +135,7 @@ SQLite via better-sqlite3. The database is single-file, in-process, and requires
 **sessions**
 
 | Column | Type | Notes |
-|---|---|---|
+| --- | --- | --- |
 | `id` | TEXT PK | 64-character hex string (32 random bytes) |
 | `user_id` | TEXT | FK to users |
 | `created_at` | TEXT | ISO 8601 |
@@ -152,7 +152,7 @@ In development, the SvelteKit dev server runs on `:5173` and proxies `/api/*` to
 Key frontend packages:
 
 | Package | Purpose |
-|---|---|
+| --- | --- |
 | `svelte-i18n` | German and English i18n, synchronously bundled |
 | `qrcode` | Client-side QR code generation for share links |
 | `packages/theme` | Design tokens consumed as CSS custom properties |
@@ -210,10 +210,10 @@ interface StorageAdapter {
 }
 ```
 
-### Webhook events (v1.1)
+### Webhook events
 
-A webhook emitter will fire `upload.created` and `download.completed` events to a configured URL. This is not present in v1.0.
+Set `WEBHOOK_URL` to receive `upload.created` and `download.completed` events as HMAC-signed JSON POST requests. Set `WEBHOOK_SECRET` to enable `X-Webhook-Signature: sha256=<hex>` request signing. Delivery is fire-and-forget with a single retry.
 
-### S3 / MinIO (v1.1)
+### S3 / MinIO
 
-The `STORAGE_BACKEND=s3` adapter will accept the standard AWS SDK environment variables (`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`, `S3_BUCKET`, `S3_ENDPOINT`).
+Set `STORAGE_BACKEND=s3` and configure `S3_BUCKET`, `S3_ENDPOINT` (for MinIO), `S3_REGION`, `S3_FORCE_PATH_STYLE=true` (for MinIO), plus the standard `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY`. See `docker/docker-compose.full.yml` for a complete MinIO setup example.

@@ -1,6 +1,5 @@
 /**
  * Centralized configuration. Read once at boot from environment variables.
- * The schema is intentionally narrow at this stage — extended in M2 / M5.
  */
 
 function num(name: string, fallback: number): number {
@@ -34,6 +33,12 @@ export const config = {
   storage: {
     backend: str('STORAGE_BACKEND', 'filesystem') as 'filesystem' | 's3',
     path: str('STORAGE_PATH', './data/uploads'),
+    s3: {
+      bucket: str('S3_BUCKET', ''),
+      endpoint: str('S3_ENDPOINT', ''),
+      region: str('S3_REGION', 'us-east-1'),
+      forcePathStyle: bool('S3_FORCE_PATH_STYLE', false),
+    },
   },
   db: {
     path: str('DB_PATH', './data/shares.db'),
@@ -42,6 +47,10 @@ export const config = {
     sessionExpiryDays: num('SESSION_EXPIRY_DAYS', 30),
     registrationEnabled: bool('REGISTRATION_ENABLED', true),
     defaultQuotaBytes: num('DEFAULT_QUOTA_BYTES', 5 * 1024 * 1024 * 1024),
+  },
+  webhook: {
+    url: str('WEBHOOK_URL', ''),
+    secret: str('WEBHOOK_SECRET', ''),
   },
   logLevel: str('LOG_LEVEL', 'info') as 'fatal' | 'error' | 'warn' | 'info' | 'debug' | 'trace',
 } as const;
