@@ -107,39 +107,39 @@ SQLite via better-sqlite3. The database is single-file, in-process, and requires
 
 **shares**
 
-| Column | Type | Notes |
-| --- | --- | --- |
-| `id` | TEXT PK | 24-character hex string (12 random bytes) |
-| `created_at` | TEXT | ISO 8601 |
-| `expires_at` | TEXT | ISO 8601 |
-| `download_limit` | INTEGER | 0 = unlimited |
-| `downloads_used` | INTEGER | |
-| `salt` | TEXT | Base64url, present only for password-protected shares |
-| `iv_wrap` | TEXT | Base64url, present only for password-protected shares |
-| `wrapped_key` | TEXT | Base64url, present only for password-protected shares |
-| `user_id` | TEXT | FK to users, NULL for anonymous uploads |
-| `total_size_bytes` | INTEGER | Total encrypted size |
+| Column             | Type    | Notes                                                 |
+| ------------------ | ------- | ----------------------------------------------------- |
+| `id`               | TEXT PK | 24-character hex string (12 random bytes)             |
+| `created_at`       | TEXT    | ISO 8601                                              |
+| `expires_at`       | TEXT    | ISO 8601                                              |
+| `download_limit`   | INTEGER | 0 = unlimited                                         |
+| `downloads_used`   | INTEGER |                                                       |
+| `salt`             | TEXT    | Base64url, present only for password-protected shares |
+| `iv_wrap`          | TEXT    | Base64url, present only for password-protected shares |
+| `wrapped_key`      | TEXT    | Base64url, present only for password-protected shares |
+| `user_id`          | TEXT    | FK to users, NULL for anonymous uploads               |
+| `total_size_bytes` | INTEGER | Total encrypted size                                  |
 
 **users**
 
-| Column | Type | Notes |
-| --- | --- | --- |
-| `id` | TEXT PK | 24-character hex string |
-| `email` | TEXT UNIQUE | Stored lowercase |
-| `password_hash` | TEXT | Argon2id PHC string |
-| `created_at` | TEXT | ISO 8601 |
-| `role` | TEXT | `user` or `admin` |
-| `quota_bytes` | INTEGER | Per-account upload limit |
-| `last_login_at` | TEXT | ISO 8601, nullable |
+| Column          | Type        | Notes                    |
+| --------------- | ----------- | ------------------------ |
+| `id`            | TEXT PK     | 24-character hex string  |
+| `email`         | TEXT UNIQUE | Stored lowercase         |
+| `password_hash` | TEXT        | Argon2id PHC string      |
+| `created_at`    | TEXT        | ISO 8601                 |
+| `role`          | TEXT        | `user` or `admin`        |
+| `quota_bytes`   | INTEGER     | Per-account upload limit |
+| `last_login_at` | TEXT        | ISO 8601, nullable       |
 
 **sessions**
 
-| Column | Type | Notes |
-| --- | --- | --- |
-| `id` | TEXT PK | 64-character hex string (32 random bytes) |
-| `user_id` | TEXT | FK to users |
-| `created_at` | TEXT | ISO 8601 |
-| `expires_at` | TEXT | ISO 8601 |
+| Column       | Type    | Notes                                     |
+| ------------ | ------- | ----------------------------------------- |
+| `id`         | TEXT PK | 64-character hex string (32 random bytes) |
+| `user_id`    | TEXT    | FK to users                               |
+| `created_at` | TEXT    | ISO 8601                                  |
+| `expires_at` | TEXT    | ISO 8601                                  |
 
 ---
 
@@ -151,10 +151,10 @@ In development, the SvelteKit dev server runs on `:5173` and proxies `/api/*` to
 
 Key frontend packages:
 
-| Package | Purpose |
-| --- | --- |
-| `svelte-i18n` | German and English i18n, synchronously bundled |
-| `qrcode` | Client-side QR code generation for share links |
+| Package          | Purpose                                         |
+| ---------------- | ----------------------------------------------- |
+| `svelte-i18n`    | German and English i18n, synchronously bundled  |
+| `qrcode`         | Client-side QR code generation for share links  |
 | `packages/theme` | Design tokens consumed as CSS custom properties |
 
 ---

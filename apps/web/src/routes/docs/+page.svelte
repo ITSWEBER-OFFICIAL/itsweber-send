@@ -87,35 +87,78 @@
     <div class="panel-body faq-body">
       <details class="faq-item">
         <summary>Kann der Server-Betreiber meine Dateien lesen?</summary>
-        <p>Nein. Alle Dateien werden vor dem Upload im Browser verschlüsselt. Der Server empfängt ausschließlich Ciphertext. Dateinamen, MIME-Typen und Inhalte sind für den Server nicht sichtbar.</p>
+        <p>
+          Nein. Alle Dateien werden vor dem Upload im Browser verschlüsselt. Der Server empfängt
+          ausschließlich Ciphertext. Dateinamen, MIME-Typen und Inhalte sind für den Server nicht
+          sichtbar.
+        </p>
       </details>
       <details class="faq-item">
         <summary>Was passiert mit dem Schlüssel?</summary>
-        <p>Der Schlüssel steht im URL-Fragment (#k=…). Browser senden Fragmente nicht im HTTP-Request. Er landet weder in Server-Logs noch wird er übertragen. Nur wer die vollständige URL kennt, kann entschlüsseln.</p>
+        <p>
+          Der Schlüssel steht im URL-Fragment (#k=…). Browser senden Fragmente nicht im
+          HTTP-Request. Er landet weder in Server-Logs noch wird er übertragen. Nur wer die
+          vollständige URL kennt, kann entschlüsseln.
+        </p>
       </details>
       <details class="faq-item">
         <summary>Was bedeutet der 4-Wort-Code?</summary>
-        <p>Jeder Share bekommt einen menschenlesbaren Code aus 4 deutschen Wörtern (z. B. <code>tasche-lampe-schnee-ofen</code>). Der Code kann auf der Empfangen-Seite eingegeben werden, um den Share zu finden. Mathematisch trägt er rund 32 Bit Information — zu wenig, um einen 256-Bit-Schlüssel zu codieren.</p>
-        <p><strong>Per Stimme teilen:</strong> Wenn du beim Upload zusätzlich ein Passwort setzt, reichen <em>Code + Passwort</em> aus, um den Share vollständig zu entschlüsseln. Der Code findet den Share, das Passwort leitet via PBKDF2 den Schlüssel ab. Beides ist kurz genug, um es am Telefon zu diktieren.</p>
-        <p><strong>Ohne Passwort</strong> dient der Code nur als Kurzlink zum Auffinden — der Empfänger braucht zusätzlich die vollständige URL mit <code>#k=…</code>.</p>
+        <p>
+          Jeder Share bekommt einen menschenlesbaren Code aus 4 deutschen Wörtern (z. B. <code
+            >tasche-lampe-schnee-ofen</code
+          >). Der Code kann auf der Empfangen-Seite eingegeben werden, um den Share zu finden.
+          Mathematisch trägt er rund 32 Bit Information — zu wenig, um einen 256-Bit-Schlüssel zu
+          codieren.
+        </p>
+        <p>
+          <strong>Per Stimme teilen:</strong> Wenn du beim Upload zusätzlich ein Passwort setzt,
+          reichen <em>Code + Passwort</em> aus, um den Share vollständig zu entschlüsseln. Der Code findet
+          den Share, das Passwort leitet via PBKDF2 den Schlüssel ab. Beides ist kurz genug, um es am
+          Telefon zu diktieren.
+        </p>
+        <p>
+          <strong>Ohne Passwort</strong> dient der Code nur als Kurzlink zum Auffinden — der
+          Empfänger braucht zusätzlich die vollständige URL mit <code>#k=…</code>.
+        </p>
       </details>
       <details class="faq-item">
         <summary>Wie richte ich ITSWEBER Send ein?</summary>
-        <p>Ein Docker-Container genügt. Mit Caddy als Reverse-Proxy erhält der Container automatisch ein TLS-Zertifikat. Details stehen in der <a href="/docs/install">Installationsanleitung</a>.</p>
+        <p>
+          Ein Docker-Container genügt. Mit Caddy als Reverse-Proxy erhält der Container automatisch
+          ein TLS-Zertifikat. Details stehen in der <a href="/docs/install"
+            >Installationsanleitung</a
+          >.
+        </p>
       </details>
       <details class="faq-item">
         <summary>Gibt es eine REST-API?</summary>
-        <p>Ja. Alle Endpunkte sind unter <a href="/api/v1/docs">/api/v1/docs</a> als interaktive OpenAPI-Dokumentation erreichbar. API-Tokens können im Account-Bereich erstellt werden.</p>
+        <p>
+          Ja. Alle Endpunkte sind unter <a href="/api/v1/docs">/api/v1/docs</a> als interaktive OpenAPI-Dokumentation
+          erreichbar. API-Tokens können im Account-Bereich erstellt werden.
+        </p>
       </details>
     </div>
   </section>
 </div>
 
 <style>
-  .doc-page { max-width: 860px; }
-  .page-hero { margin-bottom: 32px; }
-  .page-hero h1 { margin: 0 0 8px; font-size: clamp(24px, 3vw, 32px); letter-spacing: -0.02em; }
-  .lede { color: var(--muted); margin: 0 0 12px; font-size: 15px; line-height: 1.55; }
+  .doc-page {
+    max-width: 860px;
+  }
+  .page-hero {
+    margin-bottom: 32px;
+  }
+  .page-hero h1 {
+    margin: 0 0 8px;
+    font-size: clamp(24px, 3vw, 32px);
+    letter-spacing: -0.02em;
+  }
+  .lede {
+    color: var(--muted);
+    margin: 0 0 12px;
+    font-size: 15px;
+    line-height: 1.55;
+  }
   .version-badge {
     display: inline-block;
     font-size: 11px;
@@ -132,7 +175,11 @@
     gap: 12px;
     margin-bottom: 24px;
   }
-  @media (max-width: 600px) { .card-grid { grid-template-columns: 1fr; } }
+  @media (max-width: 600px) {
+    .card-grid {
+      grid-template-columns: 1fr;
+    }
+  }
   .info-card .ico {
     display: inline-flex;
     color: var(--brand);
@@ -141,11 +188,24 @@
     border-radius: var(--radius-sm);
     margin-bottom: 10px;
   }
-  .info-card h2 { margin: 0 0 5px; font-size: 15px; font-weight: 600; }
-  .info-card p { color: var(--muted); font-size: 13px; line-height: 1.55; margin: 0; }
+  .info-card h2 {
+    margin: 0 0 5px;
+    font-size: 15px;
+    font-weight: 600;
+  }
+  .info-card p {
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1.55;
+    margin: 0;
+  }
 
-  .quick-nav { margin-bottom: 20px; }
-  .nav-list { padding: 0; }
+  .quick-nav {
+    margin-bottom: 20px;
+  }
+  .nav-list {
+    padding: 0;
+  }
   .nav-row {
     display: flex;
     justify-content: space-between;
@@ -155,18 +215,31 @@
     color: var(--text);
     text-decoration: none;
     font-size: 14px;
-    transition: background var(--transition-fast), color var(--transition-fast);
+    transition:
+      background var(--transition-fast),
+      color var(--transition-fast);
   }
-  .nav-row:last-child { border-bottom: 0; }
-  .nav-row:hover { background: var(--surface-2); color: var(--brand); }
+  .nav-row:last-child {
+    border-bottom: 0;
+  }
+  .nav-row:hover {
+    background: var(--surface-2);
+    color: var(--brand);
+  }
 
-  .faq { margin-bottom: 0; }
-  .faq-body { padding: 0; }
+  .faq {
+    margin-bottom: 0;
+  }
+  .faq-body {
+    padding: 0;
+  }
   .faq-item {
     border-bottom: 1px solid var(--border);
     padding: 14px 20px;
   }
-  .faq-item:last-child { border-bottom: 0; }
+  .faq-item:last-child {
+    border-bottom: 0;
+  }
   .faq-item summary {
     font-size: 14px;
     font-weight: 500;
@@ -176,16 +249,25 @@
     display: flex;
     justify-content: space-between;
   }
-  .faq-item summary::-webkit-details-marker { display: none; }
-  .faq-item[open] summary { color: var(--brand); }
+  .faq-item summary::-webkit-details-marker {
+    display: none;
+  }
+  .faq-item[open] summary {
+    color: var(--brand);
+  }
   .faq-item p {
     margin: 10px 0 0;
     font-size: 13px;
     color: var(--muted);
     line-height: 1.6;
   }
-  .faq-item a { color: var(--brand); text-decoration: none; }
-  .faq-item a:hover { text-decoration: underline; }
+  .faq-item a {
+    color: var(--brand);
+    text-decoration: none;
+  }
+  .faq-item a:hover {
+    text-decoration: underline;
+  }
   .faq-item code {
     font-family: var(--font-mono);
     font-size: 12px;
@@ -194,5 +276,7 @@
     border-radius: 4px;
     padding: 1px 5px;
   }
-  .faq-item p + p { margin-top: 8px; }
+  .faq-item p + p {
+    margin-top: 8px;
+  }
 </style>

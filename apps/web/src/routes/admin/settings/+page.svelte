@@ -36,8 +36,14 @@
     loading = true;
     try {
       const res = await fetch('/api/v1/admin/settings');
-      if (res.status === 401) { await goto('/login'); return; }
-      if (res.status === 403) { forbidden = true; return; }
+      if (res.status === 401) {
+        await goto('/login');
+        return;
+      }
+      if (res.status === 403) {
+        forbidden = true;
+        return;
+      }
       if (res.ok) {
         const raw = (await res.json()) as RawSettings;
         applySettings(raw);
@@ -53,10 +59,10 @@
     errorMsg = null;
     try {
       const payload = {
-        registration_enabled: String(registrationEnabled),
-        default_quota_bytes: String(defaultQuotaGb * GB),
-        max_upload_size_bytes: String(maxUploadGb * GB),
-        max_expiry_hours: String(maxExpiryHours),
+        registration_enabled: registrationEnabled,
+        default_quota_bytes: defaultQuotaGb * GB,
+        max_upload_size_bytes: maxUploadGb * GB,
+        max_expiry_hours: maxExpiryHours,
       };
       const res = await fetch('/api/v1/admin/settings', {
         method: 'PATCH',
@@ -71,7 +77,9 @@
       const updated = (await res.json()) as RawSettings;
       applySettings(updated);
       successMsg = 'Einstellungen gespeichert.';
-      setTimeout(() => { successMsg = null; }, 3500);
+      setTimeout(() => {
+        successMsg = null;
+      }, 3500);
     } finally {
       saving = false;
     }
@@ -82,12 +90,18 @@
       const check = setInterval(() => {
         if (auth.loaded) {
           clearInterval(check);
-          if (!auth.user) { void goto('/login'); return; }
+          if (!auth.user) {
+            void goto('/login');
+            return;
+          }
           void load();
         }
       }, 50);
     } else {
-      if (!auth.user) { void goto('/login'); return; }
+      if (!auth.user) {
+        void goto('/login');
+        return;
+      }
       void load();
     }
   });
@@ -115,7 +129,6 @@
     </div>
     <div class="panel-body">
       <div class="form">
-
         <!-- Registration toggle -->
         <div class="field">
           <div class="field-label-group">
@@ -144,13 +157,7 @@
             <span class="field-hint">Quota fur neu registrierte Nutzer.</span>
           </div>
           <div class="input-wrap">
-            <input
-              id="default-quota"
-              type="number"
-              min="0"
-              step="1"
-              bind:value={defaultQuotaGb}
-            />
+            <input id="default-quota" type="number" min="0" step="1" bind:value={defaultQuotaGb} />
             <span class="input-unit">GB</span>
           </div>
         </div>
@@ -164,13 +171,7 @@
             <span class="field-hint">Maximale Grosse einer einzelnen Upload-Session.</span>
           </div>
           <div class="input-wrap">
-            <input
-              id="max-upload"
-              type="number"
-              min="0"
-              step="1"
-              bind:value={maxUploadGb}
-            />
+            <input id="max-upload" type="number" min="0" step="1" bind:value={maxUploadGb} />
             <span class="input-unit">GB</span>
           </div>
         </div>
@@ -184,13 +185,7 @@
             <span class="field-hint">Maximale Gultigkeitsdauer eines Share-Links.</span>
           </div>
           <div class="input-wrap">
-            <input
-              id="max-expiry"
-              type="number"
-              min="1"
-              step="1"
-              bind:value={maxExpiryHours}
-            />
+            <input id="max-expiry" type="number" min="1" step="1" bind:value={maxExpiryHours} />
             <span class="input-unit">h</span>
           </div>
         </div>
@@ -214,16 +209,20 @@
             <div class="feedback error" role="alert">{errorMsg}</div>
           {/if}
         </div>
-
       </div>
     </div>
   </section>
 {/if}
 
 <style>
-  .center { display: flex; justify-content: center; padding: 80px; }
+  .center {
+    display: flex;
+    justify-content: center;
+    padding: 80px;
+  }
   .spinner {
-    width: 28px; height: 28px;
+    width: 28px;
+    height: 28px;
     border: 2.5px solid var(--border);
     border-top-color: var(--brand);
     border-radius: 50%;
@@ -231,25 +230,54 @@
   }
   .spinner-sm {
     display: inline-block;
-    width: 14px; height: 14px;
+    width: 14px;
+    height: 14px;
     border: 2px solid var(--border);
     border-top-color: var(--brand);
     border-radius: 50%;
     animation: spin 0.7s linear infinite;
     vertical-align: middle;
   }
-  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
 
-  .forbidden { text-align: center; padding: 80px 24px; }
-  .forbidden h1 { color: var(--danger); margin: 0 0 8px; }
-  .forbidden p { color: var(--muted); }
+  .forbidden {
+    text-align: center;
+    padding: 80px 24px;
+  }
+  .forbidden h1 {
+    color: var(--danger);
+    margin: 0 0 8px;
+  }
+  .forbidden p {
+    color: var(--muted);
+  }
 
-  .crumbs { color: var(--muted); font-size: 13px; margin-bottom: 12px; }
-  .crumbs a { color: var(--brand); }
+  .crumbs {
+    color: var(--muted);
+    font-size: 13px;
+    margin-bottom: 12px;
+  }
+  .crumbs a {
+    color: var(--brand);
+  }
 
-  .page-header { margin-bottom: 20px; }
-  .page-title { margin: 0 0 4px; font-size: 28px; letter-spacing: -0.02em; }
-  .page-sub { margin: 0; color: var(--muted); font-size: 14px; }
+  .page-header {
+    margin-bottom: 20px;
+  }
+  .page-title {
+    margin: 0 0 4px;
+    font-size: 28px;
+    letter-spacing: -0.02em;
+  }
+  .page-sub {
+    margin: 0;
+    color: var(--muted);
+    font-size: 14px;
+  }
 
   .panel {
     background: var(--surface);
@@ -273,10 +301,19 @@
     color: var(--muted);
     font-weight: 600;
   }
-  .panel-body { padding: 4px 0; }
+  .panel-body {
+    padding: 4px 0;
+  }
 
-  .form { display: flex; flex-direction: column; }
-  .divider { height: 1px; background: var(--border); margin: 0; }
+  .form {
+    display: flex;
+    flex-direction: column;
+  }
+  .divider {
+    height: 1px;
+    background: var(--border);
+    margin: 0;
+  }
 
   .field {
     display: flex;
@@ -339,7 +376,7 @@
     gap: 8px;
     flex-shrink: 0;
   }
-  .input-wrap input[type="number"] {
+  .input-wrap input[type='number'] {
     width: 90px;
     height: 36px;
     padding: 0 10px;
@@ -352,7 +389,7 @@
     text-align: right;
     transition: border-color var(--transition-fast);
   }
-  .input-wrap input[type="number"]:focus {
+  .input-wrap input[type='number']:focus {
     outline: none;
     border-color: var(--brand);
   }
@@ -385,8 +422,13 @@
     cursor: pointer;
     transition: opacity var(--transition-fast);
   }
-  .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
-  .btn-primary:not(:disabled):hover { opacity: 0.88; }
+  .btn-primary:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+  .btn-primary:not(:disabled):hover {
+    opacity: 0.88;
+  }
 
   .feedback {
     font-size: 13px;

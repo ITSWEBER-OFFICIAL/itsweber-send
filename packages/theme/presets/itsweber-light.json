@@ -2,26 +2,26 @@
   "$comment": "Semantic layer for the light theme. Maps semantic roles to primitives from ../tokens.json.",
   "name": "itsweber-light",
   "color": {
-    "background":      "{color.neutral.50}",
-    "surface":         "{color.neutral.0}",
-    "surface-2":       "{color.neutral.100}",
-    "surface-3":       "{color.neutral.200}",
-    "border":          "{color.alpha.border-light}",
-    "border-strong":   "{color.alpha.border-strong-light}",
-    "foreground":      "{color.neutral.900}",
-    "muted":           "{color.neutral.500}",
-    "dim":             "{color.neutral.400}",
-    "brand":           "{color.brand.teal-500}",
-    "brand-strong":    "{color.brand.teal-600}",
-    "brand-soft":      "{color.alpha.brand-soft-light}",
-    "success":         "{color.status.success-light}",
-    "warning":         "{color.status.warning-light}",
-    "danger":          "{color.status.danger-light}"
+    "background": "{color.neutral.50}",
+    "surface": "{color.neutral.0}",
+    "surface-2": "{color.neutral.100}",
+    "surface-3": "{color.neutral.200}",
+    "border": "{color.alpha.border-light}",
+    "border-strong": "{color.alpha.border-strong-light}",
+    "foreground": "{color.neutral.900}",
+    "muted": "{color.neutral.500}",
+    "dim": "{color.neutral.400}",
+    "brand": "{color.brand.teal-500}",
+    "brand-strong": "{color.brand.teal-600}",
+    "brand-soft": "{color.alpha.brand-soft-light}",
+    "success": "{color.status.success-light}",
+    "warning": "{color.status.warning-light}",
+    "danger": "{color.status.danger-light}"
   },
   "shadow": {
-    "sm":   "{shadow.sm-light}",
+    "sm": "{shadow.sm-light}",
     "card": "{shadow.card-light}",
-    "lg":   "{shadow.lg-light}",
+    "lg": "{shadow.lg-light}",
     "glow": "0 0 0 6px rgba(59,167,167,0.10), 0 12px 40px rgba(59,167,167,0.12)"
   }
 }

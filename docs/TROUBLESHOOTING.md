@@ -10,6 +10,7 @@ Reihenfolge: nach Build-Pipeline-Phase (Build → Runtime → Network).
 
 **Symptom**
 Während `pnpm install` im Builder-Stage:
+
 ```
 gyp ERR! find Python Python is not set ...
 prebuild-install warn install No prebuilt binaries found
@@ -20,6 +21,7 @@ prebuild-install warn install No prebuilt binaries found
 
 **Fix**
 Im Builder-Stage des Dockerfiles vor dem Install installieren:
+
 ```dockerfile
 RUN apk add --no-cache python3 make g++
 ```
@@ -30,6 +32,7 @@ RUN apk add --no-cache python3 make g++
 
 **Symptom**
 Container startet nicht. Fehler aus Node.js:
+
 ```
 Error [ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING]:
 Stripping types is currently unsupported for files under node_modules,
@@ -38,15 +41,19 @@ for ".../node_modules/@itsweber-send/shared/src/index.ts"
 
 **Ursache**
 `pnpm deploy` kopiert Workspace-Pakete (z. B. `@itsweber-send/shared`) in die Deploy-Struktur. Das Paket exportierte aber `.ts`-Quellen direkt:
+
 ```json
 "main": "src/index.ts",
 "exports": { ".": "./src/index.ts" }
 ```
+
 Node.js 22 stripped TypeScript zur Laufzeit nur außerhalb von `node_modules`.
 
 **Fix**
+
 1. Build-Step für das Shared-Paket: `tsconfig.build.json` mit `outDir: "dist"` und `module: "NodeNext"`.
 2. Conditional Exports in `package.json`:
+
 ```json
 "exports": {
   ".": {
@@ -55,6 +62,7 @@ Node.js 22 stripped TypeScript zur Laufzeit nur außerhalb von `node_modules`.
   }
 }
 ```
+
 3. `"build": "tsc -p tsconfig.build.json"` im Scripts-Block — Turborepo läuft das automatisch vor `api#build` weil `dependsOn: ["^build"]`.
 
 ---
@@ -77,7 +85,7 @@ if (config.env === 'production') {
   app.setNotFoundHandler((request, reply) => {
     reply.hijack(); // Fastify nicht selbst antworten lassen
     return new Promise((res, rej) => {
-      mod.handler(request.raw, reply.raw, (err) => err ? rej(err) : res());
+      mod.handler(request.raw, reply.raw, (err) => (err ? rej(err) : res()));
     });
   });
 }
@@ -93,9 +101,11 @@ if (config.env === 'production') {
 
 **Symptom**
 Leeres Browser-Fenster, in der Console:
+
 ```
 [svelte-i18n] Cannot format a message without first setting the initial locale
 ```
+
 Stack-Trace zeigt `formatMessage` aus dem ersten `$_('label')` der gerendert wird.
 
 **Ursache**
@@ -103,6 +113,7 @@ Lazy-Bundle-Loading via `register('de', () => import('./de.json'))` ist asynchro
 
 **Fix**
 Synchronen Import nutzen, JSON-Bundles inline mitbauen:
+
 ```typescript
 import deMessages from './de.json';
 import enMessages from './en.json';
@@ -122,9 +133,11 @@ Zusätzlich: Globaler `+layout.ts` mit `export const ssr = false` weil die App r
 
 **Symptom**
 Console:
+
 ```
 Executing inline script violates CSP directive: 'script-src 'self' 'nonce-...''.
 ```
+
 Inline-Script in `app.html` für `<html data-theme="…">`-Vorbelegung wird verworfen.
 
 **Ursache**
@@ -132,10 +145,12 @@ SvelteKits CSP-Mode `auto` generiert pro Render einen Nonce, der allen SvelteKit
 
 **Fix**
 Script in eine Static-Datei auslagern:
+
 ```html
 <!-- src/app.html -->
 <script src="%sveltekit.assets%/theme-init.js"></script>
 ```
+
 ```js
 // static/theme-init.js
 try {
@@ -143,8 +158,11 @@ try {
   if (stored === 'light' || stored === 'dark' || stored === 'system') {
     document.documentElement.dataset.theme = stored;
   }
-} catch (_) { /* localStorage may be unavailable */ }
+} catch (_) {
+  /* localStorage may be unavailable */
+}
 ```
+
 `script-src: 'self'` erlaubt Same-Origin-Files automatisch — keine `unsafe-inline`-Lockerung nötig, kein Nonce-Hash-Kuddelmuddel.
 
 ---
@@ -153,6 +171,7 @@ try {
 
 **Symptom**
 UI rendert korrekt, aber sobald „Verschlüsseln & hochladen" geklickt wird:
+
 ```
 Fehler beim Upload
 Cannot read properties of undefined (reading 'generateKey')
@@ -178,12 +197,14 @@ RFC 6066 verbietet IP-Literals als SNI-Wert. Curl (und einige Browser/Sicherheit
 
 **Fix**
 Im globalen Block der Caddyfile:
+
 ```
 {
     local_certs
     default_sni 192.168.0.10
 }
 ```
+
 Bei fehlender SNI behandelt Caddy die Verbindung dann so, als wäre sie für `192.168.0.10` — das passende Cert wird ausgeliefert.
 
 ---
@@ -197,8 +218,10 @@ Login-Endpoint hat `max: 5, timeWindow: '1 minute'`, aber 30 Aufrufe vom selben 
 Im Caddyfile war `header_up X-Forwarded-For {remote}` gesetzt. Caddy 2 expandiert `{remote}` zu `address:port`, also z. B. `172.19.0.1:42090`. Der Port ändert sich pro TCP-Verbindung, Fastifys `request.ip` (mit `trustProxy`) übernimmt den linkesten X-Forwarded-For-Wert — und damit ist der Rate-Limit-Schlüssel pro Request unterschiedlich.
 
 **Fix**
+
 - `header_up X-Forwarded-For {remote}` weglassen — Caddy setzt den Header bereits korrekt mit reiner IP.
 - Falls `X-Real-IP` o. Ä. gewünscht: `{remote_host}` statt `{remote}` verwenden.
+
 ```caddy
 reverse_proxy send:3000 {
     header_up X-Real-IP {remote_host}
@@ -211,6 +234,7 @@ reverse_proxy send:3000 {
 
 **Symptom**
 Beim Hochfahren mit Härtung (`docker-compose.yml`):
+
 ```
 EROFS: read-only file system, mkdir '/app/...'
 ```
@@ -219,7 +243,9 @@ EROFS: read-only file system, mkdir '/app/...'
 Node-Prozesse oder Multipart-Parser möchten temporäre Dateien anlegen. Bei `read_only: true` ist nur das gemountete Volume schreibbar.
 
 **Fix**
+
 - Compose-Block:
+
 ```yaml
 read_only: true
 tmpfs:
@@ -227,6 +253,7 @@ tmpfs:
 volumes:
   - send-data:/data
 ```
+
 - Storage und SQLite explizit unter `/data` verorten (`STORAGE_PATH`, `DB_PATH`).
 - Multipart in der Upload-Route nicht auf Disk spillen lassen — wir verwenden `part.toBuffer()`, daher kein `/tmp`-Bedarf für Uploads selbst.
 

@@ -119,10 +119,19 @@
     <section class="panel">
       <div class="panel-head">
         <h2>Speicher-Quota</h2>
-        <span class="pct-badge" class:warn={usedPct >= 80} class:danger={usedPct >= 95}>{pctLabel}</span>
+        <span class="pct-badge" class:warn={usedPct >= 80} class:danger={usedPct >= 95}
+          >{pctLabel}</span
+        >
       </div>
       <div class="panel-body">
-        <div class="quota-bar-wrap" role="progressbar" aria-valuenow={usedPct} aria-valuemin={0} aria-valuemax={100} aria-label="Speicherbelegung">
+        <div
+          class="quota-bar-wrap"
+          role="progressbar"
+          aria-valuenow={usedPct}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-label="Speicherbelegung"
+        >
           <div class="quota-bar">
             <div
               class="quota-seg"
@@ -267,7 +276,9 @@
     animation: spin 0.7s linear infinite;
   }
   @keyframes spin {
-    to { transform: rotate(360deg); }
+    to {
+      transform: rotate(360deg);
+    }
   }
 
   .error-box {

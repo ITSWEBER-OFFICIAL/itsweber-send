@@ -60,8 +60,8 @@
       }
       if (statsRes.ok && usersRes.ok) {
         const stats = (await statsRes.json()) as AdminStats;
-        const users = (await usersRes.json()) as AdminUser[];
-        data = { stats, users };
+        const usersBody = (await usersRes.json()) as { total: number; users: AdminUser[] };
+        data = { stats, users: usersBody.users };
       }
     } finally {
       loading = false;
@@ -190,10 +190,28 @@
     </div>
     <div class="panel-body">
       <div class="kv">
-        <div><span class="k">Health-Check</span><span class="v"><a href="/health" target="_blank" rel="noopener noreferrer">/health</a></span></div>
-        <div><span class="k">Ready-Check</span><span class="v"><a href="/ready" target="_blank" rel="noopener noreferrer">/ready</a></span></div>
-        <div><span class="k">OpenAPI</span><span class="v"><a href="/api/v1/openapi.json" target="_blank" rel="noopener noreferrer">/api/v1/openapi.json</a></span></div>
-        <div><span class="k">Logs</span><span class="v">via <code class="mono">docker logs itsweber-send</code></span></div>
+        <div>
+          <span class="k">Health-Check</span><span class="v"
+            ><a href="/health" target="_blank" rel="noopener noreferrer">/health</a></span
+          >
+        </div>
+        <div>
+          <span class="k">Ready-Check</span><span class="v"
+            ><a href="/ready" target="_blank" rel="noopener noreferrer">/ready</a></span
+          >
+        </div>
+        <div>
+          <span class="k">OpenAPI</span><span class="v"
+            ><a href="/api/v1/openapi.json" target="_blank" rel="noopener noreferrer"
+              >/api/v1/openapi.json</a
+            ></span
+          >
+        </div>
+        <div>
+          <span class="k">Logs</span><span class="v"
+            >via <code class="mono">docker logs itsweber-send</code></span
+          >
+        </div>
       </div>
     </div>
   </section>

@@ -21,8 +21,14 @@
     error = '';
     try {
       const res = await fetch('/api/v1/account/notifications');
-      if (res.status === 401) { await goto('/login'); return; }
-      if (!res.ok) { error = 'Einstellungen konnten nicht geladen werden.'; return; }
+      if (res.status === 401) {
+        await goto('/login');
+        return;
+      }
+      if (!res.ok) {
+        error = 'Einstellungen konnten nicht geladen werden.';
+        return;
+      }
       settings = (await res.json()) as NotificationSettings;
     } catch {
       error = 'Netzwerkfehler beim Laden.';
@@ -48,7 +54,9 @@
         return;
       }
       saved = true;
-      setTimeout(() => { saved = false; }, 2500);
+      setTimeout(() => {
+        saved = false;
+      }, 2500);
     } catch {
       error = 'Netzwerkfehler.';
     } finally {
@@ -67,12 +75,18 @@
       const check = setInterval(() => {
         if (auth.loaded) {
           clearInterval(check);
-          if (!auth.user) { void goto('/login'); return; }
+          if (!auth.user) {
+            void goto('/login');
+            return;
+          }
           void load();
         }
       }, 50);
     } else {
-      if (!auth.user) { void goto('/login'); return; }
+      if (!auth.user) {
+        void goto('/login');
+        return;
+      }
       void load();
     }
   });
@@ -146,7 +160,8 @@
 
     <div class="info-note">
       <Bell size={14} />
-      <span>E-Mail-Benachrichtigungen werden versendet, wenn ein SMTP-Server konfiguriert ist.</span>
+      <span>E-Mail-Benachrichtigungen werden versendet, wenn ein SMTP-Server konfiguriert ist.</span
+      >
     </div>
   {/if}
 </div>
@@ -196,7 +211,11 @@
     border-radius: 50%;
     animation: spin 0.7s linear infinite;
   }
-  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
   .msg-error {
     color: var(--danger);
     background: color-mix(in srgb, var(--danger) 10%, var(--surface));
@@ -287,7 +306,7 @@
     height: 18px;
     border-radius: 50%;
     background: var(--surface);
-    box-shadow: 0 1px 3px rgba(0,0,0,0.18);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
     transition: transform var(--transition-fast);
     pointer-events: none;
   }

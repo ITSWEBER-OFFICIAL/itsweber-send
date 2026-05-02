@@ -10,7 +10,7 @@ export const ManifestFileSchema = z.object({
   size: z.number().int().nonnegative(),
   mime: z.string(),
   blobId: z.string(), // e.g. "blob-0001"
-  iv: z.string(),     // base64url, 12 bytes
+  iv: z.string(), // base64url, 12 bytes
 });
 export type ManifestFile = z.infer<typeof ManifestFileSchema>;
 
@@ -60,7 +60,7 @@ export const DownloadManifestResponseSchema = z.object({
   passwordRequired: z.boolean(),
   remainingDownloads: z.number().int().nonnegative().nullable(),
   manifestCiphertext: z.string(), // base64url
-  manifestIv: z.string(),         // base64url
+  manifestIv: z.string(), // base64url
   salt: z.string().nullable(),
   ivWrap: z.string().nullable(),
   wrappedKey: z.string().nullable(),

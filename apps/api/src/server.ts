@@ -76,7 +76,11 @@ export async function buildServer() {
     const handlerPath = resolve(here, '../../web/build/handler.js');
     if (existsSync(handlerPath)) {
       const mod = (await import(handlerPath)) as {
-        handler: (req: import('node:http').IncomingMessage, res: import('node:http').ServerResponse, next: (err?: unknown) => void) => void;
+        handler: (
+          req: import('node:http').IncomingMessage,
+          res: import('node:http').ServerResponse,
+          next: (err?: unknown) => void,
+        ) => void;
       };
       app.setNotFoundHandler((request, reply) => {
         reply.hijack();

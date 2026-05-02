@@ -109,13 +109,19 @@
       minute: '2-digit',
     });
   }
-  function fileTypeBadge(name: string, mime: string): { label: string; tone: 'pdf' | 'img' | 'zip' | 'doc' | 'def' } {
+  function fileTypeBadge(
+    name: string,
+    mime: string,
+  ): { label: string; tone: 'pdf' | 'img' | 'zip' | 'doc' | 'def' } {
     const ext = (name.split('.').pop() || '').toLowerCase();
     if (ext === 'pdf') return { label: 'PDF', tone: 'pdf' };
-    if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'avif', 'svg', 'heic'].includes(ext)) return { label: ext.toUpperCase(), tone: 'img' };
-    if (['zip', 'tar', 'gz', '7z', 'rar'].includes(ext)) return { label: ext.toUpperCase(), tone: 'zip' };
+    if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'avif', 'svg', 'heic'].includes(ext))
+      return { label: ext.toUpperCase(), tone: 'img' };
+    if (['zip', 'tar', 'gz', '7z', 'rar'].includes(ext))
+      return { label: ext.toUpperCase(), tone: 'zip' };
     if (mime.startsWith('image/')) return { label: 'IMG', tone: 'img' };
-    if (mime.startsWith('text/') || ['md', 'txt', 'doc', 'docx'].includes(ext)) return { label: ext.toUpperCase() || 'DOC', tone: 'doc' };
+    if (mime.startsWith('text/') || ['md', 'txt', 'doc', 'docx'].includes(ext))
+      return { label: ext.toUpperCase() || 'DOC', tone: 'doc' };
     return { label: (ext || 'FILE').slice(0, 4).toUpperCase(), tone: 'def' };
   }
   const totalSelectedBytes = $derived(selectedFiles.reduce((s, f) => s + f.size, 0));
@@ -148,7 +154,11 @@
         },
       });
       shareId = result.id;
-      shareUrl = `${window.location.origin}/d/${result.id}#k=${result.key}`;
+      // Password-protected shares MUST NOT expose the master key in the URL —
+      // the password is the second factor; embedding the key would defeat it.
+      shareUrl = usePassword
+        ? `${window.location.origin}/d/${result.id}`
+        : `${window.location.origin}/d/${result.id}#k=${result.key}`;
       wordCode = await wordCodeFromId(result.id);
       shareExpiresAt = result.expiresAt;
       filePhases = filePhases.map(() => 'done');
@@ -244,7 +254,6 @@
       <div class="panel-body">
         {#if phase === 'idle' || phase === 'error'}
           <!-- Drop zone -->
-          <!-- svelte-ignore a11y_interactive_supports_focus -->
           <div
             class="dropzone"
             class:active={isDragOver}
@@ -260,11 +269,16 @@
           >
             <Upload size={44} />
             <div class="title">Dateien hierher ziehen</div>
-            <div class="sub">
-              oder Ordner — Multi-Upload wird automatisch als ZIP gepackt
-            </div>
+            <div class="sub">oder Ordner — Multi-Upload wird automatisch als ZIP gepackt</div>
             <div class="or">oder</div>
-            <button type="button" class="btn btn-primary" onclick={(e) => { e.stopPropagation(); openPicker(); }}>
+            <button
+              type="button"
+              class="btn btn-primary"
+              onclick={(e) => {
+                e.stopPropagation();
+                openPicker();
+              }}
+            >
               <Folder size={16} />
               Dateien auswählen
             </button>
@@ -289,7 +303,11 @@
             {#each selectedFiles as file, i}
               {@const badge = fileTypeBadge(file.name, file.type)}
               {@const fp = filePhases[i] ?? 'queued'}
-              <div class="file-row" class:done={fp === 'encrypted' || fp === 'done'} class:active={fp === 'encrypting' || fp === 'uploading'}>
+              <div
+                class="file-row"
+                class:done={fp === 'encrypted' || fp === 'done'}
+                class:active={fp === 'encrypting' || fp === 'uploading'}
+              >
                 <div class="file-icon" data-tone={badge.tone}>{badge.label}</div>
                 <div class="file-meta">
                   <div class="file-name" title={file.name}>{file.name}</div>
@@ -308,12 +326,19 @@
                     {/if}
                   </div>
                   {#if fp === 'uploading'}
-                    <div class="progress"><span style="width: {Math.round(uploadProgress * 100)}%"></span></div>
+                    <div class="progress">
+                      <span style="width: {Math.round(uploadProgress * 100)}%"></span>
+                    </div>
                   {/if}
                 </div>
                 <div class="file-actions">
                   {#if phase === 'idle' || phase === 'error'}
-                    <button type="button" title="Entfernen" aria-label="Entfernen" onclick={() => removeFile(i)}>
+                    <button
+                      type="button"
+                      title="Entfernen"
+                      aria-label="Entfernen"
+                      onclick={() => removeFile(i)}
+                    >
                       <X size={14} />
                     </button>
                   {:else if fp === 'uploading'}
@@ -338,7 +363,9 @@
           <div class="result">
             <h3><span class="ico"><ShieldCheck size={20} /></span> Bereit zum Teilen</h3>
             <p class="subtitle">
-              {selectedFiles.length === 1 ? selectedFiles[0]!.name : `${selectedFiles.length} Dateien`}
+              {selectedFiles.length === 1
+                ? selectedFiles[0]!.name
+                : `${selectedFiles.length} Dateien`}
               · läuft ab am {formatExpiry(shareExpiresAt)}
             </p>
 
@@ -346,7 +373,9 @@
               <div class="voice-share">
                 <div class="voice-head">
                   <span class="voice-badge">Per Sprache teilen</span>
-                  <span class="voice-hint">Code + Passwort reichen — vollständig per Telefon diktierbar.</span>
+                  <span class="voice-hint"
+                    >Code + Passwort reichen — vollständig per Telefon diktierbar.</span
+                  >
                 </div>
                 <div class="voice-grid">
                   <div class="field accent">
@@ -354,16 +383,26 @@
                       <div class="label">4-Wort-Code</div>
                       <div class="val val-lg">{wordCode}</div>
                     </div>
-                    <button class="copy-btn" type="button" onclick={() => copyToClipboard(wordCode, 'word')}>
+                    <button
+                      class="copy-btn"
+                      type="button"
+                      onclick={() => copyToClipboard(wordCode, 'word')}
+                    >
                       {copiedField === 'word' ? 'Kopiert' : 'Kopieren'}
                     </button>
                   </div>
                   <div class="field accent">
                     <div class="field-stack">
                       <div class="label">Passwort</div>
-                      <div class="val val-lg">{showPassword ? password : '•'.repeat(Math.min(password.length, 12))}</div>
+                      <div class="val val-lg">
+                        {showPassword ? password : '•'.repeat(Math.min(password.length, 12))}
+                      </div>
                     </div>
-                    <button class="copy-btn ghost" type="button" onclick={() => (showPassword = !showPassword)}>
+                    <button
+                      class="copy-btn ghost"
+                      type="button"
+                      onclick={() => (showPassword = !showPassword)}
+                    >
                       {showPassword ? 'Verbergen' : 'Anzeigen'}
                     </button>
                   </div>
@@ -381,32 +420,49 @@
                     <div class="label">Sharing-Link {voiceShareReady ? '(Alternative)' : ''}</div>
                     <div class="val" title={shareUrl}>{shareUrl}</div>
                   </div>
-                  <button class="copy-btn" type="button" onclick={() => copyToClipboard(shareUrl, 'link')}>
+                  <button
+                    class="copy-btn"
+                    type="button"
+                    onclick={() => copyToClipboard(shareUrl, 'link')}
+                  >
                     {copiedField === 'link' ? 'Kopiert' : 'Kopieren'}
                   </button>
                 </div>
                 {#if useWordcode && !voiceShareReady}
                   <div class="field">
                     <div class="field-stack">
-                      <div class="label">4-Wort-Code <span class="lookup-tag">nur Lookup</span></div>
+                      <div class="label">
+                        4-Wort-Code <span class="lookup-tag">nur Lookup</span>
+                      </div>
                       <div class="val">{wordCode}</div>
                     </div>
-                    <button class="copy-btn" type="button" onclick={() => copyToClipboard(wordCode, 'word')}>
+                    <button
+                      class="copy-btn"
+                      type="button"
+                      onclick={() => copyToClipboard(wordCode, 'word')}
+                    >
                       {copiedField === 'word' ? 'Kopiert' : 'Kopieren'}
                     </button>
                   </div>
                   <p class="lookup-warn">
-                    Der Code findet diesen Share, kann ihn aber nicht entschlüsseln. Sende dem Empfänger zusätzlich die volle URL oder
-                    setze ein Passwort, um nur Code + Passwort weiterzugeben.
+                    Der Code findet diesen Share, kann ihn aber nicht entschlüsseln. Sende dem
+                    Empfänger zusätzlich die volle URL oder setze ein Passwort, um nur Code +
+                    Passwort weiterzugeben.
                   </p>
                 {/if}
                 {#if usePassword && password && !voiceShareReady}
                   <div class="field">
                     <div class="field-stack">
                       <div class="label">Passwort</div>
-                      <div class="val">{showPassword ? password : '•'.repeat(Math.min(password.length, 12))}</div>
+                      <div class="val">
+                        {showPassword ? password : '•'.repeat(Math.min(password.length, 12))}
+                      </div>
                     </div>
-                    <button class="copy-btn ghost" type="button" onclick={() => (showPassword = !showPassword)}>
+                    <button
+                      class="copy-btn ghost"
+                      type="button"
+                      onclick={() => (showPassword = !showPassword)}
+                    >
                       {showPassword ? 'Verbergen' : 'Anzeigen'}
                     </button>
                   </div>
@@ -417,7 +473,10 @@
             <div class="meta-row">
               <span><b>{remainingDownloadsLabel}</b> Downloads übrig</span>
               <span>Ablauf: <b>{formatExpiry(shareExpiresAt)}</b></span>
-              <span><b>{formatBytes(totalSelectedBytes)}</b> · {selectedFiles.length} {selectedFiles.length === 1 ? 'Datei' : 'Dateien'}</span>
+              <span
+                ><b>{formatBytes(totalSelectedBytes)}</b> · {selectedFiles.length}
+                {selectedFiles.length === 1 ? 'Datei' : 'Dateien'}</span
+              >
               <span class="meta-actions">
                 <button type="button" class="btn btn-ghost btn-sm" onclick={downloadQrPng}>
                   <QrCode size={14} /> QR speichern
@@ -544,11 +603,14 @@
             </button>
           </div>
           {#if voiceShareReady}
-            <span class="hint-line ok">Per Sprache übertragbar: Code + Passwort entschlüsseln den Share vollständig.</span>
+            <span class="hint-line ok"
+              >Per Sprache übertragbar: Code + Passwort entschlüsseln den Share vollständig.</span
+            >
           {:else if wordcodeNeedsPassword}
             <span class="hint-line warn">
-              Ohne Passwort dient der Code nur als Kurzlink — der Empfänger braucht zusätzlich die volle URL mit Schlüssel.
-              Empfehlung: Passwortschutz aktivieren, um den Share allein per Stimme weiterzugeben.
+              Ohne Passwort dient der Code nur als Kurzlink — der Empfänger braucht zusätzlich die
+              volle URL mit Schlüssel. Empfehlung: Passwortschutz aktivieren, um den Share allein
+              per Stimme weiterzugeben.
             </span>
           {:else}
             <span class="hint-line">Alternative zum langen Link, leichter zu diktieren.</span>
@@ -585,7 +647,9 @@
               <span class="switch-track"></span>
             </button>
           </div>
-          <span class="hint-line">Per E-Mail benachrichtigen, wenn heruntergeladen wurde (nur mit Account)</span>
+          <span class="hint-line"
+            >Per E-Mail benachrichtigen, wenn heruntergeladen wurde (nur mit Account)</span
+          >
         </div>
       </div>
     </aside>
@@ -830,7 +894,9 @@
     display: grid;
     place-items: center;
     font-family: inherit;
-    transition: color var(--transition-fast), border-color var(--transition-fast);
+    transition:
+      color var(--transition-fast),
+      border-color var(--transition-fast);
   }
   .file-actions button:hover:not(:disabled) {
     color: var(--danger);
@@ -853,7 +919,9 @@
     color: var(--brand);
     font-size: 13px;
     cursor: pointer;
-    transition: border-color var(--transition-fast), background var(--transition-fast);
+    transition:
+      border-color var(--transition-fast),
+      background var(--transition-fast);
     font-family: inherit;
   }
   .btn-add:hover {
@@ -919,7 +987,9 @@
     border-radius: var(--radius-sm);
     padding: 8px 10px;
   }
-  :global([data-theme='dark']) .hint-line.ok { color: var(--brand); }
+  :global([data-theme='dark']) .hint-line.ok {
+    color: var(--brand);
+  }
 
   /* Switch */
   .switch {
@@ -991,8 +1061,7 @@
     padding: 28px;
     border-radius: var(--radius-lg);
     background:
-      radial-gradient(80% 100% at 100% 0%, var(--brand-soft), transparent 60%),
-      var(--surface);
+      radial-gradient(80% 100% at 100% 0%, var(--brand-soft), transparent 60%), var(--surface);
     border: 1px solid var(--border);
     box-shadow: var(--shadow-glow);
   }
@@ -1022,6 +1091,9 @@
     .share-grid {
       grid-template-columns: 1fr;
     }
+    .share-grid .qr {
+      margin: 0 auto;
+    }
   }
   .qr {
     background: white;
@@ -1030,7 +1102,12 @@
     border: 1px solid var(--border);
     display: grid;
     place-items: center;
-    aspect-ratio: 1;
+    width: 176px;
+    height: 176px;
+  }
+  .qr canvas {
+    display: block;
+    margin: 0 auto;
   }
   .share-fields {
     display: grid;
@@ -1117,7 +1194,9 @@
     padding: 3px 10px;
     border-radius: 9999px;
   }
-  :global([data-theme='dark']) .voice-badge { color: var(--brand); }
+  :global([data-theme='dark']) .voice-badge {
+    color: var(--brand);
+  }
   .voice-hint {
     font-size: 12px;
     color: var(--muted);
@@ -1128,7 +1207,9 @@
     gap: 10px;
   }
   @media (max-width: 700px) {
-    .voice-grid { grid-template-columns: 1fr; }
+    .voice-grid {
+      grid-template-columns: 1fr;
+    }
   }
   .field.accent {
     background: var(--surface);
@@ -1137,6 +1218,13 @@
   .val-lg {
     font-size: 15px;
     font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .share-fields .val {
+    word-break: break-all;
+    white-space: normal;
   }
   .lookup-tag {
     display: inline-block;
@@ -1217,12 +1305,19 @@
   @media (max-width: 480px) {
     .page {
       padding: 32px 16px 60px;
+      overflow-x: hidden;
     }
     .dropzone {
       padding: 40px 16px;
     }
     .meta-row {
       font-size: 12px;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 8px;
+    }
+    .meta-actions {
+      margin-left: 0;
     }
   }
 </style>

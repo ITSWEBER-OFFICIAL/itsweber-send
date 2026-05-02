@@ -88,8 +88,14 @@
     }
     try {
       const res = await fetch(`/api/v1/admin/users?limit=${limit}&offset=${offset}`);
-      if (res.status === 401) { await goto('/login'); return; }
-      if (res.status === 403) { forbidden = true; return; }
+      if (res.status === 401) {
+        await goto('/login');
+        return;
+      }
+      if (res.status === 403) {
+        forbidden = true;
+        return;
+      }
       if (res.ok) {
         const body = (await res.json()) as UsersResponse;
         total = body.total;
@@ -159,12 +165,18 @@
       const check = setInterval(() => {
         if (auth.loaded) {
           clearInterval(check);
-          if (!auth.user) { void goto('/login'); return; }
+          if (!auth.user) {
+            void goto('/login');
+            return;
+          }
           void load(true);
         }
       }, 50);
     } else {
-      if (!auth.user) { void goto('/login'); return; }
+      if (!auth.user) {
+        void goto('/login');
+        return;
+      }
       void load(true);
     }
   });
@@ -195,12 +207,8 @@
       bind:value={search}
     />
     <div class="role-tabs" role="group" aria-label="Rolle filtern">
-      {#each (['all', 'admin', 'user'] as const) as r}
-        <button
-          class="role-tab"
-          class:active={roleFilter === r}
-          onclick={() => (roleFilter = r)}
-        >
+      {#each ['all', 'admin', 'user'] as const as r}
+        <button class="role-tab" class:active={roleFilter === r} onclick={() => (roleFilter = r)}>
           {r === 'all' ? 'Alle' : r === 'admin' ? 'Admin' : 'Nutzer'}
         </button>
       {/each}
@@ -267,7 +275,10 @@
                       </button>
                       <button
                         class="btn-danger-ghost"
-                        onclick={() => { deletingId = user.id; deleteError = null; }}
+                        onclick={() => {
+                          deletingId = user.id;
+                          deleteError = null;
+                        }}
                         title="Nutzer loschen"
                       >
                         <Trash size={14} />
@@ -301,11 +312,7 @@
                           bind:value={editQuotaGb}
                         />
                       </div>
-                      <button
-                        class="btn-primary"
-                        onclick={() => saveEdit(user)}
-                        disabled={saving}
-                      >
+                      <button class="btn-primary" onclick={() => saveEdit(user)} disabled={saving}>
                         {#if saving}
                           <span class="spinner-sm" aria-hidden="true"></span> Speichern ...
                         {:else}
@@ -325,9 +332,14 @@
                 <tr class="confirm-row">
                   <td colspan="7">
                     <div class="confirm-bar">
-                      <span>Nutzer <strong>{user.email}</strong> wirklich loschen? Dies kann nicht ruckgangig gemacht werden.</span>
+                      <span
+                        >Nutzer <strong>{user.email}</strong> wirklich loschen? Dies kann nicht ruckgangig
+                        gemacht werden.</span
+                      >
                       <div class="confirm-actions">
-                        <button class="btn-ghost" onclick={() => (deletingId = null)}>Abbrechen</button>
+                        <button class="btn-ghost" onclick={() => (deletingId = null)}
+                          >Abbrechen</button
+                        >
                         <button class="btn-danger" onclick={() => confirmDelete(user.id)}>
                           <Trash size={14} /> Loschen
                         </button>
@@ -379,17 +391,32 @@
     animation: spin 0.7s linear infinite;
     vertical-align: middle;
   }
-  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
 
   .forbidden {
     text-align: center;
     padding: 80px 24px;
   }
-  .forbidden h1 { color: var(--danger); margin: 0 0 8px; }
-  .forbidden p { color: var(--muted); }
+  .forbidden h1 {
+    color: var(--danger);
+    margin: 0 0 8px;
+  }
+  .forbidden p {
+    color: var(--muted);
+  }
 
-  .crumbs { color: var(--muted); font-size: 13px; margin-bottom: 12px; }
-  .crumbs a { color: var(--brand); }
+  .crumbs {
+    color: var(--muted);
+    font-size: 13px;
+    margin-bottom: 12px;
+  }
+  .crumbs a {
+    color: var(--brand);
+  }
 
   .page-header {
     display: flex;
@@ -397,8 +424,16 @@
     justify-content: space-between;
     margin-bottom: 20px;
   }
-  .page-title { margin: 0 0 4px; font-size: 28px; letter-spacing: -0.02em; }
-  .page-sub { margin: 0; color: var(--muted); font-size: 14px; }
+  .page-title {
+    margin: 0 0 4px;
+    font-size: 28px;
+    letter-spacing: -0.02em;
+  }
+  .page-sub {
+    margin: 0;
+    color: var(--muted);
+    font-size: 14px;
+  }
 
   .filter-bar {
     display: flex;
@@ -439,7 +474,9 @@
     background: transparent;
     color: var(--muted);
     cursor: pointer;
-    transition: background var(--transition-fast), color var(--transition-fast);
+    transition:
+      background var(--transition-fast),
+      color var(--transition-fast);
   }
   .role-tab.active {
     background: var(--brand);
@@ -473,11 +510,25 @@
     color: var(--muted);
     font-weight: 600;
   }
-  .hint-pill { color: var(--dim); font-size: 12px; }
+  .hint-pill {
+    color: var(--dim);
+    font-size: 12px;
+  }
 
-  .table-body { overflow-x: auto; }
-  table { width: 100%; border-collapse: collapse; font-size: 14px; }
-  th, td { text-align: left; padding: 14px 22px; border-bottom: 1px solid var(--border); }
+  .table-body {
+    overflow-x: auto;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+  }
+  th,
+  td {
+    text-align: left;
+    padding: 14px 22px;
+    border-bottom: 1px solid var(--border);
+  }
   thead th {
     font-size: 11px;
     text-transform: uppercase;
@@ -486,10 +537,18 @@
     font-weight: 600;
     white-space: nowrap;
   }
-  tbody tr:hover { background: var(--surface-2); }
-  tbody tr:last-child td { border-bottom: 0; }
+  tbody tr:hover {
+    background: var(--surface-2);
+  }
+  tbody tr:last-child td {
+    border-bottom: 0;
+  }
 
-  .user-cell { display: flex; align-items: center; gap: 10px; }
+  .user-cell {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
   .avatar {
     width: 32px;
     height: 32px;
@@ -502,7 +561,9 @@
     font-size: 13px;
     flex-shrink: 0;
   }
-  .user-stack { min-width: 0; }
+  .user-stack {
+    min-width: 0;
+  }
   .user-email {
     font-weight: 500;
     color: var(--text);
@@ -511,7 +572,11 @@
     white-space: nowrap;
     max-width: 260px;
   }
-  .user-id { font-family: var(--font-mono); font-size: 11px; color: var(--dim); }
+  .user-id {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--dim);
+  }
 
   .badge {
     display: inline-block;
@@ -521,19 +586,47 @@
     font-weight: 600;
     letter-spacing: 0.04em;
   }
-  .badge-admin { background: var(--brand-soft); color: var(--brand-strong); }
-  .badge-user  { background: var(--surface-2); color: var(--muted); }
+  .badge-admin {
+    background: var(--brand-soft);
+    color: var(--brand-strong);
+  }
+  .badge-user {
+    background: var(--surface-2);
+    color: var(--muted);
+  }
 
-  .totp-on { color: var(--brand); display: inline-flex; align-items: center; }
-  .totp-off { color: var(--dim); }
+  .totp-on {
+    color: var(--brand);
+    display: inline-flex;
+    align-items: center;
+  }
+  .totp-off {
+    color: var(--dim);
+  }
 
-  .mono { font-family: var(--font-mono); font-size: 13px; }
-  .muted { color: var(--muted); font-size: 13px; white-space: nowrap; }
-  .empty { color: var(--muted); font-size: 14px; margin: 22px; }
+  .mono {
+    font-family: var(--font-mono);
+    font-size: 13px;
+  }
+  .muted {
+    color: var(--muted);
+    font-size: 13px;
+    white-space: nowrap;
+  }
+  .empty {
+    color: var(--muted);
+    font-size: 14px;
+    margin: 22px;
+  }
 
-  .row-actions { display: flex; align-items: center; gap: 6px; }
+  .row-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
 
-  .edit-row td, .confirm-row td {
+  .edit-row td,
+  .confirm-row td {
     background: var(--surface-2);
     padding: 14px 22px;
     border-bottom: 1px solid var(--border);
@@ -545,10 +638,19 @@
     gap: 16px;
     flex-wrap: wrap;
   }
-  .edit-field { display: flex; flex-direction: column; gap: 4px; }
-  .edit-field label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+  .edit-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .edit-field label {
+    font-size: 11px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
   .edit-field select,
-  .edit-field input[type="number"] {
+  .edit-field input[type='number'] {
     height: 34px;
     padding: 0 10px;
     background: var(--surface);
@@ -559,11 +661,13 @@
     transition: border-color var(--transition-fast);
   }
   .edit-field select:focus,
-  .edit-field input[type="number"]:focus {
+  .edit-field input[type='number']:focus {
     outline: none;
     border-color: var(--brand);
   }
-  .edit-field input[type="number"] { width: 90px; }
+  .edit-field input[type='number'] {
+    width: 90px;
+  }
 
   .confirm-bar {
     display: flex;
@@ -572,10 +676,19 @@
     flex-wrap: wrap;
     font-size: 14px;
   }
-  .confirm-bar strong { color: var(--text); }
-  .confirm-actions { display: flex; gap: 8px; margin-left: auto; }
+  .confirm-bar strong {
+    color: var(--text);
+  }
+  .confirm-actions {
+    display: flex;
+    gap: 8px;
+    margin-left: auto;
+  }
 
-  .inline-error { color: var(--danger); font-size: 13px; }
+  .inline-error {
+    color: var(--danger);
+    font-size: 13px;
+  }
 
   /* Buttons */
   .btn-primary {
@@ -592,8 +705,13 @@
     cursor: pointer;
     transition: opacity var(--transition-fast);
   }
-  .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
-  .btn-primary:not(:disabled):hover { opacity: 0.88; }
+  .btn-primary:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+  .btn-primary:not(:disabled):hover {
+    opacity: 0.88;
+  }
 
   .btn-ghost {
     display: inline-flex;
@@ -608,9 +726,16 @@
     cursor: pointer;
     transition: background var(--transition-fast);
   }
-  .btn-ghost:hover { background: var(--surface-2); }
-  .btn-ghost:disabled { opacity: 0.5; cursor: not-allowed; }
-  .muted-btn { color: var(--muted); }
+  .btn-ghost:hover {
+    background: var(--surface-2);
+  }
+  .btn-ghost:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  .muted-btn {
+    color: var(--muted);
+  }
 
   .btn-danger-ghost {
     display: inline-flex;
@@ -621,9 +746,14 @@
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
     cursor: pointer;
-    transition: color var(--transition-fast), border-color var(--transition-fast);
+    transition:
+      color var(--transition-fast),
+      border-color var(--transition-fast);
   }
-  .btn-danger-ghost:hover { color: var(--danger); border-color: var(--danger); }
+  .btn-danger-ghost:hover {
+    color: var(--danger);
+    border-color: var(--danger);
+  }
 
   .btn-danger {
     display: inline-flex;
@@ -639,7 +769,9 @@
     cursor: pointer;
     transition: opacity var(--transition-fast);
   }
-  .btn-danger:hover { opacity: 0.85; }
+  .btn-danger:hover {
+    opacity: 0.85;
+  }
 
   .load-more {
     padding: 16px 22px;

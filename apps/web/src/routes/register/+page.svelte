@@ -41,7 +41,12 @@
   <div class="card-wrap">
     <div class="card">
       <h1 class="title">{$_('auth.register_title')}</h1>
-      <form onsubmit={(e) => { e.preventDefault(); void submit(); }}>
+      <form
+        onsubmit={(e) => {
+          e.preventDefault();
+          void submit();
+        }}
+      >
         <div class="field">
           <label class="label" for="email">{$_('auth.email')}</label>
           <input
@@ -70,7 +75,11 @@
         {#if error}
           <p class="error">{error}</p>
         {/if}
-        <button class="btn-primary" type="submit" disabled={loading || !email || password.length < 8}>
+        <button
+          class="btn-primary"
+          type="submit"
+          disabled={loading || !email || password.length < 8}
+        >
           {#if loading}
             <span class="spinner" aria-hidden="true"></span>
           {/if}
@@ -91,17 +100,33 @@
     margin: 0 auto;
     padding: 80px 24px;
   }
-  .card-wrap { width: 100%; }
+  .card-wrap {
+    width: 100%;
+  }
   .card {
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: 16px;
     padding: 32px 28px;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
   }
-  .title { margin: 0 0 24px; font-size: 22px; font-weight: 700; letter-spacing: -0.02em; }
-  .field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
-  .label { font-size: 13px; color: var(--muted); font-weight: 500; }
+  .title {
+    margin: 0 0 24px;
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 16px;
+  }
+  .label {
+    font-size: 13px;
+    color: var(--muted);
+    font-weight: 500;
+  }
   .input {
     background: var(--surface-2);
     border: 1px solid var(--border);
@@ -112,8 +137,15 @@
     box-sizing: border-box;
     width: 100%;
   }
-  .input:focus { outline: 2px solid var(--brand); outline-offset: 2px; }
-  .error { color: #d9534f; font-size: 13px; margin: 0 0 12px; }
+  .input:focus {
+    outline: 2px solid var(--brand);
+    outline-offset: 2px;
+  }
+  .error {
+    color: #d9534f;
+    font-size: 13px;
+    margin: 0 0 12px;
+  }
   .btn-primary {
     width: 100%;
     padding: 12px;
@@ -132,23 +164,46 @@
     min-height: 48px;
     margin-top: 4px;
   }
-  .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
-  .btn-primary:not(:disabled):hover { opacity: 0.88; }
+  .btn-primary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  .btn-primary:not(:disabled):hover {
+    opacity: 0.88;
+  }
   .spinner {
     width: 14px;
     height: 14px;
-    border: 2px solid rgba(10,26,38,0.3);
+    border: 2px solid rgba(10, 26, 38, 0.3);
     border-top-color: #0a1a26;
     border-radius: 50%;
     animation: spin 0.7s linear infinite;
   }
-  @keyframes spin { to { transform: rotate(360deg); } }
-  .switch-link { text-align: center; font-size: 14px; color: var(--muted); margin: 20px 0 0; }
-  .switch-link a { color: var(--brand); text-decoration: none; }
-  .switch-link a:hover { text-decoration: underline; }
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+  .switch-link {
+    text-align: center;
+    font-size: 14px;
+    color: var(--muted);
+    margin: 20px 0 0;
+  }
+  .switch-link a {
+    color: var(--brand);
+    text-decoration: none;
+  }
+  .switch-link a:hover {
+    text-decoration: underline;
+  }
 
   @media (max-width: 480px) {
-    .page { padding: 40px 16px; }
-    .card { padding: 20px 16px; }
+    .page {
+      padding: 40px 16px;
+    }
+    .card {
+      padding: 20px 16px;
+    }
   }
 </style>

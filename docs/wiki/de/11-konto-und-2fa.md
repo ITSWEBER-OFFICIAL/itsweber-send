@@ -22,17 +22,17 @@ Um das Deployment nach dem Onboarding zu sichern: `REGISTRATION_ENABLED=false` s
 
 Nach dem Login hat das **Konto**-Menü neun Unterseiten:
 
-| Seite | Zweck |
-| --- | --- |
-| `Übersicht` | Quota-Auslastung, letzte Shares, Quick-Actions |
-| `Uploads` | Vollständige Liste der eigenen Shares; löschen oder ansehen |
-| `API-Tokens` | API-Tokens erstellen, listen, widerrufen (siehe unten) |
-| `Profil` | Anzeigename, E-Mail |
-| `Sicherheit` | Passwort ändern, 2FA einrichten |
-| `Benachrichtigungen` | E-Mail-Benachrichtigungen bei Download / Ablauf |
-| `Sprache` | UI-Sprache |
-| `Theme` | Hell / Dunkel / System |
-| `Audit-Log` | Alle Aktionen am Konto mit Zeitstempel |
+| Seite                | Zweck                                                       |
+| -------------------- | ----------------------------------------------------------- |
+| `Übersicht`          | Quota-Auslastung, letzte Shares, Quick-Actions              |
+| `Uploads`            | Vollständige Liste der eigenen Shares; löschen oder ansehen |
+| `API-Tokens`         | API-Tokens erstellen, listen, widerrufen (siehe unten)      |
+| `Profil`             | Anzeigename, E-Mail                                         |
+| `Sicherheit`         | Passwort ändern, 2FA einrichten                             |
+| `Benachrichtigungen` | E-Mail-Benachrichtigungen bei Download / Ablauf             |
+| `Sprache`            | UI-Sprache                                                  |
+| `Theme`              | Hell / Dunkel / System                                      |
+| `Audit-Log`          | Alle Aktionen am Konto mit Zeitstempel                      |
 
 ---
 

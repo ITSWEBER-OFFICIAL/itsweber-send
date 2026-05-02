@@ -44,7 +44,9 @@ function xhrUpload(
         try {
           const body = JSON.parse(xhr.responseText) as { error?: string };
           if (body.error) msg = body.error;
-        } catch { /* ignore */ }
+        } catch {
+          /* ignore */
+        }
         reject(new Error(msg));
       }
     });
@@ -54,10 +56,7 @@ function xhrUpload(
   });
 }
 
-export async function uploadFiles(
-  files: File[],
-  options: UploadOptions,
-): Promise<UploadResult> {
+export async function uploadFiles(files: File[], options: UploadOptions): Promise<UploadResult> {
   if (files.length === 0) throw new Error('Keine Dateien ausgewählt');
 
   const masterKey = await generateKey();
@@ -88,9 +87,7 @@ export async function uploadFiles(
     files: manifestFiles,
     note: options.note?.trim() || null,
   };
-  const manifestBytes = new Uint8Array(
-    new TextEncoder().encode(JSON.stringify(manifest)),
-  );
+  const manifestBytes = new Uint8Array(new TextEncoder().encode(JSON.stringify(manifest)));
   const manifestIV = generateIV();
   const manifestCiphertext = await encrypt(masterKey, manifestIV, manifestBytes);
 

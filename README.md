@@ -36,12 +36,11 @@ Inspired by the original Firefox Send and the [timvisee/send](https://github.com
 
 ### Sharing
 
-- Drag-and-drop multi-file upload with automatic ZIP-streaming
-- Resumable, chunked uploads (tus.io protocol) — works over unstable connections
-- Per-share password (layered on top of the URL key)
-- Configurable expiry (1 h / 24 h / 7 d / 30 d) and download limit (1× to unlimited)
+- Drag-and-drop multi-file upload (each file up to 500 MB; streaming uploads on the v1.1 roadmap)
+- Per-share password (layered on top of the URL key — when set, the share is decrypted via password only, no master key in the link)
+- Configurable expiry (1 h / 24 h / 7 d / 30 d) and download limit (1× to unlimited; counts per recipient share-download, not per blob)
 - QR code generated client-side for the share link
-- Four-word handoff code as an alternative to the long URL
+- Four-word handoff code as an alternative to the long URL — combine with a password for fully voice-shareable transfers
 - Optional Markdown note for the recipient
 
 ### Privacy & Security
@@ -125,46 +124,46 @@ Web UI: `http://localhost:5173` — API: `http://localhost:3000`
 
 All configuration is done via environment variables. Full reference: [docs/CONFIG.md](docs/CONFIG.md).
 
-| Variable | Default | Purpose |
-| --- | --- | --- |
-| `BASE_URL` | `http://localhost:3000` | Public URL the service is reachable under |
-| `NODE_ENV` | `development` | Set to `production` for production deployments |
-| `STORAGE_BACKEND` | `filesystem` | `filesystem` (default) or `s3` for S3/MinIO |
-| `STORAGE_PATH` | `./data/uploads` | Filesystem-backend upload directory |
-| `DB_PATH` | `./data/shares.db` | SQLite database path |
-| `RATE_LIMIT_PER_MIN` | `60` | Per-IP request limit per minute |
-| `ENABLE_ACCOUNTS` | `true` | Allow optional user accounts |
-| `REGISTRATION_ENABLED` | `true` | Allow new registrations |
-| `DEFAULT_QUOTA_BYTES` | `5368709120` | Per-user quota (default: 5 GB) |
+| Variable               | Default                 | Purpose                                        |
+| ---------------------- | ----------------------- | ---------------------------------------------- |
+| `BASE_URL`             | `http://localhost:3000` | Public URL the service is reachable under      |
+| `NODE_ENV`             | `development`           | Set to `production` for production deployments |
+| `STORAGE_BACKEND`      | `filesystem`            | `filesystem` (default) or `s3` for S3/MinIO    |
+| `STORAGE_PATH`         | `./data/uploads`        | Filesystem-backend upload directory            |
+| `DB_PATH`              | `./data/shares.db`      | SQLite database path                           |
+| `RATE_LIMIT_PER_MIN`   | `60`                    | Per-IP request limit per minute                |
+| `ENABLE_ACCOUNTS`      | `true`                  | Allow optional user accounts                   |
+| `REGISTRATION_ENABLED` | `true`                  | Allow new registrations                        |
+| `DEFAULT_QUOTA_BYTES`  | `5368709120`            | Per-user quota (default: 5 GB)                 |
 
 ---
 
 ## Documentation
 
-| Document | Description |
-| --- | --- |
-| [docs/INSTALL.md](docs/INSTALL.md) | Installation guide for Docker and from source |
-| [docs/CONFIG.md](docs/CONFIG.md) | Full environment variable reference |
-| [docs/API.md](docs/API.md) | REST API reference |
-| [docs/SECURITY.md](docs/SECURITY.md) | Security architecture and threat model |
-| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | System design and component overview |
-| [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | Known issues and build/runtime pitfalls |
-| [packages/crypto-spec/README.md](packages/crypto-spec/README.md) | Cryptographic format specification |
-| [CHANGELOG.md](CHANGELOG.md) | Release history |
+| Document                                                         | Description                                   |
+| ---------------------------------------------------------------- | --------------------------------------------- |
+| [docs/INSTALL.md](docs/INSTALL.md)                               | Installation guide for Docker and from source |
+| [docs/CONFIG.md](docs/CONFIG.md)                                 | Full environment variable reference           |
+| [docs/API.md](docs/API.md)                                       | REST API reference                            |
+| [docs/SECURITY.md](docs/SECURITY.md)                             | Security architecture and threat model        |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)                     | System design and component overview          |
+| [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)               | Known issues and build/runtime pitfalls       |
+| [packages/crypto-spec/README.md](packages/crypto-spec/README.md) | Cryptographic format specification            |
+| [CHANGELOG.md](CHANGELOG.md)                                     | Release history                               |
 
 ---
 
 ## Architecture
 
-| Layer | Choice | Notes |
-| --- | --- | --- |
-| Backend | Fastify 5 on Node.js 22 | Multipart uploads, tus-node-server |
-| Frontend | SvelteKit 2 + Svelte 5 + Vite | TailwindCSS v4, svelte-i18n |
-| Crypto | Web Crypto API | AES-256-GCM, PBKDF2 200 k iterations |
-| DB | better-sqlite3 | Embedded; no separate service |
-| Storage | Filesystem (default) / S3 (MinIO) plugin | Pluggable adapter |
-| Container | node:22-alpine, multi-stage | Non-root UID 10001, read-only rootfs |
-| Proxy | Caddy 2 | Automatic TLS, security headers |
+| Layer     | Choice                                   | Notes                                |
+| --------- | ---------------------------------------- | ------------------------------------ |
+| Backend   | Fastify 5 on Node.js 22                  | Multipart uploads, tus-node-server   |
+| Frontend  | SvelteKit 2 + Svelte 5 + Vite            | TailwindCSS v4, svelte-i18n          |
+| Crypto    | Web Crypto API                           | AES-256-GCM, PBKDF2 200 k iterations |
+| DB        | better-sqlite3                           | Embedded; no separate service        |
+| Storage   | Filesystem (default) / S3 (MinIO) plugin | Pluggable adapter                    |
+| Container | node:22-alpine, multi-stage              | Non-root UID 10001, read-only rootfs |
+| Proxy     | Caddy 2                                  | Automatic TLS, security headers      |
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full write-up.
 

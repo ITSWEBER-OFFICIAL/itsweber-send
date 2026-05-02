@@ -8,6 +8,8 @@ import {
   countUsers,
   deleteShare,
   deleteUser,
+  deleteUserSessions,
+  getSharesByUser,
   updateUserQuota,
   updateUserRole,
   getAuditLogAll,
@@ -33,7 +35,6 @@ function getEffectiveSetting(key: string): string {
 
 export function createAdminRoutes(storage: StorageAdapter) {
   return async function adminPlugin(app: FastifyInstance): Promise<void> {
-
     // ------------------------------------------------------------------ stats
 
     app.get('/api/v1/admin/stats', { preHandler: requireAdmin }, async (_request, reply) => {
@@ -75,9 +76,16 @@ export function createAdminRoutes(storage: StorageAdapter) {
         if (!parsed.success) return reply.status(400).send({ error: 'Invalid request' });
 
         if (parsed.data.role !== undefined) updateUserRole(request.params.id, parsed.data.role);
-        if (parsed.data.quotaBytes !== undefined) updateUserQuota(request.params.id, parsed.data.quotaBytes);
+        if (parsed.data.quotaBytes !== undefined)
+          updateUserQuota(request.params.id, parsed.data.quotaBytes);
 
-        insertAuditLog({ user_id: request.user!.id, action: 'admin.user.updated', resource: request.params.id, ip: request.ip, created_at: new Date().toISOString() });
+        insertAuditLog({
+          user_id: request.user!.id,
+          action: 'admin.user.updated',
+          resource: request.params.id,
+          ip: request.ip,
+          created_at: new Date().toISOString(),
+        });
         return reply.send({ ok: true });
       },
     );
@@ -86,12 +94,35 @@ export function createAdminRoutes(storage: StorageAdapter) {
       '/api/v1/admin/users/:id',
       { preHandler: requireAdmin },
       async (request, reply) => {
-        if (request.params.id === request.user!.id) {
+        const targetId = request.params.id;
+        if (targetId === request.user!.id) {
           return reply.status(400).send({ error: 'Cannot delete your own account' });
         }
-        deleteUser(request.params.id);
-        insertAuditLog({ user_id: request.user!.id, action: 'admin.user.deleted', resource: request.params.id, ip: request.ip, created_at: new Date().toISOString() });
-        return reply.send({ ok: true });
+
+        // Cascade: every share owned by this user is destroyed (storage + DB),
+        // sessions are revoked, then the user row is removed. Otherwise the
+        // shares become orphaned, count against admin stats, and may live past
+        // their owner indefinitely.
+        const shares = getSharesByUser(targetId);
+        for (const share of shares) {
+          try {
+            await storage.delete(share.id);
+          } catch {
+            /* already gone */
+          }
+          deleteShare(share.id);
+        }
+        deleteUserSessions(targetId);
+        deleteUser(targetId);
+
+        insertAuditLog({
+          user_id: request.user!.id,
+          action: 'admin.user.deleted',
+          resource: targetId,
+          ip: request.ip,
+          created_at: new Date().toISOString(),
+        });
+        return reply.send({ ok: true, sharesDeleted: shares.length });
       },
     );
 
@@ -125,9 +156,19 @@ export function createAdminRoutes(storage: StorageAdapter) {
       '/api/v1/admin/shares/:id',
       { preHandler: requireAdmin },
       async (request, reply) => {
-        try { await storage.delete(request.params.id); } catch { /* already gone */ }
+        try {
+          await storage.delete(request.params.id);
+        } catch {
+          /* already gone */
+        }
         deleteShare(request.params.id);
-        insertAuditLog({ user_id: request.user!.id, action: 'admin.share.deleted', resource: request.params.id, ip: request.ip, created_at: new Date().toISOString() });
+        insertAuditLog({
+          user_id: request.user!.id,
+          action: 'admin.share.deleted',
+          resource: request.params.id,
+          ip: request.ip,
+          created_at: new Date().toISOString(),
+        });
         return reply.send({ ok: true });
       },
     );
@@ -181,13 +222,30 @@ export function createAdminRoutes(storage: StorageAdapter) {
       if (!parsed.success) return reply.status(400).send({ error: 'Invalid request' });
 
       const data = parsed.data;
-      if (data.registration_enabled !== undefined) setSetting('registration_enabled', String(data.registration_enabled));
-      if (data.default_quota_bytes !== undefined) setSetting('default_quota_bytes', String(data.default_quota_bytes));
-      if (data.max_upload_size_bytes !== undefined) setSetting('max_upload_size_bytes', String(data.max_upload_size_bytes));
-      if (data.max_expiry_hours !== undefined) setSetting('max_expiry_hours', String(data.max_expiry_hours));
+      if (data.registration_enabled !== undefined)
+        setSetting('registration_enabled', String(data.registration_enabled));
+      if (data.default_quota_bytes !== undefined)
+        setSetting('default_quota_bytes', String(data.default_quota_bytes));
+      if (data.max_upload_size_bytes !== undefined)
+        setSetting('max_upload_size_bytes', String(data.max_upload_size_bytes));
+      if (data.max_expiry_hours !== undefined)
+        setSetting('max_expiry_hours', String(data.max_expiry_hours));
 
-      insertAuditLog({ user_id: request.user!.id, action: 'admin.settings.updated', resource: null, ip: request.ip, created_at: new Date().toISOString() });
-      return reply.send({ ok: true });
+      insertAuditLog({
+        user_id: request.user!.id,
+        action: 'admin.settings.updated',
+        resource: null,
+        ip: request.ip,
+        created_at: new Date().toISOString(),
+      });
+
+      // Return the updated settings so the UI can apply them without a second fetch.
+      const stored = getAllSettings();
+      const result: Record<string, string> = {};
+      for (const key of Object.keys(DEFAULT_SETTINGS)) {
+        result[key] = stored[key] ?? DEFAULT_SETTINGS[key] ?? '';
+      }
+      return reply.send(result);
     });
   };
 }

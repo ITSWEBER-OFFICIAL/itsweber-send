@@ -187,4 +187,40 @@
       color: var(--brand);
     }
   }
+
+  @media (max-width: 880px) {
+    .side {
+      padding: 14px 12px;
+      border-right: 0;
+      border-bottom: 1px solid var(--border);
+      min-height: 0;
+      display: flex;
+      gap: 14px;
+      align-items: flex-start;
+      overflow-x: auto;
+      scrollbar-width: thin;
+    }
+    .me {
+      margin-bottom: 0;
+      flex-shrink: 0;
+    }
+    .group {
+      margin-bottom: 0;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      flex-shrink: 0;
+    }
+    h3 {
+      display: none;
+    }
+    .link {
+      padding: 7px 10px;
+      white-space: nowrap;
+      font-size: 13px;
+    }
+    .link span {
+      display: none;
+    }
+  }
 </style>

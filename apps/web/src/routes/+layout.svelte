@@ -142,7 +142,9 @@
     color: var(--muted);
     text-decoration: none;
     border-radius: 9999px;
-    transition: color var(--transition-fast), background var(--transition-fast);
+    transition:
+      color var(--transition-fast),
+      background var(--transition-fast);
   }
   .auth-link:hover {
     color: var(--text);

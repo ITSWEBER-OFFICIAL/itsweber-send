@@ -30,7 +30,9 @@
       }
       if (res.status === 410) {
         const body = (await res.json()) as { error: string };
-        error = body.error.includes('expired') ? 'Dieser Share ist abgelaufen.' : 'Download-Limit erreicht.';
+        error = body.error.includes('expired')
+          ? 'Dieser Share ist abgelaufen.'
+          : 'Download-Limit erreicht.';
         return;
       }
       if (!res.ok) {
@@ -83,7 +85,8 @@
       return;
     }
 
-    error = 'Format nicht erkannt. Erwartet wird ein Share-Link, eine 24-stellige ID oder ein 4-Wort-Code (wort-wort-wort-wort).';
+    error =
+      'Format nicht erkannt. Erwartet wird ein Share-Link, eine 24-stellige ID oder ein 4-Wort-Code (wort-wort-wort-wort).';
   }
 </script>
 
@@ -91,9 +94,7 @@
   <div class="hero">
     <div class="icon-wrap"><Inbox size={36} /></div>
     <h1>Empfangen</h1>
-    <p class="lede">
-      Share-Link, 24-stellige ID oder 4-Wort-Code eingeben.
-    </p>
+    <p class="lede">Share-Link, 24-stellige ID oder 4-Wort-Code eingeben.</p>
   </div>
 
   <form class="card panel" onsubmit={submit}>
@@ -123,10 +124,11 @@
         <p class="err">{error}</p>
       {/if}
       <p class="hint">
-        Der Schlüssel steckt im Fragment hinter der Raute (<code>#k=…</code>) und wird nie an den Server übertragen.
+        Der Schlüssel steckt im Fragment hinter der Raute (<code>#k=…</code>) und wird nie an den
+        Server übertragen.
         <br />
-        <strong>4-Wort-Code:</strong> findet den Share. Wenn ein Passwort gesetzt ist, fragt die Download-Seite es ab.
-        Ohne Passwort brauchst du zusätzlich die vollständige URL mit Schlüssel.
+        <strong>4-Wort-Code:</strong> findet den Share. Wenn ein Passwort gesetzt ist, fragt die Download-Seite
+        es ab. Ohne Passwort brauchst du zusätzlich die vollständige URL mit Schlüssel.
       </p>
     </div>
   </form>
@@ -177,6 +179,8 @@
   }
   .row .input {
     font-family: var(--font-mono);
+    min-width: 0;
+    flex: 1;
   }
   .err {
     color: var(--danger);
@@ -198,12 +202,16 @@
   .spinner {
     width: 14px;
     height: 14px;
-    border: 2px solid rgba(10,26,38,0.3);
+    border: 2px solid rgba(10, 26, 38, 0.3);
     border-top-color: #0a1a26;
     border-radius: 50%;
     animation: spin 0.7s linear infinite;
   }
-  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
   @media (max-width: 480px) {
     .row {
       flex-direction: column;

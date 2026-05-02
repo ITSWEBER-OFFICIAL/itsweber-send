@@ -25,14 +25,21 @@
   let formSuccess = $state('');
 
   function formatDate(iso: string): string {
-    return new Date(iso).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    return new Date(iso).toLocaleDateString('de-DE', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+    });
   }
 
   function roleLabel(role: string): string {
     switch (role) {
-      case 'admin': return 'Administrator';
-      case 'user': return 'Nutzer';
-      default: return role;
+      case 'admin':
+        return 'Administrator';
+      case 'user':
+        return 'Nutzer';
+      default:
+        return role;
     }
   }
 
@@ -41,8 +48,14 @@
     error = '';
     try {
       const res = await fetch('/api/v1/account/profile');
-      if (res.status === 401) { await goto('/login'); return; }
-      if (!res.ok) { error = 'Profil konnte nicht geladen werden.'; return; }
+      if (res.status === 401) {
+        await goto('/login');
+        return;
+      }
+      if (!res.ok) {
+        error = 'Profil konnte nicht geladen werden.';
+        return;
+      }
       profile = (await res.json()) as Profile;
       formEmail = profile.email;
       formDisplayName = profile.displayName ?? '';
@@ -55,7 +68,10 @@
 
   async function saveProfile() {
     if (!profile || formLoading) return;
-    if (!formEmail.trim()) { formError = 'E-Mail-Adresse ist erforderlich.'; return; }
+    if (!formEmail.trim()) {
+      formError = 'E-Mail-Adresse ist erforderlich.';
+      return;
+    }
     formLoading = true;
     formError = '';
     formSuccess = '';
@@ -77,7 +93,9 @@
       formEmail = profile.email;
       formDisplayName = profile.displayName ?? '';
       formSuccess = 'Profil erfolgreich gespeichert.';
-      setTimeout(() => { formSuccess = ''; }, 3000);
+      setTimeout(() => {
+        formSuccess = '';
+      }, 3000);
     } catch {
       formError = 'Netzwerkfehler.';
     } finally {
@@ -90,12 +108,18 @@
       const check = setInterval(() => {
         if (auth.loaded) {
           clearInterval(check);
-          if (!auth.user) { void goto('/login'); return; }
+          if (!auth.user) {
+            void goto('/login');
+            return;
+          }
           void load();
         }
       }, 50);
     } else {
-      if (!auth.user) { void goto('/login'); return; }
+      if (!auth.user) {
+        void goto('/login');
+        return;
+      }
       void load();
     }
   });
@@ -114,7 +138,6 @@
   {:else if error}
     <p class="msg-error">{error}</p>
   {:else if profile}
-
     <!-- Account info -->
     <section class="panel info-panel">
       <div class="panel-head">
@@ -128,7 +151,9 @@
         <div class="info-row">
           <span class="info-key">Rolle</span>
           <span class="info-val">
-            <span class="role-badge" class:admin={profile.role === 'admin'}>{roleLabel(profile.role)}</span>
+            <span class="role-badge" class:admin={profile.role === 'admin'}
+              >{roleLabel(profile.role)}</span
+            >
           </span>
         </div>
         <div class="info-row">
@@ -144,9 +169,16 @@
         <h2 class="panel-heading">Profil bearbeiten</h2>
       </div>
       <div class="panel-body">
-        <form onsubmit={(e) => { e.preventDefault(); void saveProfile(); }}>
+        <form
+          onsubmit={(e) => {
+            e.preventDefault();
+            void saveProfile();
+          }}
+        >
           <div class="field">
-            <label for="display-name" class="label">Anzeigename <span class="opt">(optional)</span></label>
+            <label for="display-name" class="label"
+              >Anzeigename <span class="opt">(optional)</span></label
+            >
             <input
               id="display-name"
               type="text"
@@ -174,7 +206,8 @@
           {/if}
           {#if formSuccess}
             <p class="msg-success">
-              <Check size={14} /> {formSuccess}
+              <Check size={14} />
+              {formSuccess}
             </p>
           {/if}
 
@@ -185,7 +218,12 @@
             <button
               type="button"
               class="btn-ghost"
-              onclick={() => { formEmail = profile!.email; formDisplayName = profile!.displayName ?? ''; formError = ''; formSuccess = ''; }}
+              onclick={() => {
+                formEmail = profile!.email;
+                formDisplayName = profile!.displayName ?? '';
+                formError = '';
+                formSuccess = '';
+              }}
             >
               Zurücksetzen
             </button>
@@ -232,7 +270,11 @@
     border-radius: 50%;
     animation: spin 0.7s linear infinite;
   }
-  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
 
   .msg-error {
     color: var(--danger);
@@ -344,8 +386,13 @@
     font-weight: 600;
     color: var(--text);
   }
-  .req { color: var(--danger); }
-  .opt { color: var(--muted); font-weight: 400; }
+  .req {
+    color: var(--danger);
+  }
+  .opt {
+    color: var(--muted);
+    font-weight: 400;
+  }
   .hint {
     font-size: 12px;
     color: var(--muted);
@@ -389,8 +436,13 @@
     transition: opacity var(--transition-fast);
     font-family: inherit;
   }
-  .btn-primary:hover:not(:disabled) { opacity: 0.88; }
-  .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-primary:hover:not(:disabled) {
+    opacity: 0.88;
+  }
+  .btn-primary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
 
   .btn-ghost {
     display: inline-flex;
@@ -402,7 +454,9 @@
     border-radius: var(--radius-sm);
     font-size: 13px;
     cursor: pointer;
-    transition: color var(--transition-fast), border-color var(--transition-fast);
+    transition:
+      color var(--transition-fast),
+      border-color var(--transition-fast);
     font-family: inherit;
   }
   .btn-ghost:hover {

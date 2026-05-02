@@ -36,12 +36,20 @@
 
   function formatDate(iso: string | null): string {
     if (!iso) return 'Noch nie';
-    return new Date(iso).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    return new Date(iso).toLocaleDateString('de-DE', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+    });
   }
 
   function formatDateFull(iso: string | null): string {
     if (!iso) return '–';
-    return new Date(iso).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    return new Date(iso).toLocaleDateString('de-DE', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+    });
   }
 
   async function load() {
@@ -49,8 +57,14 @@
     error = '';
     try {
       const res = await fetch('/api/v1/account/tokens');
-      if (res.status === 401) { await goto('/login'); return; }
-      if (!res.ok) { error = 'Tokens konnten nicht geladen werden.'; return; }
+      if (res.status === 401) {
+        await goto('/login');
+        return;
+      }
+      if (!res.ok) {
+        error = 'Tokens konnten nicht geladen werden.';
+        return;
+      }
       tokens = (await res.json()) as Token[];
     } catch {
       error = 'Netzwerkfehler beim Laden.';
@@ -60,7 +74,10 @@
   }
 
   async function createToken() {
-    if (!formName.trim()) { formError = 'Bitte einen Namen angeben.'; return; }
+    if (!formName.trim()) {
+      formError = 'Bitte einen Namen angeben.';
+      return;
+    }
     formLoading = true;
     formError = '';
     try {
@@ -76,9 +93,25 @@
         formError = json.message ?? 'Fehler beim Erstellen.';
         return;
       }
-      const json = (await res.json()) as { token: string; id: string; name: string; createdAt: string; lastUsedAt: null; expiresAt: string | null };
+      const json = (await res.json()) as {
+        token: string;
+        id: string;
+        name: string;
+        createdAt: string;
+        lastUsedAt: null;
+        expiresAt: string | null;
+      };
       newToken = json.token;
-      tokens = [{ id: json.id, name: json.name, createdAt: json.createdAt, lastUsedAt: null, expiresAt: json.expiresAt }, ...tokens];
+      tokens = [
+        {
+          id: json.id,
+          name: json.name,
+          createdAt: json.createdAt,
+          lastUsedAt: null,
+          expiresAt: json.expiresAt,
+        },
+        ...tokens,
+      ];
       formName = '';
       formExpiry = '';
       showForm = false;
@@ -91,7 +124,12 @@
 
   async function deleteToken(id: string) {
     if (deletingId) return;
-    if (!confirm('Diesen API-Token wirklich löschen? Alle Clients, die ihn nutzen, verlieren den Zugang.')) return;
+    if (
+      !confirm(
+        'Diesen API-Token wirklich löschen? Alle Clients, die ihn nutzen, verlieren den Zugang.',
+      )
+    )
+      return;
     deletingId = id;
     try {
       const res = await fetch(`/api/v1/account/tokens/${id}`, { method: 'DELETE' });
@@ -106,8 +144,12 @@
     try {
       await navigator.clipboard.writeText(newToken);
       copied = true;
-      setTimeout(() => { copied = false; }, 2000);
-    } catch { /* ignore */ }
+      setTimeout(() => {
+        copied = false;
+      }, 2000);
+    } catch {
+      /* ignore */
+    }
   }
 
   function dismissToken() {
@@ -120,12 +162,18 @@
       const check = setInterval(() => {
         if (auth.loaded) {
           clearInterval(check);
-          if (!auth.user) { void goto('/login'); return; }
+          if (!auth.user) {
+            void goto('/login');
+            return;
+          }
           void load();
         }
       }, 50);
     } else {
-      if (!auth.user) { void goto('/login'); return; }
+      if (!auth.user) {
+        void goto('/login');
+        return;
+      }
       void load();
     }
   });
@@ -140,7 +188,10 @@
     <button
       type="button"
       class="btn-primary"
-      onclick={() => { showForm = !showForm; formError = ''; }}
+      onclick={() => {
+        showForm = !showForm;
+        formError = '';
+      }}
     >
       <Plus size={15} /> Neuer Token
     </button>
@@ -162,7 +213,13 @@
           </p>
           <div class="token-display">
             <code class="token-code">{newToken}</code>
-            <button type="button" class="btn-copy" onclick={() => void copyToken()} title="Kopieren" aria-label="Token kopieren">
+            <button
+              type="button"
+              class="btn-copy"
+              onclick={() => void copyToken()}
+              title="Kopieren"
+              aria-label="Token kopieren"
+            >
               {#if copied}
                 <Check size={15} />
               {:else}
@@ -173,7 +230,9 @@
           {#if copied}
             <p class="copied-hint">Kopiert.</p>
           {/if}
-          <button type="button" class="btn-dismiss" onclick={dismissToken}>Verstanden, Token gespeichert</button>
+          <button type="button" class="btn-dismiss" onclick={dismissToken}
+            >Verstanden, Token gespeichert</button
+          >
         </div>
       </div>
     {/if}
@@ -185,7 +244,12 @@
           <h2 class="panel-heading">Neuer API-Token</h2>
         </div>
         <div class="panel-body">
-          <form onsubmit={(e) => { e.preventDefault(); void createToken(); }}>
+          <form
+            onsubmit={(e) => {
+              e.preventDefault();
+              void createToken();
+            }}
+          >
             <div class="field">
               <label for="token-name" class="label">Name <span class="req">*</span></label>
               <input
@@ -199,7 +263,9 @@
               />
             </div>
             <div class="field">
-              <label for="token-expiry" class="label">Ablaufdatum <span class="opt">(optional)</span></label>
+              <label for="token-expiry" class="label"
+                >Ablaufdatum <span class="opt">(optional)</span></label
+              >
               <input
                 id="token-expiry"
                 type="date"
@@ -214,7 +280,14 @@
               <button type="submit" class="btn-primary" disabled={formLoading}>
                 {formLoading ? 'Erstelle…' : 'Token erstellen'}
               </button>
-              <button type="button" class="btn-ghost" onclick={() => { showForm = false; formError = ''; }}>
+              <button
+                type="button"
+                class="btn-ghost"
+                onclick={() => {
+                  showForm = false;
+                  formError = '';
+                }}
+              >
                 Abbrechen
               </button>
             </div>
@@ -311,7 +384,11 @@
     border-radius: 50%;
     animation: spin 0.7s linear infinite;
   }
-  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
 
   .msg-error {
     color: var(--danger);
@@ -502,7 +579,8 @@
     border-collapse: collapse;
     font-size: 13px;
   }
-  th, td {
+  th,
+  td {
     text-align: left;
     padding: 13px 20px;
     border-bottom: 1px solid var(--border);
@@ -515,10 +593,18 @@
     color: var(--dim);
     font-weight: 600;
   }
-  tbody tr:last-child td { border-bottom: 0; }
-  tbody tr:hover { background: var(--surface-2); }
-  .token-name { font-weight: 600; }
-  .muted { color: var(--muted); }
+  tbody tr:last-child td {
+    border-bottom: 0;
+  }
+  tbody tr:hover {
+    background: var(--surface-2);
+  }
+  .token-name {
+    font-weight: 600;
+  }
+  .muted {
+    color: var(--muted);
+  }
 
   /* Buttons */
   .btn-primary {
@@ -536,8 +622,13 @@
     transition: opacity var(--transition-fast);
     font-family: inherit;
   }
-  .btn-primary:hover:not(:disabled) { opacity: 0.88; }
-  .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-primary:hover:not(:disabled) {
+    opacity: 0.88;
+  }
+  .btn-primary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
 
   .btn-ghost {
     display: inline-flex;
@@ -549,7 +640,9 @@
     border-radius: var(--radius-sm);
     font-size: 13px;
     cursor: pointer;
-    transition: color var(--transition-fast), border-color var(--transition-fast);
+    transition:
+      color var(--transition-fast),
+      border-color var(--transition-fast);
     font-family: inherit;
   }
   .btn-ghost:hover {
@@ -567,7 +660,9 @@
     cursor: pointer;
     display: grid;
     place-items: center;
-    transition: color var(--transition-fast), border-color var(--transition-fast);
+    transition:
+      color var(--transition-fast),
+      border-color var(--transition-fast);
   }
   .btn-row-action:hover:not(:disabled) {
     color: var(--text);
@@ -577,5 +672,8 @@
     color: var(--danger);
     border-color: color-mix(in srgb, var(--danger) 30%, var(--border));
   }
-  .btn-row-action:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn-row-action:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
 </style>

@@ -40,7 +40,10 @@
         if (res.status === 401 && requires2FA) {
           error = 'Ungültiger Authenticator-Code.';
         } else {
-          error = res.status === 401 ? $_('auth.error_invalid') : (resp.error ?? $_('auth.error_generic'));
+          error =
+            res.status === 401
+              ? $_('auth.error_invalid')
+              : (resp.error ?? $_('auth.error_generic'));
         }
         if (requires2FA) totpCode = '';
       }
@@ -57,7 +60,12 @@
     <div class="card">
       {#if !requires2FA}
         <h1 class="title">{$_('auth.login_title')}</h1>
-        <form onsubmit={(e) => { e.preventDefault(); void submit(); }}>
+        <form
+          onsubmit={(e) => {
+            e.preventDefault();
+            void submit();
+          }}
+        >
           <div class="field">
             <label class="label" for="email">{$_('auth.email')}</label>
             <input
@@ -95,7 +103,12 @@
       {:else}
         <h1 class="title">Zwei-Faktor-Authentifizierung</h1>
         <p class="totp-hint">Gib den 6-stelligen Code aus deiner Authenticator-App ein.</p>
-        <form onsubmit={(e) => { e.preventDefault(); void submit(); }}>
+        <form
+          onsubmit={(e) => {
+            e.preventDefault();
+            void submit();
+          }}
+        >
           <div class="field">
             <label class="label" for="totp">Authenticator-Code</label>
             <input
@@ -122,7 +135,11 @@
           <button
             class="btn-secondary"
             type="button"
-            onclick={() => { requires2FA = false; totpCode = ''; error = ''; }}
+            onclick={() => {
+              requires2FA = false;
+              totpCode = '';
+              error = '';
+            }}
           >
             Zurück
           </button>
@@ -142,18 +159,39 @@
     margin: 0 auto;
     padding: 80px 24px;
   }
-  .card-wrap { width: 100%; }
+  .card-wrap {
+    width: 100%;
+  }
   .card {
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: 16px;
     padding: 32px 28px;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
   }
-  .title { margin: 0 0 24px; font-size: 22px; font-weight: 700; letter-spacing: -0.02em; }
-  .totp-hint { color: var(--muted); font-size: 14px; margin: -16px 0 20px; line-height: 1.5; }
-  .field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
-  .label { font-size: 13px; color: var(--muted); font-weight: 500; }
+  .title {
+    margin: 0 0 24px;
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+  .totp-hint {
+    color: var(--muted);
+    font-size: 14px;
+    margin: -16px 0 20px;
+    line-height: 1.5;
+  }
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 16px;
+  }
+  .label {
+    font-size: 13px;
+    color: var(--muted);
+    font-weight: 500;
+  }
   .input {
     background: var(--surface-2);
     border: 1px solid var(--border);
@@ -164,14 +202,21 @@
     box-sizing: border-box;
     width: 100%;
   }
-  .input:focus { outline: 2px solid var(--brand); outline-offset: 2px; }
+  .input:focus {
+    outline: 2px solid var(--brand);
+    outline-offset: 2px;
+  }
   .totp-input {
     font-family: var(--font-mono);
     font-size: 24px;
     letter-spacing: 0.15em;
     text-align: center;
   }
-  .error { color: var(--danger); font-size: 13px; margin: 0 0 12px; }
+  .error {
+    color: var(--danger);
+    font-size: 13px;
+    margin: 0 0 12px;
+  }
   .btn-primary {
     width: 100%;
     padding: 12px;
@@ -190,8 +235,13 @@
     min-height: 48px;
     margin-top: 4px;
   }
-  .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
-  .btn-primary:not(:disabled):hover { opacity: 0.88; }
+  .btn-primary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  .btn-primary:not(:disabled):hover {
+    opacity: 0.88;
+  }
   .btn-secondary {
     width: 100%;
     padding: 10px;
@@ -202,24 +252,47 @@
     font-size: 14px;
     cursor: pointer;
     margin-top: 8px;
-    transition: color 0.15s, border-color 0.15s;
+    transition:
+      color 0.15s,
+      border-color 0.15s;
   }
-  .btn-secondary:hover { color: var(--text); border-color: var(--text); }
+  .btn-secondary:hover {
+    color: var(--text);
+    border-color: var(--text);
+  }
   .spinner {
     width: 14px;
     height: 14px;
-    border: 2px solid rgba(255,255,255,0.4);
+    border: 2px solid rgba(255, 255, 255, 0.4);
     border-top-color: #0a1a26;
     border-radius: 50%;
     animation: spin 0.7s linear infinite;
   }
-  @keyframes spin { to { transform: rotate(360deg); } }
-  .switch-link { text-align: center; font-size: 14px; color: var(--muted); margin: 20px 0 0; }
-  .switch-link a { color: var(--brand); text-decoration: none; }
-  .switch-link a:hover { text-decoration: underline; }
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+  .switch-link {
+    text-align: center;
+    font-size: 14px;
+    color: var(--muted);
+    margin: 20px 0 0;
+  }
+  .switch-link a {
+    color: var(--brand);
+    text-decoration: none;
+  }
+  .switch-link a:hover {
+    text-decoration: underline;
+  }
 
   @media (max-width: 480px) {
-    .page { padding: 40px 16px; }
-    .card { padding: 20px 16px; }
+    .page {
+      padding: 40px 16px;
+    }
+    .card {
+      padding: 20px 16px;
+    }
   }
 </style>

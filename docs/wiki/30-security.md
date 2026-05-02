@@ -10,13 +10,13 @@ For the complete cryptographic specification see [packages/crypto-spec/README.md
 
 ## Threat model
 
-| Threat | Mitigation |
-| --- | --- |
-| Compromised server / hosting provider | E2E encryption: server only stores ciphertext. Master key lives in URL fragment, never sent to server. |
-| Passive network observer | TLS 1.3 via Caddy, HSTS with two-year `max-age` and `preload`. |
-| Brute-force on accounts | Login: 5 / min / IP. Registration: 3 / 10 min / IP. Constant-time hash even on missing accounts. |
-| Cross-site scripting | Strict CSP: only same-origin scripts, no third-party CDNs. `dangerouslySetInnerHTML` is forbidden. |
-| Share-ID enumeration | 96-bit random IDs (`crypto.randomBytes(12)`). Probability of collision is negligible at any practical scale. |
+| Threat                                | Mitigation                                                                                                                                             |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Compromised server / hosting provider | E2E encryption: server only stores ciphertext. Master key lives in URL fragment, never sent to server.                                                 |
+| Passive network observer              | TLS 1.3 via Caddy, HSTS with two-year `max-age` and `preload`.                                                                                         |
+| Brute-force on accounts               | Login: 5 / min / IP. Registration: 3 / 10 min / IP. Constant-time hash even on missing accounts.                                                       |
+| Cross-site scripting                  | Strict CSP: only same-origin scripts, no third-party CDNs. `dangerouslySetInnerHTML` is forbidden.                                                     |
+| Share-ID enumeration                  | 96-bit random IDs (`crypto.randomBytes(12)`). Probability of collision is negligible at any practical scale.                                           |
 | Password guessing on protected shares | Argon2id (accounts) and PBKDF2 200 000 iterations (share passwords). Both run on the device of whoever holds the password — server cannot brute-force. |
 
 **Out of scope:** an attacker who already has the share URL (with `#k=…`) can decrypt the share. The link is the capability — that is by design.
@@ -25,14 +25,14 @@ For the complete cryptographic specification see [packages/crypto-spec/README.md
 
 ## Cryptographic primitives
 
-| Use | Primitive | Parameters |
-| --- | --- | --- |
-| File encryption | AES-256-GCM | 256-bit key, 96-bit IV, 128-bit auth tag |
-| Manifest encryption | AES-256-GCM | Same key as file encryption, separate IV |
-| Password key wrap | PBKDF2-SHA-256 | 200 000 iterations, 128-bit salt |
-| Account passwords | Argon2id | OWASP 2026: 64 MB memory, t=3, p=4 |
-| Random | Web Crypto / `node:crypto` | CSPRNG only |
-| Encoding | base64url | RFC 4648 §5 |
+| Use                 | Primitive                  | Parameters                               |
+| ------------------- | -------------------------- | ---------------------------------------- |
+| File encryption     | AES-256-GCM                | 256-bit key, 96-bit IV, 128-bit auth tag |
+| Manifest encryption | AES-256-GCM                | Same key as file encryption, separate IV |
+| Password key wrap   | PBKDF2-SHA-256             | 200 000 iterations, 128-bit salt         |
+| Account passwords   | Argon2id                   | OWASP 2026: 64 MB memory, t=3, p=4       |
+| Random              | Web Crypto / `node:crypto` | CSPRNG only                              |
+| Encoding            | base64url                  | RFC 4648 §5                              |
 
 ---
 

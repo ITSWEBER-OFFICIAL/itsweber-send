@@ -290,7 +290,9 @@
     vertical-align: -2px;
   }
   @keyframes spin {
-    to { transform: rotate(360deg); }
+    to {
+      transform: rotate(360deg);
+    }
   }
 
   .error-box {

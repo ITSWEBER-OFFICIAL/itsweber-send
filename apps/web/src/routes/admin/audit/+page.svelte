@@ -18,22 +18,22 @@
   }
 
   const ACTION_LABELS: Record<string, string> = {
-    'user.registered':          'Registrierung',
-    'user.login':               'Anmeldung',
-    'user.logout':              'Abmeldung',
-    'user.login.failed':        'Anmeldung fehlgeschlagen',
-    'user.password.changed':    'Passwort geandert',
-    'user.email.changed':       'E-Mail geandert',
-    'user.totp.enabled':        '2FA aktiviert',
-    'user.totp.disabled':       '2FA deaktiviert',
-    'share.created':            'Share erstellt',
-    'share.deleted':            'Share geloscht',
-    'share.downloaded':         'Share heruntergeladen',
-    'share.expired':            'Share abgelaufen',
-    'admin.user.updated':       'Nutzer aktualisiert',
-    'admin.user.deleted':       'Nutzer geloscht',
-    'admin.share.deleted':      'Share geloscht (Admin)',
-    'admin.settings.updated':   'Einstellungen geandert',
+    'user.registered': 'Registrierung',
+    'user.login': 'Anmeldung',
+    'user.logout': 'Abmeldung',
+    'user.login.failed': 'Anmeldung fehlgeschlagen',
+    'user.password.changed': 'Passwort geandert',
+    'user.email.changed': 'E-Mail geandert',
+    'user.totp.enabled': '2FA aktiviert',
+    'user.totp.disabled': '2FA deaktiviert',
+    'share.created': 'Share erstellt',
+    'share.deleted': 'Share geloscht',
+    'share.downloaded': 'Share heruntergeladen',
+    'share.expired': 'Share abgelaufen',
+    'admin.user.updated': 'Nutzer aktualisiert',
+    'admin.user.deleted': 'Nutzer geloscht',
+    'admin.share.deleted': 'Share geloscht (Admin)',
+    'admin.settings.updated': 'Einstellungen geandert',
   };
 
   function actionLabel(action: string): string {
@@ -50,7 +50,11 @@
 
   function formatDateTime(iso: string): string {
     const d = new Date(iso);
-    return d.toLocaleDateString('de-DE') + ' ' + d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+    return (
+      d.toLocaleDateString('de-DE') +
+      ' ' +
+      d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })
+    );
   }
 
   function truncateId(id: string | null): string {
@@ -72,8 +76,14 @@
     }
     try {
       const res = await fetch(`/api/v1/admin/audit?limit=${limit}&offset=${offset}`);
-      if (res.status === 401) { await goto('/login'); return; }
-      if (res.status === 403) { forbidden = true; return; }
+      if (res.status === 401) {
+        await goto('/login');
+        return;
+      }
+      if (res.status === 403) {
+        forbidden = true;
+        return;
+      }
       if (res.ok) {
         const body = (await res.json()) as AuditResponse;
         total = body.total;
@@ -91,12 +101,18 @@
       const check = setInterval(() => {
         if (auth.loaded) {
           clearInterval(check);
-          if (!auth.user) { void goto('/login'); return; }
+          if (!auth.user) {
+            void goto('/login');
+            return;
+          }
           void load(true);
         }
       }, 50);
     } else {
-      if (!auth.user) { void goto('/login'); return; }
+      if (!auth.user) {
+        void goto('/login');
+        return;
+      }
       void load(true);
     }
   });
@@ -142,7 +158,9 @@
               <tr>
                 <td class="mono timestamp">{formatDateTime(entry.created_at)}</td>
                 <td>
-                  <span class="user-id" title={entry.user_id ?? undefined}>{truncateId(entry.user_id)}</span>
+                  <span class="user-id" title={entry.user_id ?? undefined}
+                    >{truncateId(entry.user_id)}</span
+                  >
                 </td>
                 <td>
                   <span class="action-badge" class:admin-action={isAdminAction(entry.action)}>
@@ -171,26 +189,59 @@
 {/if}
 
 <style>
-  .center { display: flex; justify-content: center; padding: 80px; }
+  .center {
+    display: flex;
+    justify-content: center;
+    padding: 80px;
+  }
   .spinner {
-    width: 28px; height: 28px;
+    width: 28px;
+    height: 28px;
     border: 2.5px solid var(--border);
     border-top-color: var(--brand);
     border-radius: 50%;
     animation: spin 0.7s linear infinite;
   }
-  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
 
-  .forbidden { text-align: center; padding: 80px 24px; }
-  .forbidden h1 { color: var(--danger); margin: 0 0 8px; }
-  .forbidden p { color: var(--muted); }
+  .forbidden {
+    text-align: center;
+    padding: 80px 24px;
+  }
+  .forbidden h1 {
+    color: var(--danger);
+    margin: 0 0 8px;
+  }
+  .forbidden p {
+    color: var(--muted);
+  }
 
-  .crumbs { color: var(--muted); font-size: 13px; margin-bottom: 12px; }
-  .crumbs a { color: var(--brand); }
+  .crumbs {
+    color: var(--muted);
+    font-size: 13px;
+    margin-bottom: 12px;
+  }
+  .crumbs a {
+    color: var(--brand);
+  }
 
-  .page-header { margin-bottom: 20px; }
-  .page-title { margin: 0 0 4px; font-size: 28px; letter-spacing: -0.02em; }
-  .page-sub { margin: 0; color: var(--muted); font-size: 14px; }
+  .page-header {
+    margin-bottom: 20px;
+  }
+  .page-title {
+    margin: 0 0 4px;
+    font-size: 28px;
+    letter-spacing: -0.02em;
+  }
+  .page-sub {
+    margin: 0;
+    color: var(--muted);
+    font-size: 14px;
+  }
 
   .panel {
     background: var(--surface);
@@ -214,11 +265,25 @@
     color: var(--muted);
     font-weight: 600;
   }
-  .hint-pill { color: var(--dim); font-size: 12px; }
+  .hint-pill {
+    color: var(--dim);
+    font-size: 12px;
+  }
 
-  .table-body { overflow-x: auto; }
-  table { width: 100%; border-collapse: collapse; font-size: 14px; }
-  th, td { text-align: left; padding: 12px 22px; border-bottom: 1px solid var(--border); }
+  .table-body {
+    overflow-x: auto;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+  }
+  th,
+  td {
+    text-align: left;
+    padding: 12px 22px;
+    border-bottom: 1px solid var(--border);
+  }
   thead th {
     font-size: 11px;
     text-transform: uppercase;
@@ -227,12 +292,26 @@
     font-weight: 600;
     white-space: nowrap;
   }
-  tbody tr:hover { background: var(--surface-2); }
-  tbody tr:last-child td { border-bottom: 0; }
+  tbody tr:hover {
+    background: var(--surface-2);
+  }
+  tbody tr:last-child td {
+    border-bottom: 0;
+  }
 
-  .mono { font-family: var(--font-mono); font-size: 13px; }
-  .timestamp { color: var(--muted); white-space: nowrap; }
-  .user-id { font-family: var(--font-mono); font-size: 12px; color: var(--dim); }
+  .mono {
+    font-family: var(--font-mono);
+    font-size: 13px;
+  }
+  .timestamp {
+    color: var(--muted);
+    white-space: nowrap;
+  }
+  .user-id {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--dim);
+  }
 
   .resource {
     color: var(--muted);
@@ -241,7 +320,10 @@
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-  .ip { color: var(--dim); white-space: nowrap; }
+  .ip {
+    color: var(--dim);
+    white-space: nowrap;
+  }
 
   .action-badge {
     display: inline-block;
@@ -256,7 +338,11 @@
     color: var(--brand-strong);
   }
 
-  .empty { color: var(--muted); font-size: 14px; margin: 22px; }
+  .empty {
+    color: var(--muted);
+    font-size: 14px;
+    margin: 22px;
+  }
 
   .btn-ghost {
     display: inline-flex;
@@ -271,8 +357,13 @@
     cursor: pointer;
     transition: background var(--transition-fast);
   }
-  .btn-ghost:hover { background: var(--surface-2); }
-  .btn-ghost:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-ghost:hover {
+    background: var(--surface-2);
+  }
+  .btn-ghost:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
 
   .load-more {
     padding: 16px 22px;

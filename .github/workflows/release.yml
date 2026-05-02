@@ -1,9 +1,8 @@
 name: Release
 
-# Disabled until M6 (first public release).
-# At M6 the maintainer will:
-#   - remove the `if: false` guards below
-#   - tag a release locally (`git tag v1.0.0 && git push --tags`)
+# Triggers:
+#   - any tag matching v*.*.* (e.g. v1.0.0)
+#   - manual workflow_dispatch from the Actions tab
 on:
   push:
     tags:
@@ -18,7 +17,6 @@ jobs:
   release:
     name: Build and publish multi-arch image
     runs-on: ubuntu-latest
-    if: false   # gated until M6
     steps:
       - uses: actions/checkout@v4
 

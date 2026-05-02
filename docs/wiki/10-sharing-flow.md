@@ -14,11 +14,11 @@ This page explains exactly what happens when you upload a file and how the three
 4. All ciphertext is uploaded. The server stores opaque blobs and never sees the key or filenames.
 5. The browser produces three artefacts the recipient can use:
 
-| Artefact | Carries the key? | Notes |
-| --- | --- | --- |
-| **Sharing-Link** (URL with `#k=…`) | Yes | Self-contained. Fragment is never sent to the server. |
-| **Four-word code** | No (only ~32 bits) | Lookup token. Resolves to the share ID via SHA-256. |
-| **Password** (optional) | Derived | PBKDF2-SHA-256 wraps the key client-side. |
+| Artefact                           | Carries the key?   | Notes                                                 |
+| ---------------------------------- | ------------------ | ----------------------------------------------------- |
+| **Sharing-Link** (URL with `#k=…`) | Yes                | Self-contained. Fragment is never sent to the server. |
+| **Four-word code**                 | No (only ~32 bits) | Lookup token. Resolves to the share ID via SHA-256.   |
+| **Password** (optional)            | Derived            | PBKDF2-SHA-256 wraps the key client-side.             |
 
 The relevant invariant: **any artefact that decrypts must carry the key, directly or indirectly.** A 4-word code alone cannot.
 

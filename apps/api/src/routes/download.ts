@@ -7,47 +7,42 @@ export function createDownloadRoute(storage: StorageAdapter) {
   return async function downloadPlugin(app: FastifyInstance): Promise<void> {
     // GET /api/v1/download/:id/manifest
     // Returns share metadata + encrypted manifest so the client can decrypt it.
-    app.get<{ Params: { id: string } }>(
-      '/api/v1/download/:id/manifest',
-      async (request, reply) => {
-        const { id } = request.params;
+    app.get<{ Params: { id: string } }>('/api/v1/download/:id/manifest', async (request, reply) => {
+      const { id } = request.params;
 
-        const share = getShare(id);
-        if (!share) {
-          return reply.status(404).send({ error: 'Share not found' });
-        }
+      const share = getShare(id);
+      if (!share) {
+        return reply.status(404).send({ error: 'Share not found' });
+      }
 
-        const now = new Date();
-        if (new Date(share.expires_at) < now) {
-          return reply.status(410).send({ error: 'Share has expired' });
-        }
+      const now = new Date();
+      if (new Date(share.expires_at) < now) {
+        return reply.status(410).send({ error: 'Share has expired' });
+      }
 
-        if (share.download_limit > 0 && share.downloads_used >= share.download_limit) {
-          return reply.status(410).send({ error: 'Download limit reached' });
-        }
+      if (share.download_limit > 0 && share.downloads_used >= share.download_limit) {
+        return reply.status(410).send({ error: 'Download limit reached' });
+      }
 
-        const manifestBuf = await storage.get(id, 'manifest');
-        const manifestIvBuf = await storage.get(id, 'manifest.iv');
+      const manifestBuf = await storage.get(id, 'manifest');
+      const manifestIvBuf = await storage.get(id, 'manifest.iv');
 
-        const remaining =
-          share.download_limit === 0
-            ? null
-            : share.download_limit - share.downloads_used;
+      const remaining =
+        share.download_limit === 0 ? null : share.download_limit - share.downloads_used;
 
-        return reply.send({
-          id: share.id,
-          createdAt: share.created_at,
-          expiresAt: share.expires_at,
-          passwordRequired: share.salt !== null,
-          remainingDownloads: remaining,
-          manifestCiphertext: manifestBuf.toString('base64url'),
-          manifestIv: manifestIvBuf.toString().trim(),
-          salt: share.salt,
-          ivWrap: share.iv_wrap,
-          wrappedKey: share.wrapped_key,
-        });
-      },
-    );
+      return reply.send({
+        id: share.id,
+        createdAt: share.created_at,
+        expiresAt: share.expires_at,
+        passwordRequired: share.salt !== null,
+        remainingDownloads: remaining,
+        manifestCiphertext: manifestBuf.toString('base64url'),
+        manifestIv: manifestIvBuf.toString().trim(),
+        salt: share.salt,
+        ivWrap: share.iv_wrap,
+        wrappedKey: share.wrapped_key,
+      });
+    });
 
     // GET /api/v1/download/:id/blob/:n
     // Streams the nth blob ciphertext (n is 1-based) and decrements downloads_used.
@@ -75,6 +70,10 @@ export function createDownloadRoute(storage: StorageAdapter) {
           return reply.status(410).send({ error: 'Download limit reached' });
         }
 
+        if (blobNum > share.file_count) {
+          return reply.status(400).send({ error: 'Invalid blob index' });
+        }
+
         const blobName = `blob-${String(blobNum).padStart(4, '0')}`;
         let blobBuf: Buffer;
         try {
@@ -83,21 +82,33 @@ export function createDownloadRoute(storage: StorageAdapter) {
           return reply.status(404).send({ error: 'Blob not found' });
         }
 
-        // Decrement after successful read, before sending, to avoid double-counting retries
-        incrementDownloads(id);
+        // The download counter must measure full share-downloads, not blob fetches.
+        // We increment exactly once per share-download, on the LAST blob — by then
+        // the recipient has retrieved everything they need.
+        const isLastBlob = blobNum === share.file_count;
+        let remaining: number | null = null;
+        if (isLastBlob) {
+          incrementDownloads(id);
+          const freshShare = getShare(id);
+          remaining =
+            freshShare && freshShare.download_limit > 0
+              ? freshShare.download_limit - freshShare.downloads_used
+              : null;
 
-        const freshShare = getShare(id);
-        const remaining =
-          freshShare && freshShare.download_limit > 0
-            ? freshShare.download_limit - freshShare.downloads_used
-            : null;
+          void emitWebhook(
+            {
+              type: 'download.completed',
+              shareId: id,
+              blobIndex: blobNum,
+              remainingDownloads: remaining,
+            },
+            request.log,
+          );
+        } else {
+          remaining = share.download_limit > 0 ? share.download_limit - share.downloads_used : null;
+        }
 
-        void emitWebhook(
-          { type: 'download.completed', shareId: id, blobIndex: blobNum, remainingDownloads: remaining },
-          request.log,
-        );
-
-        request.log.info({ shareId: id, blobNum }, 'blob downloaded');
+        request.log.info({ shareId: id, blobNum, isLastBlob }, 'blob downloaded');
         return reply
           .header('Content-Type', 'application/octet-stream')
           .header('Content-Length', blobBuf.byteLength)

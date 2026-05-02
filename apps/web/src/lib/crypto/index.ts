@@ -70,18 +70,11 @@ export async function exportKeyBase64url(key: CryptoKey): Promise<string> {
 }
 
 /** Import a raw base64url key. Set extractable=true only for export on the sender side. */
-export async function importKeyBase64url(
-  b64: string,
-  extractable = false,
-): Promise<CryptoKey> {
+export async function importKeyBase64url(b64: string, extractable = false): Promise<CryptoKey> {
   const raw = fromBase64url(b64);
-  return crypto.subtle.importKey(
-    'raw',
-    raw,
-    { name: 'AES-GCM', length: 256 },
-    extractable,
-    ['decrypt'],
-  );
+  return crypto.subtle.importKey('raw', raw, { name: 'AES-GCM', length: 256 }, extractable, [
+    'decrypt',
+  ]);
 }
 
 // ---------------------------------------------------------------------------
@@ -121,12 +114,15 @@ export async function decrypt(
 // ---------------------------------------------------------------------------
 
 export interface WrappedKeyBundle {
-  salt: string;       // base64url, 16 bytes
-  ivWrap: string;     // base64url, 12 bytes
+  salt: string; // base64url, 16 bytes
+  ivWrap: string; // base64url, 12 bytes
   wrappedKey: string; // base64url, 32 + 16 bytes (raw key + GCM auth tag)
 }
 
-export async function wrapMasterKey(masterKey: CryptoKey, password: string): Promise<WrappedKeyBundle> {
+export async function wrapMasterKey(
+  masterKey: CryptoKey,
+  password: string,
+): Promise<WrappedKeyBundle> {
   const salt = new Uint8Array(16);
   const ivWrap = new Uint8Array(12);
   crypto.getRandomValues(salt);
@@ -200,11 +196,7 @@ export async function unwrapMasterKey(
     wrappedKeyBytes,
   );
 
-  return crypto.subtle.importKey(
-    'raw',
-    masterKeyRaw,
-    { name: 'AES-GCM', length: 256 },
-    false,
-    ['decrypt'],
-  );
+  return crypto.subtle.importKey('raw', masterKeyRaw, { name: 'AES-GCM', length: 256 }, false, [
+    'decrypt',
+  ]);
 }

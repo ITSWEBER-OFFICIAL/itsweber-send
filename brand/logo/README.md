@@ -8,10 +8,10 @@ Marks and guidelines for ITSWEBER Send.
 
 The SVG uses `currentColor` for both stroke and fill, so it inherits the surrounding text color. Two recommended brand colors:
 
-| Theme | Color | Hex |
-| --- | --- | --- |
-| Light | Teal | `#3ba7a7` (hover `#2d8a8a`) |
-| Dark | Atom Green | `#3FE48B` (hover `#2dd47a`) |
+| Theme | Color      | Hex                         |
+| ----- | ---------- | --------------------------- |
+| Light | Teal       | `#3ba7a7` (hover `#2d8a8a`) |
+| Dark  | Atom Green | `#3FE48B` (hover `#2dd47a`) |
 
 ## Usage rules
 

@@ -64,13 +64,13 @@ All file blobs and the manifest must be encrypted client-side (AES-256-GCM) befo
 
 **Parts**
 
-| Name | Type | Required | Description |
-| --- | --- | --- | --- |
-| `meta` | field (JSON) | Yes | Share metadata. See schema below. |
-| `manifest-iv` | field | Yes | Base64url-encoded 12-byte IV for the manifest ciphertext. |
-| `manifest` | file | Yes | Encrypted manifest blob (AES-256-GCM ciphertext). |
-| `blob-NNNN` | file | Yes, once per file | Encrypted file ciphertext, zero-padded 4-digit index starting at `0001`. |
-| `blob-NNNN-iv` | field | Yes, once per file | Base64url-encoded 12-byte IV for the corresponding blob. |
+| Name           | Type         | Required           | Description                                                              |
+| -------------- | ------------ | ------------------ | ------------------------------------------------------------------------ |
+| `meta`         | field (JSON) | Yes                | Share metadata. See schema below.                                        |
+| `manifest-iv`  | field        | Yes                | Base64url-encoded 12-byte IV for the manifest ciphertext.                |
+| `manifest`     | file         | Yes                | Encrypted manifest blob (AES-256-GCM ciphertext).                        |
+| `blob-NNNN`    | file         | Yes, once per file | Encrypted file ciphertext, zero-padded 4-digit index starting at `0001`. |
+| `blob-NNNN-iv` | field        | Yes, once per file | Base64url-encoded 12-byte IV for the corresponding blob.                 |
 
 **`meta` JSON schema**
 
@@ -109,8 +109,8 @@ Retrieve share metadata and the encrypted manifest for a share.
 
 **Path parameters**
 
-| Name | Description |
-| --- | --- |
+| Name | Description                                       |
+| ---- | ------------------------------------------------- |
 | `id` | Share identifier returned by the upload endpoint. |
 
 **Response 200**
@@ -145,10 +145,10 @@ Stream the nth encrypted blob for a share. `n` is 1-based. Each call to this end
 
 **Path parameters**
 
-| Name | Description |
-| --- | --- |
-| `id` | Share identifier. |
-| `n` | Blob index, starting at `1`. |
+| Name | Description                  |
+| ---- | ---------------------------- |
+| `id` | Share identifier.            |
+| `n`  | Blob index, starting at `1`. |
 
 **Response 200** — `Content-Type: application/octet-stream`, body is the raw AES-GCM ciphertext.
 
@@ -297,8 +297,8 @@ Delete a share created by the authenticated user. Removes both the database reco
 
 **Path parameters**
 
-| Name | Description |
-| --- | --- |
+| Name | Description       |
+| ---- | ----------------- |
 | `id` | Share identifier. |
 
 **Response 200**
@@ -341,10 +341,10 @@ List all registered users. Supports simple pagination.
 
 **Query parameters**
 
-| Name | Default | Description |
-| --- | --- | --- |
-| `limit` | `50` | Maximum number of users to return. Capped at 200. |
-| `offset` | `0` | Number of users to skip. |
+| Name     | Default | Description                                       |
+| -------- | ------- | ------------------------------------------------- |
+| `limit`  | `50`    | Maximum number of users to return. Capped at 200. |
+| `offset` | `0`     | Number of users to skip.                          |
 
 **Response 200**
 

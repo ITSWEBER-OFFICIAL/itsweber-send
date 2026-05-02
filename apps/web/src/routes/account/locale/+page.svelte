@@ -49,7 +49,9 @@
     <Globe size={20} />
     <div>
       <h1>Sprache &amp; Zeitzone</h1>
-      <p class="sub">Lege fest, in welcher Sprache die Oberfläche erscheint und wie Zeitstempel angezeigt werden.</p>
+      <p class="sub">
+        Lege fest, in welcher Sprache die Oberfläche erscheint und wie Zeitstempel angezeigt werden.
+      </p>
     </div>
   </header>
 
@@ -60,7 +62,9 @@
         <span class="badge-current">{currentLangLabel}</span>
       </div>
       <div class="card-body">
-        <p class="hint">Wähle die Sprache der Benutzeroberfläche. Die Änderung wird sofort übernommen.</p>
+        <p class="hint">
+          Wähle die Sprache der Benutzeroberfläche. Die Änderung wird sofort übernommen.
+        </p>
         <div class="lang-group" role="radiogroup" aria-label="Sprache wählen">
           <button
             type="button"
@@ -93,7 +97,9 @@
         <h2>Zeitzone</h2>
       </div>
       <div class="card-body">
-        <p class="hint">Die Zeitzone betrifft nur die Darstellung von Zeitstempeln in der Benutzeroberfläche.</p>
+        <p class="hint">
+          Die Zeitzone betrifft nur die Darstellung von Zeitstempeln in der Benutzeroberfläche.
+        </p>
         <label for="tz-select" class="field-label">Zeitzone</label>
         <select
           id="tz-select"

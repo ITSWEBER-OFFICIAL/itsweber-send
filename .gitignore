@@ -13,9 +13,9 @@ build/
 .env.*
 !.env.example
 
-# Data & uploads
-uploads/
-data/
+# Runtime data (storage backend writes here at runtime)
+/uploads/
+/data/
 *.db
 *.sqlite
 

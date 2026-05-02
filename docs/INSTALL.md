@@ -2,12 +2,12 @@
 
 ## Requirements
 
-| Dependency | Minimum version | Notes |
-| --- | --- | --- |
-| Docker | 24 | For container-based deployment |
-| Docker Compose | 2.20 | Comes bundled with Docker Desktop |
-| Node.js | 22 LTS | Required for building from source |
-| pnpm | 9 | Package manager for the monorepo |
+| Dependency     | Minimum version | Notes                             |
+| -------------- | --------------- | --------------------------------- |
+| Docker         | 24              | For container-based deployment    |
+| Docker Compose | 2.20            | Comes bundled with Docker Desktop |
+| Node.js        | 22 LTS          | Required for building from source |
+| pnpm           | 9               | Package manager for the monorepo  |
 
 A reverse proxy that handles TLS is strongly recommended in production. The bundled `docker-compose.yml` uses Caddy, which obtains a Let's Encrypt certificate automatically.
 

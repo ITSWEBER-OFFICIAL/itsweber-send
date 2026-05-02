@@ -45,8 +45,14 @@
     error = '';
     try {
       const res = await fetch('/api/v1/account/security');
-      if (res.status === 401) { await goto('/login'); return; }
-      if (!res.ok) { error = 'Sicherheitseinstellungen konnten nicht geladen werden.'; return; }
+      if (res.status === 401) {
+        await goto('/login');
+        return;
+      }
+      if (!res.ok) {
+        error = 'Sicherheitseinstellungen konnten nicht geladen werden.';
+        return;
+      }
       status = (await res.json()) as SecurityStatus;
     } catch {
       error = 'Netzwerkfehler beim Laden.';
@@ -58,9 +64,18 @@
   // --- Password ---
   async function changePassword() {
     if (pwLoading) return;
-    if (!pwCurrent || !pwNew || !pwConfirm) { pwError = 'Alle Felder sind erforderlich.'; return; }
-    if (pwNew.length < 8) { pwError = 'Neues Passwort muss mindestens 8 Zeichen haben.'; return; }
-    if (pwNew !== pwConfirm) { pwError = 'Passwörter stimmen nicht überein.'; return; }
+    if (!pwCurrent || !pwNew || !pwConfirm) {
+      pwError = 'Alle Felder sind erforderlich.';
+      return;
+    }
+    if (pwNew.length < 8) {
+      pwError = 'Neues Passwort muss mindestens 8 Zeichen haben.';
+      return;
+    }
+    if (pwNew !== pwConfirm) {
+      pwError = 'Passwörter stimmen nicht überein.';
+      return;
+    }
     pwLoading = true;
     pwError = '';
     pwSuccess = '';
@@ -79,7 +94,9 @@
       pwCurrent = '';
       pwNew = '';
       pwConfirm = '';
-      setTimeout(() => { pwSuccess = ''; }, 3500);
+      setTimeout(() => {
+        pwSuccess = '';
+      }, 3500);
     } catch {
       pwError = 'Netzwerkfehler.';
     } finally {
@@ -110,7 +127,10 @@
   }
 
   async function confirm2fa() {
-    if (!totpCode.trim()) { totpError = 'Bitte den Code eingeben.'; return; }
+    if (!totpCode.trim()) {
+      totpError = 'Bitte den Code eingeben.';
+      return;
+    }
     totpLoading = true;
     totpError = '';
     try {
@@ -130,7 +150,9 @@
       totpSecret = '';
       totpCode = '';
       totpSuccess = '2FA erfolgreich aktiviert.';
-      setTimeout(() => { totpSuccess = ''; }, 4000);
+      setTimeout(() => {
+        totpSuccess = '';
+      }, 4000);
     } catch {
       totpError = 'Netzwerkfehler.';
     } finally {
@@ -170,16 +192,24 @@
     try {
       await navigator.clipboard.writeText(totpUri);
       uriCopied = true;
-      setTimeout(() => { uriCopied = false; }, 2000);
-    } catch { /* ignore */ }
+      setTimeout(() => {
+        uriCopied = false;
+      }, 2000);
+    } catch {
+      /* ignore */
+    }
   }
 
   async function copySecret() {
     try {
       await navigator.clipboard.writeText(totpSecret);
       secretCopied = true;
-      setTimeout(() => { secretCopied = false; }, 2000);
-    } catch { /* ignore */ }
+      setTimeout(() => {
+        secretCopied = false;
+      }, 2000);
+    } catch {
+      /* ignore */
+    }
   }
 
   const pwStrength = $derived.by(() => {
@@ -194,16 +224,19 @@
   });
 
   const pwStrengthLabel = $derived(
-    pwStrength === 0 ? '' :
-    pwStrength <= 1 ? 'Schwach' :
-    pwStrength <= 2 ? 'Mittel' :
-    pwStrength <= 3 ? 'Gut' : 'Stark'
+    pwStrength === 0
+      ? ''
+      : pwStrength <= 1
+        ? 'Schwach'
+        : pwStrength <= 2
+          ? 'Mittel'
+          : pwStrength <= 3
+            ? 'Gut'
+            : 'Stark',
   );
 
   const pwStrengthTone = $derived(
-    pwStrength <= 1 ? 'weak' :
-    pwStrength <= 2 ? 'medium' :
-    pwStrength <= 3 ? 'good' : 'strong'
+    pwStrength <= 1 ? 'weak' : pwStrength <= 2 ? 'medium' : pwStrength <= 3 ? 'good' : 'strong',
   );
 
   onMount(() => {
@@ -211,12 +244,18 @@
       const check = setInterval(() => {
         if (auth.loaded) {
           clearInterval(check);
-          if (!auth.user) { void goto('/login'); return; }
+          if (!auth.user) {
+            void goto('/login');
+            return;
+          }
           void load();
         }
       }, 50);
     } else {
-      if (!auth.user) { void goto('/login'); return; }
+      if (!auth.user) {
+        void goto('/login');
+        return;
+      }
       void load();
     }
   });
@@ -235,16 +274,22 @@
   {:else if error}
     <p class="msg-error">{error}</p>
   {:else if status}
-
     <!-- Password change -->
     <section class="panel">
       <div class="panel-head">
         <h2 class="panel-heading">Passwort ändern</h2>
       </div>
       <div class="panel-body">
-        <form onsubmit={(e) => { e.preventDefault(); void changePassword(); }}>
+        <form
+          onsubmit={(e) => {
+            e.preventDefault();
+            void changePassword();
+          }}
+        >
           <div class="field">
-            <label for="pw-current" class="label">Aktuelles Passwort <span class="req">*</span></label>
+            <label for="pw-current" class="label"
+              >Aktuelles Passwort <span class="req">*</span></label
+            >
             <div class="pw-wrap">
               <input
                 id="pw-current"
@@ -257,7 +302,9 @@
               <button
                 type="button"
                 class="eye-btn"
-                onclick={() => { pwShowCurrent = !pwShowCurrent; }}
+                onclick={() => {
+                  pwShowCurrent = !pwShowCurrent;
+                }}
                 aria-label={pwShowCurrent ? 'Passwort verbergen' : 'Passwort anzeigen'}
               >
                 {#if pwShowCurrent}
@@ -283,7 +330,9 @@
               <button
                 type="button"
                 class="eye-btn"
-                onclick={() => { pwShowNew = !pwShowNew; }}
+                onclick={() => {
+                  pwShowNew = !pwShowNew;
+                }}
                 aria-label={pwShowNew ? 'Passwort verbergen' : 'Passwort anzeigen'}
               >
                 {#if pwShowNew}
@@ -296,8 +345,12 @@
             {#if pwNew}
               <div class="strength-row">
                 <div class="strength-bar">
-                  {#each [1,2,3,4,5] as i}
-                    <div class="strength-seg" class:filled={pwStrength >= i} data-tone={pwStrength >= i ? pwStrengthTone : ''}></div>
+                  {#each [1, 2, 3, 4, 5] as i}
+                    <div
+                      class="strength-seg"
+                      class:filled={pwStrength >= i}
+                      data-tone={pwStrength >= i ? pwStrengthTone : ''}
+                    ></div>
                   {/each}
                 </div>
                 {#if pwStrengthLabel}
@@ -307,7 +360,9 @@
             {/if}
           </div>
           <div class="field">
-            <label for="pw-confirm" class="label">Neues Passwort bestätigen <span class="req">*</span></label>
+            <label for="pw-confirm" class="label"
+              >Neues Passwort bestätigen <span class="req">*</span></label
+            >
             <input
               id="pw-confirm"
               type="password"
@@ -354,16 +409,22 @@
 
         {#if !status.totpEnabled && totpPhase === 'idle'}
           <p class="body-text">
-            Schütze dein Konto mit einem zweiten Faktor. Nach der Aktivierung benötigst du beim Anmelden zusätzlich ein Einmalpasswort (TOTP) aus einer Authenticator-App.
+            Schütze dein Konto mit einem zweiten Faktor. Nach der Aktivierung benötigst du beim
+            Anmelden zusätzlich ein Einmalpasswort (TOTP) aus einer Authenticator-App.
           </p>
-          <button type="button" class="btn-primary" onclick={() => void start2faSetup()} disabled={totpLoading}>
+          <button
+            type="button"
+            class="btn-primary"
+            onclick={() => void start2faSetup()}
+            disabled={totpLoading}
+          >
             {totpLoading ? 'Wird vorbereitet…' : '2FA aktivieren'}
           </button>
-
         {:else if totpPhase === 'setup' || totpPhase === 'confirm'}
           <div class="totp-setup">
             <p class="setup-step">
-              <strong>Schritt 1:</strong> Scanne die folgenden Daten in deiner Authenticator-App (z. B. Aegis, Google Authenticator, Bitwarden).
+              <strong>Schritt 1:</strong> Scanne die folgenden Daten in deiner Authenticator-App (z. B.
+              Aegis, Google Authenticator, Bitwarden).
             </p>
 
             <div class="totp-field-group">
@@ -371,7 +432,13 @@
                 <span class="totp-field-label">otpauth:// URI</span>
                 <div class="code-display">
                   <code class="code-text">{totpUri}</code>
-                  <button type="button" class="btn-copy" onclick={() => void copyUri()} aria-label="URI kopieren" title="URI kopieren">
+                  <button
+                    type="button"
+                    class="btn-copy"
+                    onclick={() => void copyUri()}
+                    aria-label="URI kopieren"
+                    title="URI kopieren"
+                  >
                     {#if uriCopied}<Check size={14} />{:else}<Copy size={14} />{/if}
                   </button>
                 </div>
@@ -380,7 +447,13 @@
                 <span class="totp-field-label">Secret (manuell eingeben)</span>
                 <div class="code-display">
                   <code class="code-text secret">{totpSecret}</code>
-                  <button type="button" class="btn-copy" onclick={() => void copySecret()} aria-label="Secret kopieren" title="Secret kopieren">
+                  <button
+                    type="button"
+                    class="btn-copy"
+                    onclick={() => void copySecret()}
+                    aria-label="Secret kopieren"
+                    title="Secret kopieren"
+                  >
                     {#if secretCopied}<Check size={14} />{:else}<Copy size={14} />{/if}
                   </button>
                 </div>
@@ -388,10 +461,16 @@
             </div>
 
             <p class="setup-step">
-              <strong>Schritt 2:</strong> Gib den 6-stelligen Code aus der App ein, um die Einrichtung abzuschliessen.
+              <strong>Schritt 2:</strong> Gib den 6-stelligen Code aus der App ein, um die Einrichtung
+              abzuschliessen.
             </p>
 
-            <form onsubmit={(e) => { e.preventDefault(); void confirm2fa(); }}>
+            <form
+              onsubmit={(e) => {
+                e.preventDefault();
+                void confirm2fa();
+              }}
+            >
               <div class="field code-field">
                 <label for="totp-code" class="label">Authenticator-Code</label>
                 <input
@@ -415,12 +494,17 @@
               </div>
             </form>
           </div>
-
         {:else if status.totpEnabled}
           <p class="body-text">
-            Zwei-Faktor-Authentifizierung ist aktiv. Beim Anmelden wirst du nach einem Code aus deiner Authenticator-App gefragt.
+            Zwei-Faktor-Authentifizierung ist aktiv. Beim Anmelden wirst du nach einem Code aus
+            deiner Authenticator-App gefragt.
           </p>
-          <button type="button" class="btn-danger-outline" onclick={() => void disable2fa()} disabled={totpLoading}>
+          <button
+            type="button"
+            class="btn-danger-outline"
+            onclick={() => void disable2fa()}
+            disabled={totpLoading}
+          >
             {totpLoading ? 'Deaktiviert…' : '2FA deaktivieren'}
           </button>
         {/if}
@@ -464,7 +548,11 @@
     border-radius: 50%;
     animation: spin 0.7s linear infinite;
   }
-  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
 
   .msg-error {
     color: var(--danger);
@@ -550,7 +638,9 @@
     font-weight: 600;
     color: var(--text);
   }
-  .req { color: var(--danger); }
+  .req {
+    color: var(--danger);
+  }
   .input {
     width: 100%;
     max-width: 420px;
@@ -599,7 +689,9 @@
     place-items: center;
     transition: color var(--transition-fast);
   }
-  .eye-btn:hover { color: var(--text); }
+  .eye-btn:hover {
+    color: var(--text);
+  }
 
   /* Password strength */
   .strength-row {
@@ -620,18 +712,38 @@
     border: 1px solid var(--border);
     transition: background var(--transition-fast);
   }
-  .strength-seg.filled[data-tone='weak']   { background: var(--danger); border-color: var(--danger); }
-  .strength-seg.filled[data-tone='medium'] { background: color-mix(in srgb, var(--danger) 50%, var(--brand)); border-color: transparent; }
-  .strength-seg.filled[data-tone='good']   { background: var(--brand); border-color: var(--brand); }
-  .strength-seg.filled[data-tone='strong'] { background: var(--brand-strong, var(--brand)); border-color: transparent; }
+  .strength-seg.filled[data-tone='weak'] {
+    background: var(--danger);
+    border-color: var(--danger);
+  }
+  .strength-seg.filled[data-tone='medium'] {
+    background: color-mix(in srgb, var(--danger) 50%, var(--brand));
+    border-color: transparent;
+  }
+  .strength-seg.filled[data-tone='good'] {
+    background: var(--brand);
+    border-color: var(--brand);
+  }
+  .strength-seg.filled[data-tone='strong'] {
+    background: var(--brand-strong, var(--brand));
+    border-color: transparent;
+  }
   .strength-label {
     font-size: 11px;
     font-weight: 600;
   }
-  .strength-label[data-tone='weak']   { color: var(--danger); }
-  .strength-label[data-tone='medium'] { color: color-mix(in srgb, var(--danger) 50%, var(--brand)); }
-  .strength-label[data-tone='good']   { color: var(--brand); }
-  .strength-label[data-tone='strong'] { color: var(--brand-strong, var(--brand)); }
+  .strength-label[data-tone='weak'] {
+    color: var(--danger);
+  }
+  .strength-label[data-tone='medium'] {
+    color: color-mix(in srgb, var(--danger) 50%, var(--brand));
+  }
+  .strength-label[data-tone='good'] {
+    color: var(--brand);
+  }
+  .strength-label[data-tone='strong'] {
+    color: var(--brand-strong, var(--brand));
+  }
 
   /* 2FA setup */
   .body-text {
@@ -705,9 +817,13 @@
     place-items: center;
     transition: color var(--transition-fast);
   }
-  .btn-copy:hover { color: var(--brand); }
+  .btn-copy:hover {
+    color: var(--brand);
+  }
 
-  .code-field { margin-top: 4px; }
+  .code-field {
+    margin-top: 4px;
+  }
   .form-actions {
     display: flex;
     gap: 10px;
@@ -731,8 +847,13 @@
     transition: opacity var(--transition-fast);
     font-family: inherit;
   }
-  .btn-primary:hover:not(:disabled) { opacity: 0.88; }
-  .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-primary:hover:not(:disabled) {
+    opacity: 0.88;
+  }
+  .btn-primary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
 
   .btn-ghost {
     display: inline-flex;
@@ -744,7 +865,9 @@
     border-radius: var(--radius-sm);
     font-size: 13px;
     cursor: pointer;
-    transition: color var(--transition-fast), border-color var(--transition-fast);
+    transition:
+      color var(--transition-fast),
+      border-color var(--transition-fast);
     font-family: inherit;
   }
   .btn-ghost:hover {
@@ -764,11 +887,16 @@
     font-size: 13px;
     font-weight: 600;
     cursor: pointer;
-    transition: background var(--transition-fast), opacity var(--transition-fast);
+    transition:
+      background var(--transition-fast),
+      opacity var(--transition-fast);
     font-family: inherit;
   }
   .btn-danger-outline:hover:not(:disabled) {
     background: color-mix(in srgb, var(--danger) 8%, var(--surface));
   }
-  .btn-danger-outline:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-danger-outline:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
 </style>

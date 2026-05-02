@@ -11,8 +11,13 @@
  */
 
 import fp from 'fastify-plugin';
+import { createHash } from 'node:crypto';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
-import { getSession, getUserById } from '../db/sqlite.js';
+import { getSession, getUserById, getApiTokenByHash, touchApiToken } from '../db/sqlite.js';
+
+function sha256Hex(input: string): string {
+  return createHash('sha256').update(input).digest('hex');
+}
 
 export interface SessionUser {
   id: string;
@@ -31,6 +36,29 @@ async function sessionPlugin(app: FastifyInstance): Promise<void> {
   app.decorateRequest('user', null);
 
   app.addHook('preHandler', async (request: FastifyRequest) => {
+    // 1. Try Bearer token first — used for machine-to-machine API access.
+    const auth = request.headers.authorization;
+    if (auth?.startsWith('Bearer ')) {
+      const rawToken = auth.slice(7).trim();
+      if (rawToken) {
+        const token = getApiTokenByHash(sha256Hex(rawToken));
+        if (token) {
+          const user = getUserById(token.user_id);
+          if (user) {
+            touchApiToken(token.id, new Date().toISOString());
+            request.user = {
+              id: user.id,
+              email: user.email,
+              role: user.role,
+              quotaBytes: user.quota_bytes,
+            };
+            return;
+          }
+        }
+      }
+    }
+
+    // 2. Fall back to session cookie for browser flows.
     const sid = request.cookies?.sid;
     if (!sid) return;
 

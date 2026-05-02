@@ -15,6 +15,8 @@ export function initI18n(): void {
 
   init({
     fallbackLocale: DEFAULT_LOCALE,
-    initialLocale: browser ? (window.navigator.language?.split('-')[0] ?? DEFAULT_LOCALE) : DEFAULT_LOCALE,
+    initialLocale: browser
+      ? (window.navigator.language?.split('-')[0] ?? DEFAULT_LOCALE)
+      : DEFAULT_LOCALE,
   });
 }

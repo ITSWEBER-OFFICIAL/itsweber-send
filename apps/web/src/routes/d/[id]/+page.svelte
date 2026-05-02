@@ -38,14 +38,22 @@
 
   async function fetchManifest(): Promise<void> {
     const res = await fetch(`/api/v1/download/${shareId}/manifest`);
-    if (res.status === 404) { phase = 'error'; errorMsg = $_('download.not_found'); return; }
+    if (res.status === 404) {
+      phase = 'error';
+      errorMsg = $_('download.not_found');
+      return;
+    }
     if (res.status === 410) {
       const body = (await res.json()) as { error: string };
       phase = 'error';
       errorMsg = body.error.includes('expired') ? $_('download.expired') : $_('download.exhausted');
       return;
     }
-    if (!res.ok) { phase = 'error'; errorMsg = $_('download.not_found'); return; }
+    if (!res.ok) {
+      phase = 'error';
+      errorMsg = $_('download.not_found');
+      return;
+    }
 
     manifestResponse = (await res.json()) as DownloadManifestResponse;
 
@@ -170,27 +178,39 @@
 
 <main class="page">
   <div class="card-wrap">
-
     {#if phase === 'loading'}
       <div class="card center-card">
         <span class="spinner" aria-hidden="true"></span>
         <p>{$_('download.loading')}</p>
       </div>
-
     {:else if phase === 'password_required'}
       <div class="card lock-card">
         <div class="lock-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
-               stroke-linecap="round" stroke-linejoin="round" width="36" height="36" aria-hidden="true">
-            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.6"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            width="36"
+            height="36"
+            aria-hidden="true"
+          >
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
           </svg>
         </div>
         <h2>{$_('download.password_required')}</h2>
         {#if wrongPassword}
           <p class="error-inline">{$_('download.wrong_password')}</p>
         {/if}
-        <form onsubmit={(e) => { e.preventDefault(); void decryptWithPassword(); }}>
+        <form
+          onsubmit={(e) => {
+            e.preventDefault();
+            void decryptWithPassword();
+          }}
+        >
           <input
             type="password"
             class="password-input"
@@ -203,13 +223,11 @@
           </button>
         </form>
       </div>
-
     {:else if phase === 'decrypting'}
       <div class="card center-card">
         <span class="spinner" aria-hidden="true"></span>
         <p>{$_('download.decrypting')}</p>
       </div>
-
     {:else if phase === 'ready' && manifest}
       <div class="card ready-card">
         <h2>{$_('download.ready_title')}</h2>
@@ -230,11 +248,20 @@
             {#if downloadingAll}
               <span class="spinner-sm" aria-hidden="true"></span>
             {:else}
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
-                   stroke-linecap="round" stroke-linejoin="round" width="15" height="15" aria-hidden="true">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                <polyline points="7 10 12 15 17 10"/>
-                <line x1="12" y1="15" x2="12" y2="3"/>
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.6"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                width="15"
+                height="15"
+                aria-hidden="true"
+              >
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="7 10 12 15 17 10" />
+                <line x1="12" y1="15" x2="12" y2="3" />
               </svg>
             {/if}
             {$_('download.download_all')}
@@ -259,16 +286,34 @@
                 {#if fileStates[i] === 'downloading'}
                   <span class="spinner-sm" aria-hidden="true"></span>
                 {:else if fileStates[i] === 'done'}
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                       stroke-linecap="round" stroke-linejoin="round" width="14" height="14" aria-hidden="true">
-                    <polyline points="20 6 9 17 4 12"/>
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    width="14"
+                    height="14"
+                    aria-hidden="true"
+                  >
+                    <polyline points="20 6 9 17 4 12" />
                   </svg>
                 {:else}
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
-                       stroke-linecap="round" stroke-linejoin="round" width="14" height="14" aria-hidden="true">
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                    <polyline points="7 10 12 15 17 10"/>
-                    <line x1="12" y1="15" x2="12" y2="3"/>
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.6"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    width="14"
+                    height="14"
+                    aria-hidden="true"
+                  >
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="7 10 12 15 17 10" />
+                    <line x1="12" y1="15" x2="12" y2="3" />
                   </svg>
                 {/if}
                 {$_('download.download_button')}
@@ -289,22 +334,29 @@
 
         <p class="encrypted-note">{$_('download.encrypted_note')}</p>
       </div>
-
     {:else if phase === 'error'}
       <div class="card error-card">
         <div class="error-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
-               stroke-linecap="round" stroke-linejoin="round" width="36" height="36" aria-hidden="true">
-            <circle cx="12" cy="12" r="10"/>
-            <line x1="15" y1="9" x2="9" y2="15"/>
-            <line x1="9" y1="9" x2="15" y2="15"/>
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.6"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            width="36"
+            height="36"
+            aria-hidden="true"
+          >
+            <circle cx="12" cy="12" r="10" />
+            <line x1="15" y1="9" x2="9" y2="15" />
+            <line x1="9" y1="9" x2="15" y2="15" />
           </svg>
         </div>
         <p class="error-msg">{errorMsg}</p>
         <a class="btn-secondary" href="/">{$_('upload.new_upload')}</a>
       </div>
     {/if}
-
   </div>
 </main>
 
@@ -320,7 +372,7 @@
     border: 1px solid var(--border);
     border-radius: 16px;
     padding: 32px 28px;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
   }
 
   .center-card {
@@ -334,17 +386,29 @@
   }
 
   /* Lock card */
-  .lock-card { text-align: center; }
-  .lock-icon, .error-icon {
+  .lock-card {
+    text-align: center;
+  }
+  .lock-icon,
+  .error-icon {
     display: inline-flex;
     padding: 14px;
     border-radius: 50%;
     margin-bottom: 8px;
   }
-  .lock-icon { background: color-mix(in srgb, var(--brand) 12%, transparent); color: var(--brand); }
-  .error-icon { background: color-mix(in srgb, #d9534f 12%, transparent); color: #d9534f; }
+  .lock-icon {
+    background: color-mix(in srgb, var(--brand) 12%, transparent);
+    color: var(--brand);
+  }
+  .error-icon {
+    background: color-mix(in srgb, #d9534f 12%, transparent);
+    color: #d9534f;
+  }
 
-  h2 { margin: 0 0 16px; font-size: 20px; }
+  h2 {
+    margin: 0 0 16px;
+    font-size: 20px;
+  }
 
   .error-inline {
     color: #d9534f;
@@ -364,7 +428,10 @@
     box-sizing: border-box;
     margin-bottom: 12px;
   }
-  .password-input:focus { outline: 2px solid var(--brand); outline-offset: 2px; }
+  .password-input:focus {
+    outline: 2px solid var(--brand);
+    outline-offset: 2px;
+  }
 
   /* Note box */
   .note-box {
@@ -382,7 +449,13 @@
     margin: 0 0 4px;
     font-weight: 600;
   }
-  .note-text { font-size: 14px; line-height: 1.55; margin: 0; color: var(--text); white-space: pre-wrap; }
+  .note-text {
+    font-size: 14px;
+    line-height: 1.55;
+    margin: 0;
+    color: var(--text);
+    white-space: pre-wrap;
+  }
 
   /* Download all button */
   .btn-download-all {
@@ -403,8 +476,13 @@
     transition: opacity 0.15s;
     min-height: 44px;
   }
-  .btn-download-all:disabled { opacity: 0.55; cursor: not-allowed; }
-  .btn-download-all:not(:disabled):hover { opacity: 0.88; }
+  .btn-download-all:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+  .btn-download-all:not(:disabled):hover {
+    opacity: 0.88;
+  }
 
   /* File list */
   .file-list {
@@ -424,8 +502,14 @@
     border: 1px solid var(--border);
     border-radius: 10px;
   }
-  .file-icon { color: var(--muted); flex-shrink: 0; }
-  .file-info { min-width: 0; flex: 1; }
+  .file-icon {
+    color: var(--muted);
+    flex-shrink: 0;
+  }
+  .file-info {
+    min-width: 0;
+    flex: 1;
+  }
   .file-name {
     display: block;
     font-weight: 600;
@@ -453,24 +537,47 @@
     cursor: pointer;
     white-space: nowrap;
     flex-shrink: 0;
-    transition: opacity 0.15s, background 0.15s;
+    transition:
+      opacity 0.15s,
+      background 0.15s;
     min-height: 36px;
   }
-  .btn-download:disabled { opacity: 0.55; cursor: not-allowed; }
-  .btn-download:not(:disabled):hover { opacity: 0.85; }
+  .btn-download:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+  .btn-download:not(:disabled):hover {
+    opacity: 0.85;
+  }
   .btn-download.is-done {
     background: color-mix(in srgb, var(--brand) 20%, transparent);
     color: var(--brand);
     border: 1px solid color-mix(in srgb, var(--brand) 35%, transparent);
   }
-  .btn-download.is-done:hover { opacity: 1; }
+  .btn-download.is-done:hover {
+    opacity: 1;
+  }
 
-  .remaining-note { color: var(--muted); font-size: 12px; margin: 0 0 8px; }
-  .encrypted-note { color: var(--dim); font-size: 12px; margin: 0; }
+  .remaining-note {
+    color: var(--muted);
+    font-size: 12px;
+    margin: 0 0 8px;
+  }
+  .encrypted-note {
+    color: var(--dim);
+    font-size: 12px;
+    margin: 0;
+  }
 
   /* Error card */
-  .error-card { text-align: center; }
-  .error-msg { color: var(--muted); font-size: 15px; margin: 0 0 20px; }
+  .error-card {
+    text-align: center;
+  }
+  .error-msg {
+    color: var(--muted);
+    font-size: 15px;
+    margin: 0 0 20px;
+  }
 
   /* Buttons */
   .btn-primary {
@@ -486,8 +593,13 @@
     transition: opacity 0.15s;
     min-height: 48px;
   }
-  .btn-primary:disabled { opacity: 0.55; cursor: not-allowed; }
-  .btn-primary:not(:disabled):hover { opacity: 0.88; }
+  .btn-primary:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+  .btn-primary:not(:disabled):hover {
+    opacity: 0.88;
+  }
 
   .btn-secondary {
     display: inline-block;
@@ -501,7 +613,9 @@
     cursor: pointer;
     transition: background 0.15s;
   }
-  .btn-secondary:hover { background: var(--surface-3); }
+  .btn-secondary:hover {
+    background: var(--surface-3);
+  }
 
   /* Spinners */
   .spinner {
@@ -517,20 +631,35 @@
     display: inline-block;
     width: 13px;
     height: 13px;
-    border: 2px solid rgba(10,26,38,0.3);
+    border: 2px solid rgba(10, 26, 38, 0.3);
     border-top-color: #0a1a26;
     border-radius: 50%;
     animation: spin 0.7s linear infinite;
     flex-shrink: 0;
   }
-  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
 
   /* Mobile */
   @media (max-width: 480px) {
-    .page { padding: 40px 16px 60px; }
-    .card { padding: 20px 16px; }
-    .file-entry { flex-wrap: wrap; }
-    .btn-download { width: 100%; justify-content: center; }
-    .center-card { padding: 40px 16px; }
+    .page {
+      padding: 40px 16px 60px;
+    }
+    .card {
+      padding: 20px 16px;
+    }
+    .file-entry {
+      flex-wrap: wrap;
+    }
+    .btn-download {
+      width: 100%;
+      justify-content: center;
+    }
+    .center-card {
+      padding: 40px 16px;
+    }
   }
 </style>

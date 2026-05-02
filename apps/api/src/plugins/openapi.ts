@@ -9,8 +9,7 @@ export async function registerOpenApi(app: FastifyInstance): Promise<void> {
       openapi: '3.0.3',
       info: {
         title: 'ITSWEBER Send API',
-        description:
-          'REST API for ITSWEBER Send — self-hosted, end-to-end encrypted file sharing.',
+        description: 'REST API for ITSWEBER Send — self-hosted, end-to-end encrypted file sharing.',
         version: '1.0.0',
         license: { name: 'AGPL-3.0-only' },
       },

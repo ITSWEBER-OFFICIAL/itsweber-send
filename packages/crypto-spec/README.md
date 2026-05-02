@@ -21,12 +21,12 @@ Specification of the cryptographic format used by ITSWEBER Send. This document i
 
 ## Primitives
 
-| Primitive | Choice | Parameters |
-| --- | --- | --- |
-| Symmetric cipher | AES-GCM | 256-bit key, 96-bit IV, 128-bit auth tag |
-| Key derivation (password) | PBKDF2 | SHA-256, 200 000 iterations, 128-bit salt |
-| Random source | `crypto.getRandomValues` | All keys, IVs, salts |
-| Encoding | base64url (RFC 4648 §5) | URL fragment, headers |
+| Primitive                 | Choice                   | Parameters                                |
+| ------------------------- | ------------------------ | ----------------------------------------- |
+| Symmetric cipher          | AES-GCM                  | 256-bit key, 96-bit IV, 128-bit auth tag  |
+| Key derivation (password) | PBKDF2                   | SHA-256, 200 000 iterations, 128-bit salt |
+| Random source             | `crypto.getRandomValues` | All keys, IVs, salts                      |
+| Encoding                  | base64url (RFC 4648 §5)  | URL fragment, headers                     |
 
 ## Per-share keys
 

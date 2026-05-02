@@ -29,13 +29,12 @@ The runtime CSS file the app imports. Defines the same semantic roles as CSS cus
 ```
 
 ```svelte
-<!-- In a component -->
-<div style="background: var(--surface); color: var(--text)">…</div>
+<!-- In a component --><div style="background: var(--surface); color: var(--text)">…</div>
 ```
 
 ```html
 <!-- In app.html -->
-<html data-theme="system" lang="de">
+<html data-theme="system" lang="de"></html>
 ```
 
 ## Adding a token

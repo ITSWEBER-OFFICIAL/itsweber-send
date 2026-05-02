@@ -64,12 +64,12 @@ export function verifyTotp(secret: string, code: string): boolean {
     counterBuf.writeUInt32BE(counter >>> 0, 4);
     const hmac = createHmac('sha1', secretBuf).update(counterBuf).digest();
     const off = (hmac[hmac.length - 1] ?? 0) & 0xf;
-    const otp = (
-      ((hmac[off]! & 0x7f) << 24) |
-      ((hmac[off + 1]! & 0xff) << 16) |
-      ((hmac[off + 2]! & 0xff) << 8) |
-      (hmac[off + 3]! & 0xff)
-    ) % 1_000_000;
+    const otp =
+      (((hmac[off]! & 0x7f) << 24) |
+        ((hmac[off + 1]! & 0xff) << 16) |
+        ((hmac[off + 2]! & 0xff) << 8) |
+        (hmac[off + 3]! & 0xff)) %
+      1_000_000;
     if (String(otp).padStart(6, '0') === cleaned) return true;
   }
   return false;

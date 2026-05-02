@@ -3,8 +3,20 @@ import type { FastifyBaseLogger } from 'fastify';
 import { config } from '../config.js';
 
 export type WebhookEvent =
-  | { type: 'upload.created'; shareId: string; fileCount: number; totalSizeBytes: number; userId: string | null; expiresAt: string }
-  | { type: 'download.completed'; shareId: string; blobIndex: number; remainingDownloads: number | null };
+  | {
+      type: 'upload.created';
+      shareId: string;
+      fileCount: number;
+      totalSizeBytes: number;
+      userId: string | null;
+      expiresAt: string;
+    }
+  | {
+      type: 'download.completed';
+      shareId: string;
+      blobIndex: number;
+      remainingDownloads: number | null;
+    };
 
 function sign(payload: string, secret: string): string {
   return createHmac('sha256', secret).update(payload).digest('hex');
@@ -34,7 +46,10 @@ export async function emitWebhook(event: WebhookEvent, log: FastifyBaseLogger): 
       await new Promise((r) => setTimeout(r, 2000));
       const retry = await attempt();
       if (!retry.ok) {
-        log.error({ event: event.type, status: retry.status }, 'webhook delivery failed after retry');
+        log.error(
+          { event: event.type, status: retry.status },
+          'webhook delivery failed after retry',
+        );
       }
     }
   } catch (err) {

@@ -14,6 +14,7 @@ export interface ShareRecord {
   user_id: string | null;
   total_size_bytes: number;
   wordcode: string | null;
+  file_count: number;
 }
 
 export interface UserRecord {
@@ -119,7 +120,9 @@ export function initDb(dbPath: string): void {
   `);
 
   // Idempotent column migrations
-  const sharesCols = (_db.prepare("PRAGMA table_info(shares)").all() as { name: string }[]).map((c) => c.name);
+  const sharesCols = (_db.prepare('PRAGMA table_info(shares)').all() as { name: string }[]).map(
+    (c) => c.name,
+  );
   if (!sharesCols.includes('user_id')) {
     _db.exec('ALTER TABLE shares ADD COLUMN user_id TEXT');
   }
@@ -128,10 +131,17 @@ export function initDb(dbPath: string): void {
   }
   if (!sharesCols.includes('wordcode')) {
     _db.exec('ALTER TABLE shares ADD COLUMN wordcode TEXT');
-    _db.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_shares_wordcode ON shares(wordcode) WHERE wordcode IS NOT NULL');
+    _db.exec(
+      'CREATE UNIQUE INDEX IF NOT EXISTS idx_shares_wordcode ON shares(wordcode) WHERE wordcode IS NOT NULL',
+    );
+  }
+  if (!sharesCols.includes('file_count')) {
+    _db.exec('ALTER TABLE shares ADD COLUMN file_count INTEGER NOT NULL DEFAULT 1');
   }
 
-  const usersCols = (_db.prepare("PRAGMA table_info(users)").all() as { name: string }[]).map((c) => c.name);
+  const usersCols = (_db.prepare('PRAGMA table_info(users)').all() as { name: string }[]).map(
+    (c) => c.name,
+  );
   if (!usersCols.includes('display_name')) {
     _db.exec('ALTER TABLE users ADD COLUMN display_name TEXT');
   }
@@ -158,19 +168,26 @@ function db(): Database.Database {
 // Shares
 // ---------------------------------------------------------------------------
 
-export function insertShare(share: Omit<ShareRecord, 'total_size_bytes' | 'wordcode'> & { total_size_bytes?: number; wordcode?: string | null }): void {
+export function insertShare(
+  share: Omit<ShareRecord, 'total_size_bytes' | 'wordcode' | 'file_count'> & {
+    total_size_bytes?: number;
+    wordcode?: string | null;
+    file_count?: number;
+  },
+): void {
   db()
     .prepare(
       `INSERT INTO shares
-         (id, created_at, expires_at, download_limit, downloads_used, salt, iv_wrap, wrapped_key, user_id, total_size_bytes, wordcode)
+         (id, created_at, expires_at, download_limit, downloads_used, salt, iv_wrap, wrapped_key, user_id, total_size_bytes, wordcode, file_count)
        VALUES
-         (@id, @created_at, @expires_at, @download_limit, @downloads_used, @salt, @iv_wrap, @wrapped_key, @user_id, @total_size_bytes, @wordcode)`,
+         (@id, @created_at, @expires_at, @download_limit, @downloads_used, @salt, @iv_wrap, @wrapped_key, @user_id, @total_size_bytes, @wordcode, @file_count)`,
     )
     .run({
       ...share,
       user_id: share.user_id ?? null,
       total_size_bytes: share.total_size_bytes ?? 0,
       wordcode: share.wordcode ?? null,
+      file_count: share.file_count ?? 1,
     });
 }
 
@@ -179,7 +196,9 @@ export function getShare(id: string): ShareRecord | undefined {
 }
 
 export function getShareByWordcode(wordcode: string): ShareRecord | undefined {
-  return db().prepare('SELECT * FROM shares WHERE wordcode = ?').get(wordcode) as ShareRecord | undefined;
+  return db().prepare('SELECT * FROM shares WHERE wordcode = ?').get(wordcode) as
+    | ShareRecord
+    | undefined;
 }
 
 export function incrementDownloads(id: string): void {
@@ -248,7 +267,17 @@ export function countShares(): number {
 // Users
 // ---------------------------------------------------------------------------
 
-export function insertUser(user: Omit<UserRecord, 'last_login_at' | 'display_name' | 'totp_secret' | 'totp_enabled' | 'email_on_download' | 'email_on_expiry'> & { last_login_at?: string | null }): void {
+export function insertUser(
+  user: Omit<
+    UserRecord,
+    | 'last_login_at'
+    | 'display_name'
+    | 'totp_secret'
+    | 'totp_enabled'
+    | 'email_on_download'
+    | 'email_on_expiry'
+  > & { last_login_at?: string | null },
+): void {
   db()
     .prepare(
       `INSERT INTO users (id, email, password_hash, created_at, last_login_at, role, quota_bytes)
@@ -269,7 +298,10 @@ export function updateLastLogin(userId: string, at: string): void {
   db().prepare('UPDATE users SET last_login_at = ? WHERE id = ?').run(at, userId);
 }
 
-export function updateUserProfile(userId: string, fields: { email?: string; display_name?: string | null }): void {
+export function updateUserProfile(
+  userId: string,
+  fields: { email?: string; display_name?: string | null },
+): void {
   if (fields.email !== undefined) {
     db().prepare('UPDATE users SET email = ? WHERE id = ?').run(fields.email, userId);
   }
@@ -282,7 +314,11 @@ export function updateUserPassword(userId: string, passwordHash: string): void {
   db().prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(passwordHash, userId);
 }
 
-export function updateUserNotifications(userId: string, emailOnDownload: boolean, emailOnExpiry: boolean): void {
+export function updateUserNotifications(
+  userId: string,
+  emailOnDownload: boolean,
+  emailOnExpiry: boolean,
+): void {
   db()
     .prepare('UPDATE users SET email_on_download = ?, email_on_expiry = ? WHERE id = ?')
     .run(emailOnDownload ? 1 : 0, emailOnExpiry ? 1 : 0, userId);
@@ -358,7 +394,11 @@ export function insertApiToken(token: ApiTokenRecord): void {
       `INSERT INTO api_tokens (id, user_id, name, token_hash, created_at, last_used_at, expires_at)
        VALUES (@id, @user_id, @name, @token_hash, @created_at, @last_used_at, @expires_at)`,
     )
-    .run({ ...token, last_used_at: token.last_used_at ?? null, expires_at: token.expires_at ?? null });
+    .run({
+      ...token,
+      last_used_at: token.last_used_at ?? null,
+      expires_at: token.expires_at ?? null,
+    });
 }
 
 export function getApiTokensByUser(userId: string): ApiTokenRecord[] {
@@ -369,7 +409,9 @@ export function getApiTokensByUser(userId: string): ApiTokenRecord[] {
 
 export function getApiTokenByHash(hash: string): ApiTokenRecord | undefined {
   return db()
-    .prepare("SELECT * FROM api_tokens WHERE token_hash = ? AND (expires_at IS NULL OR expires_at > datetime('now'))")
+    .prepare(
+      "SELECT * FROM api_tokens WHERE token_hash = ? AND (expires_at IS NULL OR expires_at > datetime('now'))",
+    )
     .get(hash) as ApiTokenRecord | undefined;
 }
 
@@ -391,7 +433,12 @@ export function insertAuditLog(entry: Omit<AuditLogRecord, 'id'>): void {
       `INSERT INTO audit_log (user_id, action, resource, ip, created_at)
        VALUES (@user_id, @action, @resource, @ip, @created_at)`,
     )
-    .run({ ...entry, user_id: entry.user_id ?? null, resource: entry.resource ?? null, ip: entry.ip ?? null });
+    .run({
+      ...entry,
+      user_id: entry.user_id ?? null,
+      resource: entry.resource ?? null,
+      ip: entry.ip ?? null,
+    });
 }
 
 export function getAuditLogByUser(userId: string, limit = 100, offset = 0): AuditLogRecord[] {
@@ -407,7 +454,11 @@ export function getAuditLogAll(limit = 100, offset = 0): AuditLogRecord[] {
 }
 
 export function countAuditLogByUser(userId: string): number {
-  return (db().prepare('SELECT COUNT(*) AS cnt FROM audit_log WHERE user_id = ?').get(userId) as { cnt: number }).cnt;
+  return (
+    db().prepare('SELECT COUNT(*) AS cnt FROM audit_log WHERE user_id = ?').get(userId) as {
+      cnt: number;
+    }
+  ).cnt;
 }
 
 export function countAuditLogAll(): number {
@@ -419,7 +470,9 @@ export function countAuditLogAll(): number {
 // ---------------------------------------------------------------------------
 
 export function getSetting(key: string): string | undefined {
-  const row = db().prepare('SELECT value FROM system_settings WHERE key = ?').get(key) as { value: string } | undefined;
+  const row = db().prepare('SELECT value FROM system_settings WHERE key = ?').get(key) as
+    | { value: string }
+    | undefined;
   return row?.value;
 }
 
@@ -433,7 +486,10 @@ export function setSetting(key: string, value: string): void {
 }
 
 export function getAllSettings(): Record<string, string> {
-  const rows = db().prepare('SELECT key, value FROM system_settings').all() as { key: string; value: string }[];
+  const rows = db().prepare('SELECT key, value FROM system_settings').all() as {
+    key: string;
+    value: string;
+  }[];
   return Object.fromEntries(rows.map((r) => [r.key, r.value]));
 }
 
@@ -447,12 +503,14 @@ export function getStats(): {
   activeShares: number;
   totalStorageBytes: number;
 } {
-  const totalUsers = (db().prepare('SELECT COUNT(*) AS cnt FROM users').get() as { cnt: number }).cnt;
-  const totalShares = (db().prepare('SELECT COUNT(*) AS cnt FROM shares').get() as { cnt: number }).cnt;
+  const totalUsers = (db().prepare('SELECT COUNT(*) AS cnt FROM users').get() as { cnt: number })
+    .cnt;
+  const totalShares = (db().prepare('SELECT COUNT(*) AS cnt FROM shares').get() as { cnt: number })
+    .cnt;
   const activeShares = (
-    db()
-      .prepare("SELECT COUNT(*) AS cnt FROM shares WHERE expires_at > datetime('now')")
-      .get() as { cnt: number }
+    db().prepare("SELECT COUNT(*) AS cnt FROM shares WHERE expires_at > datetime('now')").get() as {
+      cnt: number;
+    }
   ).cnt;
   const totalStorageBytes = (
     db()

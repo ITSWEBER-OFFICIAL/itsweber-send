@@ -14,14 +14,7 @@
   const maskId = `paperPlaneMask-${uid}`;
 </script>
 
-<svg
-  width={size}
-  height={size}
-  viewBox="0 0 120 120"
-  role="img"
-  aria-label={title}
-  fill="none"
->
+<svg width={size} height={size} viewBox="0 0 120 120" role="img" aria-label={title} fill="none">
   <defs>
     <mask id={maskId}>
       <rect width="120" height="120" fill="white" />

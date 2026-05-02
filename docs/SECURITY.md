@@ -23,12 +23,12 @@ The full cryptographic specification lives in [`packages/crypto-spec/README.md`]
 
 ### Primitives
 
-| Primitive | Parameters |
-| --- | --- |
-| Symmetric cipher | AES-256-GCM (256-bit key, 96-bit IV, 128-bit auth tag) |
-| Key derivation (password) | PBKDF2-SHA-256, 200 000 iterations, 128-bit random salt |
-| Random source | `crypto.getRandomValues` (browser) / `crypto.randomBytes` (Node) |
-| Encoding | base64url (RFC 4648 §5) |
+| Primitive                 | Parameters                                                       |
+| ------------------------- | ---------------------------------------------------------------- |
+| Symmetric cipher          | AES-256-GCM (256-bit key, 96-bit IV, 128-bit auth tag)           |
+| Key derivation (password) | PBKDF2-SHA-256, 200 000 iterations, 128-bit random salt          |
+| Random source             | `crypto.getRandomValues` (browser) / `crypto.randomBytes` (Node) |
+| Encoding                  | base64url (RFC 4648 §5)                                          |
 
 ### Encryption flow
 
@@ -67,18 +67,18 @@ The server **cannot** observe: file contents, filenames, MIME types, or the mast
 
 The following headers are set on every response by `@fastify/helmet` and enforced as a defense-in-depth layer by Caddy:
 
-| Header | Value |
-| --- | --- |
-| `Content-Security-Policy` | `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; ...` |
-| `Cross-Origin-Opener-Policy` | `same-origin` |
-| `Cross-Origin-Embedder-Policy` | `credentialless` |
-| `Cross-Origin-Resource-Policy` | `same-origin` |
-| `Strict-Transport-Security` | `max-age=63072000; includeSubDomains; preload` (2 years) |
-| `Referrer-Policy` | `no-referrer` |
-| `X-Content-Type-Options` | `nosniff` |
-| `X-Frame-Options` | `DENY` |
-| `Permissions-Policy` | Denies all powerful features not used by the app |
-| `Origin-Agent-Cluster` | `?1` |
+| Header                         | Value                                                                                                      |
+| ------------------------------ | ---------------------------------------------------------------------------------------------------------- |
+| `Content-Security-Policy`      | `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; ...` |
+| `Cross-Origin-Opener-Policy`   | `same-origin`                                                                                              |
+| `Cross-Origin-Embedder-Policy` | `credentialless`                                                                                           |
+| `Cross-Origin-Resource-Policy` | `same-origin`                                                                                              |
+| `Strict-Transport-Security`    | `max-age=63072000; includeSubDomains; preload` (2 years)                                                   |
+| `Referrer-Policy`              | `no-referrer`                                                                                              |
+| `X-Content-Type-Options`       | `nosniff`                                                                                                  |
+| `X-Frame-Options`              | `DENY`                                                                                                     |
+| `Permissions-Policy`           | Denies all powerful features not used by the app                                                           |
+| `Origin-Agent-Cluster`         | `?1`                                                                                                       |
 
 The `Permissions-Policy` header explicitly disallows: camera, microphone, geolocation, payment, USB, MIDI, sensors, XR, display-capture, encrypted-media and all other powerful browser APIs that are not required for file transfer.
 

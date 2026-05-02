@@ -40,7 +40,9 @@
     <Palette size={20} />
     <div>
       <h1>Theme &amp; Darstellung</h1>
-      <p class="sub">Wähle aus, wie die Oberfläche dargestellt wird. Die Einstellung wird lokal gespeichert.</p>
+      <p class="sub">
+        Wähle aus, wie die Oberfläche dargestellt wird. Die Einstellung wird lokal gespeichert.
+      </p>
     </div>
   </header>
 
@@ -70,7 +72,16 @@
               </div>
               {#if theme.value === opt.value}
                 <div class="check-mark" aria-hidden="true">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.5"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
                     <polyline points="20 6 9 17 4 12" />
                   </svg>
                 </div>
@@ -94,7 +105,9 @@
           <div class="preview-pill"></div>
         </div>
         <p class="preview-note">
-          Aktives Farbschema: <strong>{options.find((o) => o.value === theme.value)?.label ?? '—'}</strong>
+          Aktives Farbschema: <strong
+            >{options.find((o) => o.value === theme.value)?.label ?? '—'}</strong
+          >
         </p>
       </div>
     </div>
@@ -194,7 +207,9 @@
     place-items: center;
     color: var(--muted);
     flex-shrink: 0;
-    transition: color var(--transition-fast), background var(--transition-fast);
+    transition:
+      color var(--transition-fast),
+      background var(--transition-fast);
   }
   .theme-icon.active {
     background: var(--brand);

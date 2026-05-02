@@ -30,7 +30,7 @@ services:
     container_name: itsweber-send
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - '3000:3000'
     volumes:
       - send-data:/data
     environment:
@@ -69,11 +69,11 @@ Siehe [11-konto-und-2fa.md](11-konto-und-2fa.md).
 
 Alle Einstellungen über Umgebungsvariablen. Minimum für Produktion:
 
-| Variable | Pflicht | Beschreibung |
-| --- | --- | --- |
-| `BASE_URL` | ja | Öffentliche URL des Dienstes |
-| `NODE_ENV` | ja | Auf `production` setzen |
-| `STORAGE_BACKEND` | nein | `filesystem` (Default) oder `s3` |
-| `ENABLE_ACCOUNTS` | nein | `true` (Default) oder `false` |
+| Variable          | Pflicht | Beschreibung                     |
+| ----------------- | ------- | -------------------------------- |
+| `BASE_URL`        | ja      | Öffentliche URL des Dienstes     |
+| `NODE_ENV`        | ja      | Auf `production` setzen          |
+| `STORAGE_BACKEND` | nein    | `filesystem` (Default) oder `s3` |
+| `ENABLE_ACCOUNTS` | nein    | `true` (Default) oder `false`    |
 
 Vollständige Referenz in der App unter `/docs/config` oder in [docs/CONFIG.md](../../CONFIG.md).

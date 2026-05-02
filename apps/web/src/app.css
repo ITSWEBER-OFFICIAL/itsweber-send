@@ -2,8 +2,7 @@
 @import '@itsweber-send/theme/styles/semantic.css';
 
 @theme {
-  --font-sans:
-    'Geist Variable', 'Geist', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-sans: 'Geist Variable', 'Geist', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --font-mono:
     'Geist Mono Variable', 'Geist Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
 
@@ -52,7 +51,11 @@ body {
   text-rendering: optimizeLegibility;
   background-image:
     radial-gradient(60% 50% at 100% 0%, var(--brand-soft), transparent 70%),
-    radial-gradient(40% 40% at 0% 100%, color-mix(in srgb, var(--brand-soft) 60%, transparent), transparent 60%);
+    radial-gradient(
+      40% 40% at 0% 100%,
+      color-mix(in srgb, var(--brand-soft) 60%, transparent),
+      transparent 60%
+    );
   background-attachment: fixed;
 }
 

@@ -14,11 +14,11 @@ Diese Seite erklärt genau, was beim Upload passiert und wie die drei Sharing-Me
 4. Der gesamte Ciphertext wird hochgeladen. Der Server speichert opake Bytes und sieht weder Schlüssel noch Dateinamen.
 5. Der Browser erzeugt drei Artefakte, die der Empfänger nutzen kann:
 
-| Artefakt | Trägt den Schlüssel? | Anmerkung |
-| --- | --- | --- |
-| **Sharing-Link** (URL mit `#k=…`) | Ja | Vollständig. Fragment wird nie zum Server übertragen. |
-| **4-Wort-Code** | Nein (nur ~32 Bit) | Lookup-Token. SHA-256-Hash der Share-ID. |
-| **Passwort** (optional) | Abgeleitet | PBKDF2-SHA-256 umwickelt den Schlüssel client-seitig. |
+| Artefakt                          | Trägt den Schlüssel? | Anmerkung                                             |
+| --------------------------------- | -------------------- | ----------------------------------------------------- |
+| **Sharing-Link** (URL mit `#k=…`) | Ja                   | Vollständig. Fragment wird nie zum Server übertragen. |
+| **4-Wort-Code**                   | Nein (nur ~32 Bit)   | Lookup-Token. SHA-256-Hash der Share-ID.              |
+| **Passwort** (optional)           | Abgeleitet           | PBKDF2-SHA-256 umwickelt den Schlüssel client-seitig. |
 
 Die Invariante: **jedes Artefakt, das entschlüsseln können soll, muss den Schlüssel direkt oder indirekt tragen.** Ein 4-Wort-Code allein kann das nicht.
 

@@ -10,14 +10,14 @@ Die vollständige kryptografische Spezifikation liegt in [packages/crypto-spec/R
 
 ## Threat-Model
 
-| Bedrohung | Mitigation |
-| --- | --- |
-| Kompromittierter Server / Hoster | E2E-Verschlüsselung: Server speichert nur Ciphertext. Master-Key lebt im URL-Fragment, wird nie an den Server gesendet. |
-| Passiver Netzwerkbeobachter | TLS 1.3 via Caddy, HSTS mit zwei Jahren `max-age` und `preload`. |
-| Brute-Force gegen Konten | Login: 5 / min / IP. Registrierung: 3 / 10 min / IP. Constant-Time-Hash auch bei nicht existenten Konten. |
-| Cross-Site-Scripting | Strikte CSP: nur Same-Origin-Skripte, keine Drittanbieter-CDNs. `dangerouslySetInnerHTML` ist verboten. |
-| Share-ID-Enumeration | 96-Bit-Random-IDs (`crypto.randomBytes(12)`). Kollisions-Wahrscheinlichkeit in jedem realistischen Setup vernachlässigbar. |
-| Passwort-Raten gegen Shares | Argon2id (Konten) und PBKDF2 200 000 Iterationen (Share-Passwörter). Beides läuft auf dem Gerät desjenigen, der das Passwort hält — der Server kann nicht raten. |
+| Bedrohung                        | Mitigation                                                                                                                                                       |
+| -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Kompromittierter Server / Hoster | E2E-Verschlüsselung: Server speichert nur Ciphertext. Master-Key lebt im URL-Fragment, wird nie an den Server gesendet.                                          |
+| Passiver Netzwerkbeobachter      | TLS 1.3 via Caddy, HSTS mit zwei Jahren `max-age` und `preload`.                                                                                                 |
+| Brute-Force gegen Konten         | Login: 5 / min / IP. Registrierung: 3 / 10 min / IP. Constant-Time-Hash auch bei nicht existenten Konten.                                                        |
+| Cross-Site-Scripting             | Strikte CSP: nur Same-Origin-Skripte, keine Drittanbieter-CDNs. `dangerouslySetInnerHTML` ist verboten.                                                          |
+| Share-ID-Enumeration             | 96-Bit-Random-IDs (`crypto.randomBytes(12)`). Kollisions-Wahrscheinlichkeit in jedem realistischen Setup vernachlässigbar.                                       |
+| Passwort-Raten gegen Shares      | Argon2id (Konten) und PBKDF2 200 000 Iterationen (Share-Passwörter). Beides läuft auf dem Gerät desjenigen, der das Passwort hält — der Server kann nicht raten. |
 
 **Außerhalb des Scope:** Wer die vollständige Share-URL (mit `#k=…`) hat, kann den Share entschlüsseln. Die URL ist die Capability — by Design.
 
@@ -25,14 +25,14 @@ Die vollständige kryptografische Spezifikation liegt in [packages/crypto-spec/R
 
 ## Kryptografische Primitive
 
-| Zweck | Primitiv | Parameter |
-| --- | --- | --- |
-| Datei-Verschlüsselung | AES-256-GCM | 256-Bit-Key, 96-Bit-IV, 128-Bit Auth-Tag |
-| Manifest-Verschlüsselung | AES-256-GCM | Gleicher Key wie Datei, separater IV |
-| Passwort-Key-Wrap | PBKDF2-SHA-256 | 200 000 Iterationen, 128-Bit-Salt |
-| Konto-Passwörter | Argon2id | OWASP 2026: 64 MB Speicher, t=3, p=4 |
-| Zufall | Web Crypto / `node:crypto` | Nur CSPRNG |
-| Encoding | base64url | RFC 4648 §5 |
+| Zweck                    | Primitiv                   | Parameter                                |
+| ------------------------ | -------------------------- | ---------------------------------------- |
+| Datei-Verschlüsselung    | AES-256-GCM                | 256-Bit-Key, 96-Bit-IV, 128-Bit Auth-Tag |
+| Manifest-Verschlüsselung | AES-256-GCM                | Gleicher Key wie Datei, separater IV     |
+| Passwort-Key-Wrap        | PBKDF2-SHA-256             | 200 000 Iterationen, 128-Bit-Salt        |
+| Konto-Passwörter         | Argon2id                   | OWASP 2026: 64 MB Speicher, t=3, p=4     |
+| Zufall                   | Web Crypto / `node:crypto` | Nur CSPRNG                               |
+| Encoding                 | base64url                  | RFC 4648 §5                              |
 
 ---
 

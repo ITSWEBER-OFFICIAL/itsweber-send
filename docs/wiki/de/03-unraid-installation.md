@@ -8,18 +8,18 @@
 2. Felder unten ausfüllen
 3. **Apply**
 
-| Feld | Wert |
-| --- | --- |
-| Name | `itsweber-send` |
-| Repository | `ghcr.io/itsweber/itsweber-send:latest` |
-| Network type | `Bridge` |
-| Restart policy | `unless-stopped` |
-| Port mapping | `3000 -> 3000 (TCP)` (oder ein anderer Host-Port) |
-| Volume mapping | `/mnt/user/appdata/itsweber-send -> /data` |
-| Variable: `NODE_ENV` | `production` |
-| Variable: `BASE_URL` | `http://[UNRAID-IP]:3000` (oder Reverse-Proxy-URL) |
-| Extra parameters | `--security-opt no-new-privileges:true --read-only --tmpfs /tmp:size=64M` |
-| Privileged | Nein |
+| Feld                 | Wert                                                                      |
+| -------------------- | ------------------------------------------------------------------------- |
+| Name                 | `itsweber-send`                                                           |
+| Repository           | `ghcr.io/itsweber/itsweber-send:latest`                                   |
+| Network type         | `Bridge`                                                                  |
+| Restart policy       | `unless-stopped`                                                          |
+| Port mapping         | `3000 -> 3000 (TCP)` (oder ein anderer Host-Port)                         |
+| Volume mapping       | `/mnt/user/appdata/itsweber-send -> /data`                                |
+| Variable: `NODE_ENV` | `production`                                                              |
+| Variable: `BASE_URL` | `http://[UNRAID-IP]:3000` (oder Reverse-Proxy-URL)                        |
+| Extra parameters     | `--security-opt no-new-privileges:true --read-only --tmpfs /tmp:size=64M` |
+| Privileged           | Nein                                                                      |
 
 ## Mit Caddy via Compose
 

@@ -41,7 +41,8 @@
   function fileTypeBadge(name: string): { label: string; tone: string } {
     const ext = (name.split('.').pop() || '').toLowerCase();
     if (ext === 'pdf') return { label: 'PDF', tone: 'pdf' };
-    if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].includes(ext)) return { label: ext.toUpperCase(), tone: 'img' };
+    if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].includes(ext))
+      return { label: ext.toUpperCase(), tone: 'img' };
     if (['zip', 'tar', 'gz', '7z'].includes(ext)) return { label: ext.toUpperCase(), tone: 'zip' };
     if (['md', 'txt', 'log'].includes(ext)) return { label: ext.toUpperCase(), tone: 'txt' };
     return { label: 'FILE', tone: 'def' };
@@ -134,7 +135,8 @@
   <div class="crumbs"><a href="/account">Account</a> · Übersicht</div>
   <h1 class="hello">Hallo {auth.user?.email.split('@')[0]}</h1>
   <p class="sub">
-    {#if auth.user?.role === 'admin'}Administrator-Konto · {/if}
+    {#if auth.user?.role === 'admin'}Administrator-Konto ·
+    {/if}
     {auth.user?.email}
   </p>
 
@@ -174,7 +176,10 @@
         </div>
       </div>
       <div class="quota-bar">
-        <div class="seg used" style="width: {pct(data.quota.usedBytes, data.quota.totalBytes)}%"></div>
+        <div
+          class="seg used"
+          style="width: {pct(data.quota.usedBytes, data.quota.totalBytes)}%"
+        ></div>
       </div>
       <div class="quota-legend">
         <span><span class="dot used"></span>Belegt · {formatBytes(data.quota.usedBytes)}</span>
@@ -238,7 +243,12 @@
                 <td>
                   <div class="row-actions">
                     {#if !upload.expired}
-                      <button type="button" title="ID kopieren" aria-label="ID kopieren" onclick={() => void copyId_(upload.id)}>
+                      <button
+                        type="button"
+                        title="ID kopieren"
+                        aria-label="ID kopieren"
+                        onclick={() => void copyId_(upload.id)}
+                      >
                         {#if copyId === upload.id}
                           <span class="ok">✓</span>
                         {:else}
@@ -246,7 +256,12 @@
                         {/if}
                       </button>
                     {:else}
-                      <button type="button" title="Erneut hochladen (folgt)" aria-label="Erneut hochladen" disabled>
+                      <button
+                        type="button"
+                        title="Erneut hochladen (folgt)"
+                        aria-label="Erneut hochladen"
+                        disabled
+                      >
                         <RefreshCw size={14} />
                       </button>
                     {/if}
@@ -280,8 +295,8 @@
     </div>
     <div class="panel-body empty-tokens">
       <p>
-        Persönliche Access-Tokens für CLI-Uploads und CI/CD-Pipelines folgen in v1.1.
-        Du kannst Shares aktuell direkt über die Web-UI oder die
+        Persönliche Access-Tokens für CLI-Uploads und CI/CD-Pipelines folgen in v1.1. Du kannst
+        Shares aktuell direkt über die Web-UI oder die
         <a href="/docs">REST-API mit Session-Cookie</a> erstellen.
       </p>
     </div>
@@ -462,6 +477,7 @@
   }
   .table-body {
     padding: 0;
+    overflow-x: auto;
   }
   .link-btn {
     display: inline-flex;
@@ -550,7 +566,9 @@
     display: grid;
     place-items: center;
     font-family: inherit;
-    transition: color var(--transition-fast), border-color var(--transition-fast);
+    transition:
+      color var(--transition-fast),
+      border-color var(--transition-fast);
   }
   .row-actions button:hover:not(:disabled) {
     color: var(--text);

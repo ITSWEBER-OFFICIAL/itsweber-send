@@ -2,26 +2,26 @@
   "$comment": "Semantic layer for the dark theme. Brand variant uses Atom-Green for accent.",
   "name": "itsweber-dark",
   "color": {
-    "background":      "{color.neutral.950}",
-    "surface":         "{color.neutral.800}",
-    "surface-2":       "{color.neutral.700}",
-    "surface-3":       "#233a4d",
-    "border":          "{color.alpha.border-dark}",
-    "border-strong":   "{color.alpha.border-strong-dark}",
-    "foreground":      "{color.neutral.50}",
-    "muted":           "#b6c3d1",
-    "dim":             "#8a99ab",
-    "brand":           "{color.brand.atom-green-500}",
-    "brand-strong":    "{color.brand.atom-green-600}",
-    "brand-soft":      "{color.alpha.brand-soft-dark}",
-    "success":         "{color.status.success-dark}",
-    "warning":         "{color.status.warning-dark}",
-    "danger":          "{color.status.danger-dark}"
+    "background": "{color.neutral.950}",
+    "surface": "{color.neutral.800}",
+    "surface-2": "{color.neutral.700}",
+    "surface-3": "#233a4d",
+    "border": "{color.alpha.border-dark}",
+    "border-strong": "{color.alpha.border-strong-dark}",
+    "foreground": "{color.neutral.50}",
+    "muted": "#b6c3d1",
+    "dim": "#8a99ab",
+    "brand": "{color.brand.atom-green-500}",
+    "brand-strong": "{color.brand.atom-green-600}",
+    "brand-soft": "{color.alpha.brand-soft-dark}",
+    "success": "{color.status.success-dark}",
+    "warning": "{color.status.warning-dark}",
+    "danger": "{color.status.danger-dark}"
   },
   "shadow": {
-    "sm":   "{shadow.sm-dark}",
+    "sm": "{shadow.sm-dark}",
     "card": "{shadow.card-dark}",
-    "lg":   "{shadow.lg-dark}",
+    "lg": "{shadow.lg-dark}",
     "glow": "0 0 0 6px rgba(63,228,139,0.10), 0 12px 40px rgba(63,228,139,0.18)"
   }
 }

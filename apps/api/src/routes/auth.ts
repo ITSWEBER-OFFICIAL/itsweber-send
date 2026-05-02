@@ -27,7 +27,7 @@ import { verifyTotp } from '../utils/totp.js';
 
 // OWASP 2026 Argon2id defaults
 const ARGON2_OPTIONS = {
-  memoryCost: 65536,  // 64 MB
+  memoryCost: 65536, // 64 MB
   timeCost: 3,
   parallelism: 4,
 } as const;
@@ -54,12 +54,19 @@ function clearCookie(reply: import('fastify').FastifyReply): void {
 }
 
 const RegisterBody = z.object({
-  email: z.string().email().max(254).transform((e) => e.toLowerCase().trim()),
+  email: z
+    .string()
+    .email()
+    .max(254)
+    .transform((e) => e.toLowerCase().trim()),
   password: z.string().min(8).max(128),
 });
 
 const LoginBody = z.object({
-  email: z.string().email().transform((e) => e.toLowerCase().trim()),
+  email: z
+    .string()
+    .email()
+    .transform((e) => e.toLowerCase().trim()),
   password: z.string().min(1).max(128),
   totpCode: z.string().length(6).optional(),
 });
@@ -79,97 +86,135 @@ const REGISTER_RATE_LIMIT = {
 
 export async function authRoutes(app: FastifyInstance): Promise<void> {
   // POST /api/v1/auth/register
-  app.post('/api/v1/auth/register', { config: { rateLimit: REGISTER_RATE_LIMIT } }, async (request, reply) => {
-    if (!config.enableAccounts || !config.auth.registrationEnabled) {
-      return reply.status(404).send({ error: 'Accounts are disabled' });
-    }
+  app.post(
+    '/api/v1/auth/register',
+    { config: { rateLimit: REGISTER_RATE_LIMIT } },
+    async (request, reply) => {
+      if (!config.enableAccounts || !config.auth.registrationEnabled) {
+        return reply.status(404).send({ error: 'Accounts are disabled' });
+      }
 
-    const parsed = RegisterBody.safeParse(request.body);
-    if (!parsed.success) {
-      return reply.status(400).send({ error: 'Invalid request', details: parsed.error.flatten() });
-    }
-    const { email, password } = parsed.data;
+      const parsed = RegisterBody.safeParse(request.body);
+      if (!parsed.success) {
+        return reply
+          .status(400)
+          .send({ error: 'Invalid request', details: parsed.error.flatten() });
+      }
+      const { email, password } = parsed.data;
 
-    if (getUserByEmail(email)) {
-      return reply.status(409).send({ error: 'Email already registered' });
-    }
+      if (getUserByEmail(email)) {
+        return reply.status(409).send({ error: 'Email already registered' });
+      }
 
-    const passwordHash = await argon2Hash(password, ARGON2_OPTIONS);
-    const id = randomBytes(12).toString('hex');
-    const now = new Date().toISOString();
-    const isFirstUser = countUsers() === 0;
+      const passwordHash = await argon2Hash(password, ARGON2_OPTIONS);
+      const id = randomBytes(12).toString('hex');
+      const now = new Date().toISOString();
+      const isFirstUser = countUsers() === 0;
 
-    insertUser({
-      id,
-      email,
-      password_hash: passwordHash,
-      created_at: now,
-      role: isFirstUser ? 'admin' : 'user',
-      quota_bytes: config.auth.defaultQuotaBytes,
-    });
+      insertUser({
+        id,
+        email,
+        password_hash: passwordHash,
+        created_at: now,
+        role: isFirstUser ? 'admin' : 'user',
+        quota_bytes: config.auth.defaultQuotaBytes,
+      });
 
-    const sessionId = randomBytes(32).toString('hex');
-    const expiresAt = sessionExpiryDate();
-    insertSession({ id: sessionId, user_id: id, created_at: now, expires_at: expiresAt.toISOString() });
-    setCookie(reply, sessionId);
+      const sessionId = randomBytes(32).toString('hex');
+      const expiresAt = sessionExpiryDate();
+      insertSession({
+        id: sessionId,
+        user_id: id,
+        created_at: now,
+        expires_at: expiresAt.toISOString(),
+      });
+      setCookie(reply, sessionId);
 
-    insertAuditLog({ user_id: id, action: 'user.register', resource: null, ip: request.ip, created_at: now });
-    app.log.info({ userId: id, email, role: isFirstUser ? 'admin' : 'user' }, 'user registered');
-    return reply.status(201).send({ id, email, role: isFirstUser ? 'admin' : 'user' });
-  });
+      insertAuditLog({
+        user_id: id,
+        action: 'user.register',
+        resource: null,
+        ip: request.ip,
+        created_at: now,
+      });
+      app.log.info({ userId: id, email, role: isFirstUser ? 'admin' : 'user' }, 'user registered');
+      return reply.status(201).send({ id, email, role: isFirstUser ? 'admin' : 'user' });
+    },
+  );
 
   // POST /api/v1/auth/login
-  app.post('/api/v1/auth/login', { config: { rateLimit: LOGIN_RATE_LIMIT } }, async (request, reply) => {
-    if (!config.enableAccounts) {
-      return reply.status(404).send({ error: 'Accounts are disabled' });
-    }
-
-    const parsed = LoginBody.safeParse(request.body);
-    if (!parsed.success) {
-      return reply.status(400).send({ error: 'Invalid request' });
-    }
-    const { email, password, totpCode } = parsed.data;
-
-    const user = getUserByEmail(email);
-    if (!user) {
-      // Constant-time: run hash anyway to prevent timing attacks
-      await argon2Hash('__placeholder__', ARGON2_OPTIONS);
-      return reply.status(401).send({ error: 'Invalid email or password' });
-    }
-
-    const valid = await argon2Verify(user.password_hash, password);
-    if (!valid) {
-      return reply.status(401).send({ error: 'Invalid email or password' });
-    }
-
-    // 2FA check
-    if (user.totp_enabled === 1 && user.totp_secret) {
-      if (!totpCode) {
-        return reply.status(202).send({ requires2FA: true });
+  app.post(
+    '/api/v1/auth/login',
+    { config: { rateLimit: LOGIN_RATE_LIMIT } },
+    async (request, reply) => {
+      if (!config.enableAccounts) {
+        return reply.status(404).send({ error: 'Accounts are disabled' });
       }
-      if (!verifyTotp(user.totp_secret, totpCode)) {
-        return reply.status(401).send({ error: 'Invalid authenticator code' });
+
+      const parsed = LoginBody.safeParse(request.body);
+      if (!parsed.success) {
+        return reply.status(400).send({ error: 'Invalid request' });
       }
-    }
+      const { email, password, totpCode } = parsed.data;
 
-    const now = new Date().toISOString();
-    updateLastLogin(user.id, now);
-    insertAuditLog({ user_id: user.id, action: 'user.login', resource: null, ip: request.ip, created_at: now });
+      const user = getUserByEmail(email);
+      if (!user) {
+        // Constant-time: run hash anyway to prevent timing attacks
+        await argon2Hash('__placeholder__', ARGON2_OPTIONS);
+        return reply.status(401).send({ error: 'Invalid email or password' });
+      }
 
-    const sessionId = randomBytes(32).toString('hex');
-    const expiresAt = sessionExpiryDate();
-    insertSession({ id: sessionId, user_id: user.id, created_at: now, expires_at: expiresAt.toISOString() });
-    setCookie(reply, sessionId);
+      const valid = await argon2Verify(user.password_hash, password);
+      if (!valid) {
+        return reply.status(401).send({ error: 'Invalid email or password' });
+      }
 
-    app.log.info({ userId: user.id }, 'user logged in');
-    return reply.send({ id: user.id, email: user.email, role: user.role });
-  });
+      // 2FA check
+      if (user.totp_enabled === 1 && user.totp_secret) {
+        if (!totpCode) {
+          return reply.status(202).send({ requires2FA: true });
+        }
+        if (!verifyTotp(user.totp_secret, totpCode)) {
+          return reply.status(401).send({ error: 'Invalid authenticator code' });
+        }
+      }
+
+      const now = new Date().toISOString();
+      updateLastLogin(user.id, now);
+      insertAuditLog({
+        user_id: user.id,
+        action: 'user.login',
+        resource: null,
+        ip: request.ip,
+        created_at: now,
+      });
+
+      const sessionId = randomBytes(32).toString('hex');
+      const expiresAt = sessionExpiryDate();
+      insertSession({
+        id: sessionId,
+        user_id: user.id,
+        created_at: now,
+        expires_at: expiresAt.toISOString(),
+      });
+      setCookie(reply, sessionId);
+
+      app.log.info({ userId: user.id }, 'user logged in');
+      return reply.send({ id: user.id, email: user.email, role: user.role });
+    },
+  );
 
   // POST /api/v1/auth/logout
   app.post('/api/v1/auth/logout', { preHandler: requireAuth }, async (request, reply) => {
     const sid = request.cookies?.sid;
     if (sid) deleteSession(sid);
-    insertAuditLog({ user_id: request.user!.id, action: 'user.logout', resource: null, ip: request.ip, created_at: new Date().toISOString() });
+    insertAuditLog({
+      user_id: request.user!.id,
+      action: 'user.logout',
+      resource: null,
+      ip: request.ip,
+      created_at: new Date().toISOString(),
+    });
     clearCookie(reply);
     return reply.send({ ok: true });
   });

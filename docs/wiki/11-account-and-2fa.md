@@ -22,17 +22,17 @@ To lock down the deployment after onboarding the admin: set `REGISTRATION_ENABLE
 
 Once logged in, the **Konto** menu has nine sub-pages:
 
-| Page | What you do there |
-| --- | --- |
-| `Übersicht` | Quota usage, recent shares, quick actions |
-| `Uploads` | Full list of your shares; delete or inspect |
-| `API-Tokens` | Create, list, revoke API tokens (see below) |
-| `Profil` | Display name, email |
-| `Sicherheit` | Change password, set up 2FA |
-| `Benachrichtigungen` | Email notifications on download / expiry |
-| `Sprache` | UI language preference |
-| `Theme` | Light / dark / system |
-| `Audit-Log` | All actions on your account, with timestamps |
+| Page                 | What you do there                            |
+| -------------------- | -------------------------------------------- |
+| `Übersicht`          | Quota usage, recent shares, quick actions    |
+| `Uploads`            | Full list of your shares; delete or inspect  |
+| `API-Tokens`         | Create, list, revoke API tokens (see below)  |
+| `Profil`             | Display name, email                          |
+| `Sicherheit`         | Change password, set up 2FA                  |
+| `Benachrichtigungen` | Email notifications on download / expiry     |
+| `Sprache`            | UI language preference                       |
+| `Theme`              | Light / dark / system                        |
+| `Audit-Log`          | All actions on your account, with timestamps |
 
 ---
 

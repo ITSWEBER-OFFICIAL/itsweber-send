@@ -5,5 +5,8 @@
   "description": "Specification of the file format and key derivation used by ITSWEBER Send. Reference for implementations and audits.",
   "license": "AGPL-3.0-only",
   "type": "module",
-  "files": ["README.md", "FORMAT.md"]
+  "files": [
+    "README.md",
+    "FORMAT.md"
+  ]
 }

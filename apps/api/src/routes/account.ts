@@ -31,7 +31,6 @@ function sha256Hex(token: string): string {
 
 export function createAccountRoutes(storage: StorageAdapter) {
   return async function accountPlugin(app: FastifyInstance): Promise<void> {
-
     // ------------------------------------------------------------------ uploads
 
     app.get('/api/v1/account/uploads', { preHandler: requireAuth }, async (request, reply) => {
@@ -70,9 +69,19 @@ export function createAccountRoutes(storage: StorageAdapter) {
 
         if (!share) return reply.status(404).send({ error: 'Upload not found' });
 
-        try { await storage.delete(share.id); } catch { /* already gone */ }
+        try {
+          await storage.delete(share.id);
+        } catch {
+          /* already gone */
+        }
         deleteShare(share.id);
-        insertAuditLog({ user_id: user.id, action: 'share.deleted', resource: share.id, ip: request.ip, created_at: new Date().toISOString() });
+        insertAuditLog({
+          user_id: user.id,
+          action: 'share.deleted',
+          resource: share.id,
+          ip: request.ip,
+          created_at: new Date().toISOString(),
+        });
 
         return reply.send({ ok: true });
       },
@@ -93,14 +102,22 @@ export function createAccountRoutes(storage: StorageAdapter) {
     });
 
     const UpdateProfileBody = z.object({
-      email: z.string().email().max(254).transform((e) => e.toLowerCase().trim()).optional(),
+      email: z
+        .string()
+        .email()
+        .max(254)
+        .transform((e) => e.toLowerCase().trim())
+        .optional(),
       displayName: z.string().max(100).nullable().optional(),
     });
 
     app.patch('/api/v1/account/profile', { preHandler: requireAuth }, async (request, reply) => {
       const user = request.user!;
       const parsed = UpdateProfileBody.safeParse(request.body);
-      if (!parsed.success) return reply.status(400).send({ error: 'Invalid request', details: parsed.error.flatten() });
+      if (!parsed.success)
+        return reply
+          .status(400)
+          .send({ error: 'Invalid request', details: parsed.error.flatten() });
 
       const { email, displayName } = parsed.data;
       if (email && email !== user.email && getUserByEmail(email)) {
@@ -112,7 +129,13 @@ export function createAccountRoutes(storage: StorageAdapter) {
       if (displayName !== undefined) fields.display_name = displayName;
       if (Object.keys(fields).length > 0) updateUserProfile(user.id, fields);
 
-      insertAuditLog({ user_id: user.id, action: 'profile.updated', resource: null, ip: request.ip, created_at: new Date().toISOString() });
+      insertAuditLog({
+        user_id: user.id,
+        action: 'profile.updated',
+        resource: null,
+        ip: request.ip,
+        created_at: new Date().toISOString(),
+      });
       return reply.send({ ok: true });
     });
 
@@ -128,81 +151,127 @@ export function createAccountRoutes(storage: StorageAdapter) {
       newPassword: z.string().min(8).max(128),
     });
 
-    app.post('/api/v1/account/security/change-password', { preHandler: requireAuth }, async (request, reply) => {
-      const user = getUserById(request.user!.id);
-      if (!user) return reply.status(404).send({ error: 'User not found' });
+    app.post(
+      '/api/v1/account/security/change-password',
+      { preHandler: requireAuth },
+      async (request, reply) => {
+        const user = getUserById(request.user!.id);
+        if (!user) return reply.status(404).send({ error: 'User not found' });
 
-      const parsed = ChangePasswordBody.safeParse(request.body);
-      if (!parsed.success) return reply.status(400).send({ error: 'Invalid request' });
+        const parsed = ChangePasswordBody.safeParse(request.body);
+        if (!parsed.success) return reply.status(400).send({ error: 'Invalid request' });
 
-      const valid = await argon2Verify(user.password_hash, parsed.data.currentPassword);
-      if (!valid) return reply.status(401).send({ error: 'Current password is incorrect' });
+        const valid = await argon2Verify(user.password_hash, parsed.data.currentPassword);
+        if (!valid) return reply.status(401).send({ error: 'Current password is incorrect' });
 
-      const newHash = await argon2Hash(parsed.data.newPassword, ARGON2_OPTIONS);
-      updateUserPassword(user.id, newHash);
-      insertAuditLog({ user_id: user.id, action: 'password.changed', resource: null, ip: request.ip, created_at: new Date().toISOString() });
+        const newHash = await argon2Hash(parsed.data.newPassword, ARGON2_OPTIONS);
+        updateUserPassword(user.id, newHash);
+        insertAuditLog({
+          user_id: user.id,
+          action: 'password.changed',
+          resource: null,
+          ip: request.ip,
+          created_at: new Date().toISOString(),
+        });
 
-      return reply.send({ ok: true });
-    });
+        return reply.send({ ok: true });
+      },
+    );
 
-    app.post('/api/v1/account/security/2fa/setup', { preHandler: requireAuth }, async (request, reply) => {
-      const user = getUserById(request.user!.id);
-      if (!user) return reply.status(404).send({ error: 'User not found' });
+    app.post(
+      '/api/v1/account/security/2fa/setup',
+      { preHandler: requireAuth },
+      async (request, reply) => {
+        const user = getUserById(request.user!.id);
+        if (!user) return reply.status(404).send({ error: 'User not found' });
 
-      const secret = generateTotpSecret();
-      setUserTotp(user.id, secret, false);
-      const uri = getTotpUri(secret, user.email);
+        const secret = generateTotpSecret();
+        setUserTotp(user.id, secret, false);
+        const uri = getTotpUri(secret, user.email);
 
-      return reply.send({ secret, uri });
-    });
+        return reply.send({ secret, uri });
+      },
+    );
 
     const Verify2FABody = z.object({ code: z.string().length(6) });
 
-    app.post('/api/v1/account/security/2fa/verify', { preHandler: requireAuth }, async (request, reply) => {
-      const user = getUserById(request.user!.id);
-      if (!user?.totp_secret) return reply.status(400).send({ error: '2FA setup not started' });
+    app.post(
+      '/api/v1/account/security/2fa/verify',
+      { preHandler: requireAuth },
+      async (request, reply) => {
+        const user = getUserById(request.user!.id);
+        if (!user?.totp_secret) return reply.status(400).send({ error: '2FA setup not started' });
 
-      const parsed = Verify2FABody.safeParse(request.body);
-      if (!parsed.success) return reply.status(400).send({ error: 'Invalid code format' });
+        const parsed = Verify2FABody.safeParse(request.body);
+        if (!parsed.success) return reply.status(400).send({ error: 'Invalid code format' });
 
-      if (!verifyTotp(user.totp_secret, parsed.data.code)) {
-        return reply.status(401).send({ error: 'Invalid code' });
-      }
+        if (!verifyTotp(user.totp_secret, parsed.data.code)) {
+          return reply.status(401).send({ error: 'Invalid code' });
+        }
 
-      setUserTotp(user.id, user.totp_secret, true);
-      insertAuditLog({ user_id: user.id, action: '2fa.enabled', resource: null, ip: request.ip, created_at: new Date().toISOString() });
+        setUserTotp(user.id, user.totp_secret, true);
+        insertAuditLog({
+          user_id: user.id,
+          action: '2fa.enabled',
+          resource: null,
+          ip: request.ip,
+          created_at: new Date().toISOString(),
+        });
 
-      return reply.send({ ok: true });
-    });
+        return reply.send({ ok: true });
+      },
+    );
 
-    app.delete('/api/v1/account/security/2fa', { preHandler: requireAuth }, async (request, reply) => {
-      setUserTotp(request.user!.id, null, false);
-      insertAuditLog({ user_id: request.user!.id, action: '2fa.disabled', resource: null, ip: request.ip, created_at: new Date().toISOString() });
-      return reply.send({ ok: true });
-    });
+    app.delete(
+      '/api/v1/account/security/2fa',
+      { preHandler: requireAuth },
+      async (request, reply) => {
+        setUserTotp(request.user!.id, null, false);
+        insertAuditLog({
+          user_id: request.user!.id,
+          action: '2fa.disabled',
+          resource: null,
+          ip: request.ip,
+          created_at: new Date().toISOString(),
+        });
+        return reply.send({ ok: true });
+      },
+    );
 
     // ------------------------------------------------------------------ notifications
 
-    app.get('/api/v1/account/notifications', { preHandler: requireAuth }, async (request, reply) => {
-      const user = getUserById(request.user!.id);
-      return reply.send({
-        emailOnDownload: user?.email_on_download === 1,
-        emailOnExpiry: user?.email_on_expiry === 1,
-      });
-    });
+    app.get(
+      '/api/v1/account/notifications',
+      { preHandler: requireAuth },
+      async (request, reply) => {
+        const user = getUserById(request.user!.id);
+        return reply.send({
+          emailOnDownload: user?.email_on_download === 1,
+          emailOnExpiry: user?.email_on_expiry === 1,
+        });
+      },
+    );
 
     const UpdateNotificationsBody = z.object({
       emailOnDownload: z.boolean(),
       emailOnExpiry: z.boolean(),
     });
 
-    app.patch('/api/v1/account/notifications', { preHandler: requireAuth }, async (request, reply) => {
-      const parsed = UpdateNotificationsBody.safeParse(request.body);
-      if (!parsed.success) return reply.status(400).send({ error: 'Invalid request' });
+    app.patch(
+      '/api/v1/account/notifications',
+      { preHandler: requireAuth },
+      async (request, reply) => {
+        const parsed = UpdateNotificationsBody.safeParse(request.body);
+        if (!parsed.success) return reply.status(400).send({ error: 'Invalid request' });
 
-      updateUserNotifications(request.user!.id, parsed.data.emailOnDownload, parsed.data.emailOnExpiry);
-      return reply.send({ ok: true });
-    });
+        updateUserNotifications(
+          request.user!.id,
+          parsed.data.emailOnDownload,
+          parsed.data.emailOnExpiry,
+        );
+        return reply.send({ ok: true });
+      },
+    );
 
     // ------------------------------------------------------------------ API tokens
 
@@ -243,9 +312,21 @@ export function createAccountRoutes(storage: StorageAdapter) {
         expires_at: parsed.data.expiresAt ?? null,
       });
 
-      insertAuditLog({ user_id: request.user!.id, action: 'token.created', resource: id, ip: request.ip, created_at: now });
+      insertAuditLog({
+        user_id: request.user!.id,
+        action: 'token.created',
+        resource: id,
+        ip: request.ip,
+        created_at: now,
+      });
 
-      return reply.status(201).send({ id, token: rawToken, name: parsed.data.name, createdAt: now, expiresAt: parsed.data.expiresAt ?? null });
+      return reply.status(201).send({
+        id,
+        token: rawToken,
+        name: parsed.data.name,
+        createdAt: now,
+        expiresAt: parsed.data.expiresAt ?? null,
+      });
     });
 
     app.delete<{ Params: { id: string } }>(
@@ -253,7 +334,13 @@ export function createAccountRoutes(storage: StorageAdapter) {
       { preHandler: requireAuth },
       async (request, reply) => {
         deleteApiToken(request.params.id, request.user!.id);
-        insertAuditLog({ user_id: request.user!.id, action: 'token.deleted', resource: request.params.id, ip: request.ip, created_at: new Date().toISOString() });
+        insertAuditLog({
+          user_id: request.user!.id,
+          action: 'token.deleted',
+          resource: request.params.id,
+          ip: request.ip,
+          created_at: new Date().toISOString(),
+        });
         return reply.send({ ok: true });
       },
     );

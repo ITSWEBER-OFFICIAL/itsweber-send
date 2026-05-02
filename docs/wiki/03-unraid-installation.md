@@ -8,18 +8,18 @@
 2. Configure the fields below
 3. Click **Apply**
 
-| Field | Value |
-| --- | --- |
-| Name | `itsweber-send` |
-| Repository | `ghcr.io/itsweber/itsweber-send:latest` |
-| Network type | `Bridge` |
-| Restart policy | `unless-stopped` |
-| Port mapping | `3000 -> 3000 (TCP)` (or whatever host port you prefer) |
-| Volume mapping | `/mnt/user/appdata/itsweber-send -> /data` |
-| Environment: `NODE_ENV` | `production` |
-| Environment: `BASE_URL` | `http://[UNRAID-IP]:3000` (or your reverse-proxy URL) |
-| Extra parameters | `--security-opt no-new-privileges:true --read-only --tmpfs /tmp:size=64M` |
-| Privileged | No |
+| Field                   | Value                                                                     |
+| ----------------------- | ------------------------------------------------------------------------- |
+| Name                    | `itsweber-send`                                                           |
+| Repository              | `ghcr.io/itsweber/itsweber-send:latest`                                   |
+| Network type            | `Bridge`                                                                  |
+| Restart policy          | `unless-stopped`                                                          |
+| Port mapping            | `3000 -> 3000 (TCP)` (or whatever host port you prefer)                   |
+| Volume mapping          | `/mnt/user/appdata/itsweber-send -> /data`                                |
+| Environment: `NODE_ENV` | `production`                                                              |
+| Environment: `BASE_URL` | `http://[UNRAID-IP]:3000` (or your reverse-proxy URL)                     |
+| Extra parameters        | `--security-opt no-new-privileges:true --read-only --tmpfs /tmp:size=64M` |
+| Privileged              | No                                                                        |
 
 ## With Caddy via the bundled compose
 
