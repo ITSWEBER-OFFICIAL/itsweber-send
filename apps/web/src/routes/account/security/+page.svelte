@@ -37,6 +37,79 @@
   let totpLoading = $state(false);
   let totpError = $state('');
   let totpSuccess = $state('');
+
+  // -- Recovery codes --
+  let recoveryCodes = $state<string[] | null>(null);
+  let recoveryRemaining = $state<number | null>(null);
+  let recoveryLoading = $state(false);
+  let recoveryError = $state('');
+  let recoveryAcknowledged = $state(false);
+  let recoveryCopied = $state(false);
+
+  async function loadRecoveryStatus(): Promise<void> {
+    try {
+      const res = await fetch('/api/v1/account/security/2fa/recovery-codes');
+      if (!res.ok) return;
+      const json = (await res.json()) as { remaining: number };
+      recoveryRemaining = json.remaining;
+    } catch {
+      /* non-fatal */
+    }
+  }
+
+  async function generateRecoveryCodes(): Promise<void> {
+    recoveryLoading = true;
+    recoveryError = '';
+    try {
+      const res = await fetch('/api/v1/account/security/2fa/recovery-codes', { method: 'POST' });
+      if (!res.ok) {
+        const json = (await res.json().catch(() => ({}))) as { error?: string };
+        recoveryError = json.error ?? 'Fehler beim Erzeugen der Recovery-Codes.';
+        return;
+      }
+      const json = (await res.json()) as { codes: string[]; remaining: number };
+      recoveryCodes = json.codes;
+      recoveryRemaining = json.remaining;
+      recoveryAcknowledged = false;
+      recoveryCopied = false;
+    } catch {
+      recoveryError = 'Netzwerkfehler.';
+    } finally {
+      recoveryLoading = false;
+    }
+  }
+
+  async function copyRecoveryCodes(): Promise<void> {
+    if (!recoveryCodes) return;
+    try {
+      await navigator.clipboard.writeText(recoveryCodes.join('\n'));
+      recoveryCopied = true;
+      setTimeout(() => (recoveryCopied = false), 2000);
+    } catch {
+      /* clipboard denied */
+    }
+  }
+
+  function downloadRecoveryCodes(): void {
+    if (!recoveryCodes) return;
+    const header = 'ITSWEBER Send — Recovery codes\n';
+    const body = recoveryCodes.join('\n') + '\n';
+    const blob = new Blob([header, body], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'itsweber-send-recovery-codes.txt';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  function dismissRecoveryCodes(): void {
+    recoveryCodes = null;
+    recoveryAcknowledged = false;
+    recoveryCopied = false;
+  }
   let uriCopied = $state(false);
   let secretCopied = $state(false);
 
@@ -54,6 +127,7 @@
         return;
       }
       status = (await res.json()) as SecurityStatus;
+      if (status.totpEnabled) await loadRecoveryStatus();
     } catch {
       error = 'Netzwerkfehler beim Laden.';
     } finally {
@@ -507,6 +581,65 @@
           >
             {totpLoading ? 'Deaktiviert…' : '2FA deaktivieren'}
           </button>
+
+          <hr class="recovery-divider" />
+
+          <h3 class="subhead">Recovery-Codes</h3>
+          <p class="body-text">
+            Recovery-Codes sind Einmal-Codes für den Notfall, falls du keinen Zugriff auf deine
+            Authenticator-App hast. Bewahre sie an einem sicheren Ort auf — die Codes werden nur
+            einmal angezeigt.
+          </p>
+          {#if recoveryCodes !== null}
+            <div class="recovery-box">
+              <div class="recovery-grid">
+                {#each recoveryCodes as code (code)}
+                  <code class="recovery-code">{code}</code>
+                {/each}
+              </div>
+              <div class="recovery-actions">
+                <button type="button" class="btn-ghost" onclick={copyRecoveryCodes}>
+                  {recoveryCopied ? 'Kopiert' : 'Alle kopieren'}
+                </button>
+                <button type="button" class="btn-ghost" onclick={downloadRecoveryCodes}>
+                  Als TXT herunterladen
+                </button>
+              </div>
+              <label class="recovery-confirm">
+                <input type="checkbox" bind:checked={recoveryAcknowledged} />
+                Ich habe die Codes sicher gespeichert
+              </label>
+              <button
+                type="button"
+                class="btn-primary"
+                disabled={!recoveryAcknowledged}
+                onclick={dismissRecoveryCodes}
+              >
+                Fertig
+              </button>
+            </div>
+          {:else}
+            <p class="body-text">
+              {recoveryRemaining === null
+                ? 'Lade Status …'
+                : `${recoveryRemaining} ${recoveryRemaining === 1 ? 'Code' : 'Codes'} verbleibend.`}
+            </p>
+            {#if recoveryError}
+              <p class="error-inline">{recoveryError}</p>
+            {/if}
+            <button
+              type="button"
+              class="btn-ghost"
+              onclick={() => void generateRecoveryCodes()}
+              disabled={recoveryLoading}
+            >
+              {recoveryLoading
+                ? 'Erzeuge …'
+                : recoveryRemaining && recoveryRemaining > 0
+                  ? 'Codes neu erzeugen'
+                  : 'Recovery-Codes erzeugen'}
+            </button>
+          {/if}
         {/if}
       </div>
     </section>
@@ -898,5 +1031,62 @@
   .btn-danger-outline:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+  }
+
+  .recovery-divider {
+    margin: 24px 0 18px;
+    border: 0;
+    border-top: 1px solid var(--border);
+  }
+  .subhead {
+    font-size: 15px;
+    margin: 0 0 8px;
+  }
+  .recovery-box {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    margin-top: 12px;
+    padding: 16px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+  }
+  .recovery-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px 12px;
+  }
+  .recovery-code {
+    font-family: var(--font-mono, ui-monospace, monospace);
+    font-size: 14px;
+    letter-spacing: 0.04em;
+    padding: 6px 10px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-xs, 6px);
+    user-select: all;
+  }
+  .recovery-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .recovery-confirm {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--muted, var(--text));
+  }
+  .error-inline {
+    color: var(--danger);
+    font-size: 13px;
+    margin: 8px 0 0;
+  }
+  @media (max-width: 480px) {
+    .recovery-grid {
+      grid-template-columns: 1fr;
+    }
   }
 </style>

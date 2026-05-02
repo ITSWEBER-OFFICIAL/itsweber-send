@@ -24,7 +24,7 @@
 
 ---
 
-> **Status:** v1.0.0 — Release candidate. Verified locally and on Unraid. GitHub push pending final sign-off.
+> **Status:** v1.1.0 — adds resumable, chunked uploads for files of arbitrary size (well past the previous 500 MB ceiling), 2FA recovery codes, range-aware streaming downloads, and manifest format v2. v1.0 shares stay decryptable. GitHub push pending final sign-off.
 
 ## What it is
 
@@ -36,7 +36,7 @@ Inspired by the original Firefox Send and the [timvisee/send](https://github.com
 
 ### Sharing
 
-- Drag-and-drop multi-file upload (each file up to 500 MB; streaming uploads on the v1.1 roadmap)
+- Drag-and-drop multi-file upload with resumable, chunked uploads — files of arbitrary size are streamed in 16 MiB ciphertext chunks, with pause / resume from the UI (v1.1)
 - Per-share password (layered on top of the URL key — when set, the share is decrypted via password only, no master key in the link)
 - Configurable expiry (1 h / 24 h / 7 d / 30 d) and download limit (1× to unlimited; counts per recipient share-download, not per blob)
 - QR code generated client-side for the share link

@@ -4,6 +4,31 @@ All notable changes to ITSWEBER Send are documented here.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-05-02
+
+### Added
+
+- Resumable, chunked uploads (`/api/v1/uploads/*`) so files of arbitrary size — well past the previous 500 MB single-shot ceiling — can be uploaded without buffering the full plaintext or ciphertext on either side. The browser splits each file into 16 MiB chunks (configurable via `CHUNK_SIZE_BYTES`) and PATCHes one chunk at a time; the server appends each chunk to disk via `fs.createWriteStream`. The legacy `/api/v1/upload` route stays for v1.0 client compatibility.
+- Manifest format v2: chunked AES-256-GCM with a unique random IV per chunk, written into the encrypted manifest. v1 manifests stay decryptable. Spec: [`packages/crypto-spec/README.md`](packages/crypto-spec/README.md).
+- `StorageAdapter` stream extension (`appendStream`, `getStream`, `size`); the filesystem adapter implements true streaming append + Range read; the S3 adapter ships range-aware streaming downloads (the multipart-based resumable adapter for S3 is tracked for the next iteration).
+- Range-aware blob download path: `/api/v1/download/:id/blob/:n` now returns a streamed body, supports HTTP `Range` requests, and emits `Accept-Ranges: bytes`.
+- Pause / resume for uploads in the upload UI — backed by the resumable driver and persisted state.
+- 2FA recovery codes: 10 single-use codes per user, hashed with Argon2id, shown exactly once with copy + download-as-TXT actions. Login accepts a recovery code as an alternative to a TOTP code; a successful or failed recovery-code attempt is recorded in the audit log.
+- New configuration knobs: `CHUNK_SIZE_BYTES` (default 16 MiB), `MAX_BLOB_BYTES` (default 100 GB), `UPLOAD_RESUME_HOURS` (default 24).
+- New table `uploads_in_progress` for resumable upload state; cleanup job reaps expired pending uploads.
+- New table `mfa_recovery_codes`; SQLite `PRAGMA foreign_keys = ON` is now enabled at boot.
+- Documentation: [`docs/V1.1_DECISIONS.md`](docs/V1.1_DECISIONS.md) (architecture rationale), [`docs/LARGE_FILES.md`](docs/LARGE_FILES.md) (per-layer ceilings for >5 GB uploads).
+
+### Changed
+
+- `docker/Caddyfile.example` and `docker/Caddyfile.lan` raise `request_body { max_size }` from 5 GB to 64 GB.
+- `shares.manifest_version` column added; existing rows default to `1`. New shares from the resumable path declare `2`.
+- `apps/api` test runner restricted to `--dir src` so compiled `build/` tests are no longer collected twice.
+
+### Notes
+
+The S3 backend can stream downloads but does not yet accept resumable chunk uploads — `appendStream` throws an explicit error. Files up to 500 MB still work via the legacy single-shot route on S3. Multipart-based S3 resumable uploads are tracked for a follow-up release; use the filesystem backend for >500 MB on S3-only deployments in the meantime.
+
 ## [1.0.0] - 2026-05-02
 
 ### Added

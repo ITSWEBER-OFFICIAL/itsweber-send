@@ -237,6 +237,14 @@ function db(): Database.Database {
   return _db;
 }
 
+/** Close the singleton DB handle — used by tests and clean shutdowns. */
+export function closeDb(): void {
+  if (_db) {
+    _db.close();
+    _db = null;
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Shares
 // ---------------------------------------------------------------------------

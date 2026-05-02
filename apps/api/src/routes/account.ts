@@ -18,10 +18,12 @@ import {
   setUserTotp,
   getUserByEmail,
   insertAuditLog,
+  deleteMfaRecoveryCodes,
 } from '../db/sqlite.js';
 import { requireAuth } from '../plugins/session.js';
 import type { StorageAdapter } from '../storage/interface.js';
 import { generateTotpSecret, getTotpUri, verifyTotp } from '../utils/totp.js';
+import { regenerateRecoveryCodes, remainingRecoveryCodes } from '../utils/recovery-codes.js';
 
 const ARGON2_OPTIONS = { memoryCost: 65536, timeCost: 3, parallelism: 4 } as const;
 
@@ -227,6 +229,9 @@ export function createAccountRoutes(storage: StorageAdapter) {
       { preHandler: requireAuth },
       async (request, reply) => {
         setUserTotp(request.user!.id, null, false);
+        // Disabling 2FA also invalidates the recovery codes — they only
+        // exist as a 2FA escape hatch.
+        deleteMfaRecoveryCodes(request.user!.id);
         insertAuditLog({
           user_id: request.user!.id,
           action: '2fa.disabled',
@@ -235,6 +240,43 @@ export function createAccountRoutes(storage: StorageAdapter) {
           created_at: new Date().toISOString(),
         });
         return reply.send({ ok: true });
+      },
+    );
+
+    // -------------------------------------------------------- recovery codes
+
+    /**
+     * Generate a fresh set of 10 single-use recovery codes. Any
+     * previously-issued codes are invalidated. Plaintext codes are
+     * returned exactly once — the server only persists Argon2id hashes.
+     */
+    app.post(
+      '/api/v1/account/security/2fa/recovery-codes',
+      { preHandler: requireAuth },
+      async (request, reply) => {
+        const user = getUserById(request.user!.id);
+        if (!user || user.totp_enabled !== 1) {
+          return reply.status(400).send({ error: 'Enable 2FA before generating recovery codes' });
+        }
+        const codes = await regenerateRecoveryCodes(user.id);
+        insertAuditLog({
+          user_id: user.id,
+          action: '2fa.recovery_codes_generated',
+          resource: null,
+          ip: request.ip,
+          created_at: new Date().toISOString(),
+        });
+        return reply.send({ codes, remaining: codes.length });
+      },
+    );
+
+    /** Return the count of still-usable recovery codes (no plaintext). */
+    app.get(
+      '/api/v1/account/security/2fa/recovery-codes',
+      { preHandler: requireAuth },
+      async (request, reply) => {
+        const remaining = remainingRecoveryCodes(request.user!.id);
+        return reply.send({ remaining });
       },
     );
 

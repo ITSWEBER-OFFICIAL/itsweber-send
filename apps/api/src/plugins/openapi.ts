@@ -10,7 +10,7 @@ export async function registerOpenApi(app: FastifyInstance): Promise<void> {
       info: {
         title: 'ITSWEBER Send API',
         description: 'REST API for ITSWEBER Send — self-hosted, end-to-end encrypted file sharing.',
-        version: '1.0.0',
+        version: '1.1.0',
         license: { name: 'AGPL-3.0-only' },
       },
       servers: [{ url: config.baseUrl, description: 'This server' }],

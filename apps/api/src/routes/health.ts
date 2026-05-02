@@ -12,7 +12,7 @@ export async function healthRoutes(app: FastifyInstance): Promise<void> {
     return {
       status: 'ok',
       uptimeMs: Date.now() - startedAt,
-      version: '1.0.0',
+      version: '1.1.0',
     };
   });
 

@@ -24,6 +24,7 @@ import {
 } from '../db/sqlite.js';
 import { requireAuth } from '../plugins/session.js';
 import { verifyTotp } from '../utils/totp.js';
+import { consumeRecoveryCode } from '../utils/recovery-codes.js';
 
 // OWASP 2026 Argon2id defaults
 const ARGON2_OPTIONS = {
@@ -69,6 +70,11 @@ const LoginBody = z.object({
     .transform((e) => e.toLowerCase().trim()),
   password: z.string().min(1).max(128),
   totpCode: z.string().length(6).optional(),
+  // Recovery code is the user-typed alternative to a TOTP code; format
+  // `XXXX-YYYY` (8 chars + optional hyphen). Loose `max(32)` bounds the
+  // input — the validator inside consumeRecoveryCode does the real
+  // shape check.
+  recoveryCode: z.string().min(8).max(32).optional(),
 });
 
 // Per-route rate limits. Login and register are the prime brute-force targets:
@@ -155,7 +161,7 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
       if (!parsed.success) {
         return reply.status(400).send({ error: 'Invalid request' });
       }
-      const { email, password, totpCode } = parsed.data;
+      const { email, password, totpCode, recoveryCode } = parsed.data;
 
       const user = getUserByEmail(email);
       if (!user) {
@@ -169,13 +175,37 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
         return reply.status(401).send({ error: 'Invalid email or password' });
       }
 
-      // 2FA check
+      // 2FA check: accept either a fresh TOTP code or a one-shot
+      // recovery code. Recovery codes are consumed on success.
       if (user.totp_enabled === 1 && user.totp_secret) {
-        if (!totpCode) {
+        if (!totpCode && !recoveryCode) {
           return reply.status(202).send({ requires2FA: true });
         }
-        if (!verifyTotp(user.totp_secret, totpCode)) {
-          return reply.status(401).send({ error: 'Invalid authenticator code' });
+        let secondFactorOk = false;
+        if (totpCode && verifyTotp(user.totp_secret, totpCode)) {
+          secondFactorOk = true;
+        } else if (recoveryCode) {
+          secondFactorOk = await consumeRecoveryCode(user.id, recoveryCode);
+          if (secondFactorOk) {
+            insertAuditLog({
+              user_id: user.id,
+              action: '2fa.recovery_code_used',
+              resource: null,
+              ip: request.ip,
+              created_at: new Date().toISOString(),
+            });
+          } else {
+            insertAuditLog({
+              user_id: user.id,
+              action: '2fa.recovery_code_failed',
+              resource: null,
+              ip: request.ip,
+              created_at: new Date().toISOString(),
+            });
+          }
+        }
+        if (!secondFactorOk) {
+          return reply.status(401).send({ error: 'Invalid authenticator or recovery code' });
         }
       }
 
