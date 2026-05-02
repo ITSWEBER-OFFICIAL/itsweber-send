@@ -4,9 +4,13 @@ import { existsSync } from 'node:fs';
 import Fastify from 'fastify';
 import { config } from './config.js';
 import { registerCore } from './plugins/core.js';
+import { sessionMiddleware } from './plugins/session.js';
 import { healthRoutes } from './routes/health.js';
 import { createUploadRoute } from './routes/upload.js';
 import { createDownloadRoute } from './routes/download.js';
+import { authRoutes } from './routes/auth.js';
+import { createAccountRoutes } from './routes/account.js';
+import { adminRoutes } from './routes/admin.js';
 import { FilesystemStorage } from './storage/filesystem.js';
 import { initDb } from './db/sqlite.js';
 import { startCleanupJob } from './jobs/cleanup.js';
@@ -26,6 +30,7 @@ export async function buildServer() {
   });
 
   await registerCore(app);
+  await app.register(sessionMiddleware);
   await app.register(healthRoutes);
 
   // Storage and DB
@@ -36,6 +41,11 @@ export async function buildServer() {
   // Upload / download routes
   await app.register(createUploadRoute(storage));
   await app.register(createDownloadRoute(storage));
+
+  // Auth, account, and admin routes
+  await app.register(authRoutes);
+  await app.register(createAccountRoutes(storage));
+  await app.register(adminRoutes);
 
   // Serve the SvelteKit app as a fallback for all non-API routes (production only).
   // Registered via setNotFoundHandler so Fastify's own routes (/api/*, /health) win first;

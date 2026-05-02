@@ -38,6 +38,11 @@ export const config = {
   db: {
     path: str('DB_PATH', './data/shares.db'),
   },
+  auth: {
+    sessionExpiryDays: num('SESSION_EXPIRY_DAYS', 30),
+    registrationEnabled: bool('REGISTRATION_ENABLED', true),
+    defaultQuotaBytes: num('DEFAULT_QUOTA_BYTES', 5 * 1024 * 1024 * 1024),
+  },
   logLevel: str('LOG_LEVEL', 'info') as 'fatal' | 'error' | 'warn' | 'info' | 'debug' | 'trace',
 } as const;
 

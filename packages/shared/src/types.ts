@@ -11,3 +11,31 @@ export interface ShareLookup {
   exhausted: boolean;
   passwordRequired: boolean;
 }
+
+/** Authenticated user as returned by /api/v1/auth/me */
+export interface AuthUser {
+  id: string;
+  email: string;
+  role: 'user' | 'admin';
+  quotaBytes: number;
+}
+
+/** Account upload list entry */
+export interface AccountUpload {
+  id: string;
+  createdAt: string;
+  expiresAt: string;
+  expired: boolean;
+  downloadLimit: number;
+  downloadsUsed: number;
+  totalSizeBytes: number;
+  passwordProtected: boolean;
+}
+
+/** Admin stats response */
+export interface AdminStats {
+  totalUsers: number;
+  totalShares: number;
+  activeShares: number;
+  totalStorageBytes: number;
+}

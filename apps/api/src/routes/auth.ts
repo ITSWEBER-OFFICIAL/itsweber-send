@@ -1,0 +1,162 @@
+/**
+ * Authentication routes: register, login, logout, me.
+ *
+ * Security:
+ * - Passwords hashed with Argon2id, OWASP 2026 defaults.
+ * - Sessions: 32-byte random token, HttpOnly + SameSite=Strict cookie.
+ * - First registered user receives admin role.
+ * - Email lookup is case-insensitive (normalised to lowercase).
+ */
+
+import { randomBytes } from 'node:crypto';
+import { hash as argon2Hash, verify as argon2Verify } from '@node-rs/argon2';
+import type { FastifyInstance } from 'fastify';
+import { z } from 'zod';
+import { config } from '../config.js';
+import {
+  countUsers,
+  getUserByEmail,
+  insertSession,
+  insertUser,
+  deleteSession,
+  updateLastLogin,
+} from '../db/sqlite.js';
+import { requireAuth } from '../plugins/session.js';
+
+// OWASP 2026 Argon2id defaults
+const ARGON2_OPTIONS = {
+  memoryCost: 65536,  // 64 MB
+  timeCost: 3,
+  parallelism: 4,
+} as const;
+
+const COOKIE_NAME = 'sid';
+
+function sessionExpiryDate(): Date {
+  return new Date(Date.now() + config.auth.sessionExpiryDays * 24 * 60 * 60 * 1000);
+}
+
+function setCookie(reply: import('fastify').FastifyReply, sessionId: string): void {
+  const expiresAt = sessionExpiryDate();
+  reply.setCookie(COOKIE_NAME, sessionId, {
+    httpOnly: true,
+    secure: config.env === 'production',
+    sameSite: 'strict',
+    path: '/',
+    expires: expiresAt,
+  });
+}
+
+function clearCookie(reply: import('fastify').FastifyReply): void {
+  reply.clearCookie(COOKIE_NAME, { path: '/' });
+}
+
+const RegisterBody = z.object({
+  email: z.string().email().max(254).transform((e) => e.toLowerCase().trim()),
+  password: z.string().min(8).max(128),
+});
+
+const LoginBody = z.object({
+  email: z.string().email().transform((e) => e.toLowerCase().trim()),
+  password: z.string().min(1).max(128),
+});
+
+export async function authRoutes(app: FastifyInstance): Promise<void> {
+  // POST /api/v1/auth/register
+  app.post('/api/v1/auth/register', async (request, reply) => {
+    if (!config.enableAccounts || !config.auth.registrationEnabled) {
+      return reply.status(404).send({ error: 'Accounts are disabled' });
+    }
+
+    const parsed = RegisterBody.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.status(400).send({ error: 'Invalid request', details: parsed.error.flatten() });
+    }
+    const { email, password } = parsed.data;
+
+    if (getUserByEmail(email)) {
+      return reply.status(409).send({ error: 'Email already registered' });
+    }
+
+    const passwordHash = await argon2Hash(password, ARGON2_OPTIONS);
+    const id = randomBytes(12).toString('hex');
+    const now = new Date().toISOString();
+    const isFirstUser = countUsers() === 0;
+
+    insertUser({
+      id,
+      email,
+      password_hash: passwordHash,
+      created_at: now,
+      role: isFirstUser ? 'admin' : 'user',
+      quota_bytes: config.auth.defaultQuotaBytes,
+    });
+
+    const sessionId = randomBytes(32).toString('hex');
+    const expiresAt = sessionExpiryDate();
+    insertSession({ id: sessionId, user_id: id, created_at: now, expires_at: expiresAt.toISOString() });
+    setCookie(reply, sessionId);
+
+    app.log.info({ userId: id, email, role: isFirstUser ? 'admin' : 'user' }, 'user registered');
+    return reply.status(201).send({ id, email, role: isFirstUser ? 'admin' : 'user' });
+  });
+
+  // POST /api/v1/auth/login
+  app.post('/api/v1/auth/login', async (request, reply) => {
+    if (!config.enableAccounts) {
+      return reply.status(404).send({ error: 'Accounts are disabled' });
+    }
+
+    const parsed = LoginBody.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.status(400).send({ error: 'Invalid request' });
+    }
+    const { email, password } = parsed.data;
+
+    const user = getUserByEmail(email);
+    if (!user) {
+      // Constant-time: run hash anyway to prevent timing attacks
+      await argon2Hash('__placeholder__', ARGON2_OPTIONS);
+      return reply.status(401).send({ error: 'Invalid email or password' });
+    }
+
+    const valid = await argon2Verify(user.password_hash, password);
+    if (!valid) {
+      return reply.status(401).send({ error: 'Invalid email or password' });
+    }
+
+    const now = new Date().toISOString();
+    updateLastLogin(user.id, now);
+
+    const sessionId = randomBytes(32).toString('hex');
+    const expiresAt = sessionExpiryDate();
+    insertSession({ id: sessionId, user_id: user.id, created_at: now, expires_at: expiresAt.toISOString() });
+    setCookie(reply, sessionId);
+
+    app.log.info({ userId: user.id }, 'user logged in');
+    return reply.send({ id: user.id, email: user.email, role: user.role });
+  });
+
+  // POST /api/v1/auth/logout
+  app.post('/api/v1/auth/logout', { preHandler: requireAuth }, async (request, reply) => {
+    const sid = request.cookies?.sid;
+    if (sid) {
+      deleteSession(sid);
+    }
+    clearCookie(reply);
+    return reply.send({ ok: true });
+  });
+
+  // GET /api/v1/auth/me
+  app.get('/api/v1/auth/me', async (request, reply) => {
+    if (!request.user) {
+      return reply.status(401).send({ error: 'Not authenticated' });
+    }
+    return reply.send({
+      id: request.user.id,
+      email: request.user.email,
+      role: request.user.role,
+      quotaBytes: request.user.quotaBytes,
+    });
+  });
+}

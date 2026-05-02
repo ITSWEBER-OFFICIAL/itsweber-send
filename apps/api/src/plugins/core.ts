@@ -1,13 +1,13 @@
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
 import rateLimit from '@fastify/rate-limit';
+import cookie from '@fastify/cookie';
 import type { FastifyInstance } from 'fastify';
 import { config } from '../config.js';
 
 /**
- * Core plugins applied to every route: security headers, CORS, rate limiting.
- * Upload-specific plugins (tus, multipart) are registered in their own modules
- * during M2 so they don't slow down lightweight endpoints like /health.
+ * Core plugins applied to every route: security headers, CORS, rate limiting, cookies.
+ * Upload-specific plugins (tus, multipart) are registered in their own modules.
  */
 export async function registerCore(app: FastifyInstance): Promise<void> {
   await app.register(helmet, {
@@ -24,7 +24,7 @@ export async function registerCore(app: FastifyInstance): Promise<void> {
 
   await app.register(cors, {
     origin: config.env === 'development' ? true : false,
-    credentials: false,
+    credentials: true,
   });
 
   await app.register(rateLimit, {
@@ -32,4 +32,7 @@ export async function registerCore(app: FastifyInstance): Promise<void> {
     timeWindow: '1 minute',
     allowList: ['127.0.0.1', '::1'],
   });
+
+  // Cookie plugin must be registered before the session middleware
+  await app.register(cookie);
 }

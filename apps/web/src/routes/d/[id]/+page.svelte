@@ -2,8 +2,6 @@
   import { onMount } from 'svelte';
   import { _ } from 'svelte-i18n';
   import type { Manifest } from '@itsweber-send/shared';
-  import BrandMark from '$lib/components/BrandMark.svelte';
-  import ThemeToggle from '$lib/components/ThemeToggle.svelte';
   import FileIcon from '$lib/components/icons/FileIcon.svelte';
   import {
     importKeyBase64url,
@@ -170,14 +168,6 @@
   });
 </script>
 
-<header class="appbar">
-  <a class="brand" href="/">
-    <BrandMark size={28} />
-    <span class="brand-text">ITSWEBER<span class="accent"> · Send</span></span>
-  </a>
-  <ThemeToggle />
-</header>
-
 <main class="page">
   <div class="card-wrap">
 
@@ -319,29 +309,6 @@
 </main>
 
 <style>
-  .appbar {
-    position: sticky;
-    top: 0;
-    z-index: 30;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 14px 28px;
-    background: color-mix(in srgb, var(--surface) 85%, transparent);
-    backdrop-filter: blur(14px);
-    border-bottom: 1px solid var(--border);
-  }
-  .brand {
-    display: inline-flex;
-    align-items: center;
-    gap: 10px;
-    color: var(--text);
-    text-decoration: none;
-    font-weight: 700;
-    letter-spacing: -0.01em;
-  }
-  .accent { color: var(--brand); }
-
   .page {
     max-width: 560px;
     margin: 0 auto;
@@ -560,7 +527,6 @@
 
   /* Mobile */
   @media (max-width: 480px) {
-    .appbar { padding: 12px 16px; }
     .page { padding: 40px 16px 60px; }
     .card { padding: 20px 16px; }
     .file-entry { flex-wrap: wrap; }

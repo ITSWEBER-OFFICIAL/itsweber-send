@@ -2,7 +2,7 @@ import { randomBytes } from 'node:crypto';
 import multipart from '@fastify/multipart';
 import type { FastifyInstance } from 'fastify';
 import { UploadMetaSchema } from '@itsweber-send/shared';
-import { insertShare } from '../db/sqlite.js';
+import { insertShare, getUserById, getUserQuotaUsed } from '../db/sqlite.js';
 import type { StorageAdapter } from '../storage/interface.js';
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024 * 1024; // 5 GB
@@ -81,6 +81,18 @@ export function createUploadRoute(storage: StorageAdapter) {
         blobEntries.push({ iv: ivEntry.value, data: dataEntry.value });
       }
 
+      // Quota check for authenticated users
+      const userId = request.user?.id ?? null;
+      if (userId) {
+        const user = getUserById(userId);
+        if (user) {
+          const quotaUsed = getUserQuotaUsed(userId);
+          if (quotaUsed + meta.totalSizeEncrypted > user.quota_bytes) {
+            return reply.status(413).send({ error: 'Quota exceeded' });
+          }
+        }
+      }
+
       // Generate share ID and timestamps
       const id = randomBytes(12).toString('hex');
       const now = new Date();
@@ -119,9 +131,11 @@ export function createUploadRoute(storage: StorageAdapter) {
         salt: meta.salt,
         iv_wrap: meta.ivWrap,
         wrapped_key: meta.wrappedKey,
+        user_id: userId,
+        total_size_bytes: meta.totalSizeEncrypted,
       });
 
-      request.log.info({ shareId: id, fileCount: meta.fileCount }, 'share created');
+      request.log.info({ shareId: id, fileCount: meta.fileCount, userId }, 'share created');
       return reply.status(201).send({ id, expiresAt: expiresAt.toISOString() });
     });
   };

@@ -62,10 +62,67 @@
     "no_key": "No key in URL fragment. Make sure you are using the full link including the # part.",
     "downloading": "Downloading …"
   },
+  "nav": {
+    "login": "Sign in",
+    "register": "Register",
+    "logout": "Sign out",
+    "account": "Account",
+    "admin": "Admin"
+  },
+  "auth": {
+    "email": "Email address",
+    "email_placeholder": "you@example.com",
+    "password": "Password",
+    "password_placeholder": "At least 8 characters",
+    "login_title": "Sign in",
+    "login_button": "Sign in",
+    "login_no_account": "No account yet?",
+    "login_register_link": "Register",
+    "register_title": "Create account",
+    "register_button": "Create account",
+    "register_has_account": "Already have an account?",
+    "register_login_link": "Sign in",
+    "error_invalid": "Invalid email or password.",
+    "error_email_taken": "This email address is already registered.",
+    "error_generic": "An error occurred. Please try again."
+  },
+  "account": {
+    "title": "My Account",
+    "quota_label": "Storage",
+    "quota_used": "{used} of {total} used",
+    "uploads_title": "My Uploads",
+    "no_uploads": "No uploads yet.",
+    "delete_upload": "Delete",
+    "open_upload": "Open",
+    "expires": "Expires:",
+    "expired_label": "Expired",
+    "downloads": "Downloads: {used}/{limit}",
+    "downloads_unlimited": "Downloads: {used}/∞",
+    "size": "Size: {size}"
+  },
+  "admin": {
+    "title": "Administration",
+    "stats_title": "Statistics",
+    "total_users": "Total users",
+    "total_shares": "Total shares",
+    "active_shares": "Active shares",
+    "total_storage": "Storage used",
+    "users_title": "User list",
+    "user_email": "Email",
+    "user_role": "Role",
+    "user_created": "Created",
+    "user_last_login": "Last login",
+    "user_quota": "Quota",
+    "role_admin": "Admin",
+    "role_user": "User",
+    "never": "Never"
+  },
   "common": {
     "cancel": "Cancel",
     "copy": "Copy",
     "download": "Download",
-    "loading": "Loading …"
+    "loading": "Loading …",
+    "delete": "Delete",
+    "bytes": "Bytes"
   }
 }

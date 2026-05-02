@@ -62,10 +62,67 @@
     "no_key": "Kein Schlüssel im Link. Stelle sicher, dass du die vollständige URL inklusive dem # Fragment verwendest.",
     "downloading": "Lade Datei …"
   },
+  "nav": {
+    "login": "Anmelden",
+    "register": "Registrieren",
+    "logout": "Abmelden",
+    "account": "Konto",
+    "admin": "Admin"
+  },
+  "auth": {
+    "email": "E-Mail-Adresse",
+    "email_placeholder": "deine@email.de",
+    "password": "Passwort",
+    "password_placeholder": "Mindestens 8 Zeichen",
+    "login_title": "Anmelden",
+    "login_button": "Anmelden",
+    "login_no_account": "Noch kein Konto?",
+    "login_register_link": "Registrieren",
+    "register_title": "Konto erstellen",
+    "register_button": "Konto erstellen",
+    "register_has_account": "Bereits ein Konto?",
+    "register_login_link": "Anmelden",
+    "error_invalid": "E-Mail oder Passwort ungültig.",
+    "error_email_taken": "Diese E-Mail-Adresse ist bereits registriert.",
+    "error_generic": "Ein Fehler ist aufgetreten. Bitte erneut versuchen."
+  },
+  "account": {
+    "title": "Mein Konto",
+    "quota_label": "Speicherplatz",
+    "quota_used": "{used} von {total} belegt",
+    "uploads_title": "Meine Uploads",
+    "no_uploads": "Noch keine Uploads.",
+    "delete_upload": "Löschen",
+    "open_upload": "Öffnen",
+    "expires": "Läuft ab:",
+    "expired_label": "Abgelaufen",
+    "downloads": "Downloads: {used}/{limit}",
+    "downloads_unlimited": "Downloads: {used}/∞",
+    "size": "Größe: {size}"
+  },
+  "admin": {
+    "title": "Administration",
+    "stats_title": "Statistiken",
+    "total_users": "Nutzer gesamt",
+    "total_shares": "Shares gesamt",
+    "active_shares": "Aktive Shares",
+    "total_storage": "Belegter Speicher",
+    "users_title": "Nutzerliste",
+    "user_email": "E-Mail",
+    "user_role": "Rolle",
+    "user_created": "Erstellt",
+    "user_last_login": "Letzter Login",
+    "user_quota": "Quota",
+    "role_admin": "Admin",
+    "role_user": "Nutzer",
+    "never": "Nie"
+  },
   "common": {
     "cancel": "Abbrechen",
     "copy": "Kopieren",
     "download": "Herunterladen",
-    "loading": "Lädt …"
+    "loading": "Lädt …",
+    "delete": "Löschen",
+    "bytes": "Bytes"
   }
 }
