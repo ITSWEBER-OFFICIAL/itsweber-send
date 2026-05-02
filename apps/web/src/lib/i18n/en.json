@@ -59,7 +59,7 @@
     "note_from_sender": "Note from sender",
     "encrypted_note": "Decrypted in your browser. The server only sees encrypted data.",
     "error_decrypt": "Decryption failed. Check the link.",
-    "no_key": "No key in URL fragment. Make sure you are using the full link including the # part.",
+    "no_key": "This share needs the key in the link (after the #). If you only have the four-word code, ask the sender for the password or the full URL.",
     "downloading": "Downloading …"
   },
   "nav": {

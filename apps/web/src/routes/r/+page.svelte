@@ -124,7 +124,9 @@
       {/if}
       <p class="hint">
         Der Schlüssel steckt im Fragment hinter der Raute (<code>#k=…</code>) und wird nie an den Server übertragen.
-        Bei einem 4-Wort-Code wird der Link gesucht — du benötigst dennoch die vollständige URL mit Schlüssel zum Entschlüsseln.
+        <br />
+        <strong>4-Wort-Code:</strong> findet den Share. Wenn ein Passwort gesetzt ist, fragt die Download-Seite es ab.
+        Ohne Passwort brauchst du zusätzlich die vollständige URL mit Schlüssel.
       </p>
     </div>
   </form>

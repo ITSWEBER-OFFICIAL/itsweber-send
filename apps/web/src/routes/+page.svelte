@@ -217,6 +217,10 @@
   ];
 
   const remainingDownloadsLabel = $derived(downloadLimit === 0 ? '∞' : String(downloadLimit));
+
+  // True when the share can be fully reconstructed from wordcode + password (voice-only sharing).
+  const voiceShareReady = $derived(useWordcode && usePassword && password.length >= 4);
+  const wordcodeNeedsPassword = $derived(useWordcode && !usePassword);
 </script>
 
 <main class="page">
@@ -338,6 +342,35 @@
               · läuft ab am {formatExpiry(shareExpiresAt)}
             </p>
 
+            {#if voiceShareReady}
+              <div class="voice-share">
+                <div class="voice-head">
+                  <span class="voice-badge">Per Sprache teilen</span>
+                  <span class="voice-hint">Code + Passwort reichen — vollständig per Telefon diktierbar.</span>
+                </div>
+                <div class="voice-grid">
+                  <div class="field accent">
+                    <div class="field-stack">
+                      <div class="label">4-Wort-Code</div>
+                      <div class="val val-lg">{wordCode}</div>
+                    </div>
+                    <button class="copy-btn" type="button" onclick={() => copyToClipboard(wordCode, 'word')}>
+                      {copiedField === 'word' ? 'Kopiert' : 'Kopieren'}
+                    </button>
+                  </div>
+                  <div class="field accent">
+                    <div class="field-stack">
+                      <div class="label">Passwort</div>
+                      <div class="val val-lg">{showPassword ? password : '•'.repeat(Math.min(password.length, 12))}</div>
+                    </div>
+                    <button class="copy-btn ghost" type="button" onclick={() => (showPassword = !showPassword)}>
+                      {showPassword ? 'Verbergen' : 'Anzeigen'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            {/if}
+
             <div class="share-grid">
               <div class="qr">
                 <canvas bind:this={qrCanvas} width="160" height="160" aria-label="QR-Code"></canvas>
@@ -345,25 +378,29 @@
               <div class="share-fields">
                 <div class="field">
                   <div class="field-stack">
-                    <div class="label">Sharing-Link</div>
+                    <div class="label">Sharing-Link {voiceShareReady ? '(Alternative)' : ''}</div>
                     <div class="val" title={shareUrl}>{shareUrl}</div>
                   </div>
                   <button class="copy-btn" type="button" onclick={() => copyToClipboard(shareUrl, 'link')}>
                     {copiedField === 'link' ? 'Kopiert' : 'Kopieren'}
                   </button>
                 </div>
-                {#if useWordcode}
+                {#if useWordcode && !voiceShareReady}
                   <div class="field">
                     <div class="field-stack">
-                      <div class="label">4-Wort-Code</div>
+                      <div class="label">4-Wort-Code <span class="lookup-tag">nur Lookup</span></div>
                       <div class="val">{wordCode}</div>
                     </div>
                     <button class="copy-btn" type="button" onclick={() => copyToClipboard(wordCode, 'word')}>
                       {copiedField === 'word' ? 'Kopiert' : 'Kopieren'}
                     </button>
                   </div>
+                  <p class="lookup-warn">
+                    Der Code findet diesen Share, kann ihn aber nicht entschlüsseln. Sende dem Empfänger zusätzlich die volle URL oder
+                    setze ein Passwort, um nur Code + Passwort weiterzugeben.
+                  </p>
                 {/if}
-                {#if usePassword && password}
+                {#if usePassword && password && !voiceShareReady}
                   <div class="field">
                     <div class="field-stack">
                       <div class="label">Passwort</div>
@@ -506,7 +543,16 @@
               <span class="switch-track"></span>
             </button>
           </div>
-          <span class="hint-line">Alternative zum langen Link, leichter zu diktieren</span>
+          {#if voiceShareReady}
+            <span class="hint-line ok">Per Sprache übertragbar: Code + Passwort entschlüsseln den Share vollständig.</span>
+          {:else if wordcodeNeedsPassword}
+            <span class="hint-line warn">
+              Ohne Passwort dient der Code nur als Kurzlink — der Empfänger braucht zusätzlich die volle URL mit Schlüssel.
+              Empfehlung: Passwortschutz aktivieren, um den Share allein per Stimme weiterzugeben.
+            </span>
+          {:else}
+            <span class="hint-line">Alternative zum langen Link, leichter zu diktieren.</span>
+          {/if}
         </div>
 
         <div class="opt">
@@ -857,7 +903,23 @@
   .hint-line {
     font-size: 12px;
     color: var(--dim);
+    line-height: 1.5;
   }
+  .hint-line.warn {
+    color: var(--warning, #b45309);
+    background: color-mix(in srgb, var(--warning, #f59e0b) 10%, transparent);
+    border: 1px solid color-mix(in srgb, var(--warning, #f59e0b) 25%, var(--border));
+    border-radius: var(--radius-sm);
+    padding: 8px 10px;
+  }
+  .hint-line.ok {
+    color: var(--brand-strong);
+    background: var(--brand-soft);
+    border: 1px solid color-mix(in srgb, var(--brand) 25%, var(--border));
+    border-radius: var(--radius-sm);
+    padding: 8px 10px;
+  }
+  :global([data-theme='dark']) .hint-line.ok { color: var(--brand); }
 
   /* Switch */
   .switch {
@@ -1026,6 +1088,74 @@
   .copy-btn.ghost:hover {
     color: var(--text);
     border-color: var(--border-strong);
+  }
+
+  /* Voice share box */
+  .voice-share {
+    margin-bottom: 16px;
+    padding: 16px;
+    border-radius: var(--radius);
+    background: color-mix(in srgb, var(--brand) 8%, var(--surface));
+    border: 1px solid color-mix(in srgb, var(--brand) 25%, var(--border));
+  }
+  .voice-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  .voice-badge {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--brand-strong);
+    background: var(--brand-soft);
+    padding: 3px 10px;
+    border-radius: 9999px;
+  }
+  :global([data-theme='dark']) .voice-badge { color: var(--brand); }
+  .voice-hint {
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .voice-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  @media (max-width: 700px) {
+    .voice-grid { grid-template-columns: 1fr; }
+  }
+  .field.accent {
+    background: var(--surface);
+    border-color: color-mix(in srgb, var(--brand) 30%, var(--border));
+  }
+  .val-lg {
+    font-size: 15px;
+    font-weight: 600;
+  }
+  .lookup-tag {
+    display: inline-block;
+    margin-left: 6px;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    color: var(--warning, #b45309);
+    background: color-mix(in srgb, var(--warning, #f59e0b) 15%, transparent);
+    padding: 1px 6px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    vertical-align: middle;
+  }
+  .lookup-warn {
+    margin: 4px 2px 0;
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--muted);
   }
   .meta-row {
     display: flex;

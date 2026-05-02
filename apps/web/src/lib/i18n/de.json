@@ -59,7 +59,7 @@
     "note_from_sender": "Notiz vom Absender",
     "encrypted_note": "Die Dateien werden im Browser entschlüsselt. Der Server sieht nur verschlüsselte Daten.",
     "error_decrypt": "Entschlüsselung fehlgeschlagen. Prüfe den Link.",
-    "no_key": "Kein Schlüssel im Link. Stelle sicher, dass du die vollständige URL inklusive dem # Fragment verwendest.",
+    "no_key": "Dieser Share benötigt den Schlüssel im Link (nach dem #). Falls du nur den 4-Wort-Code hast, frag den Absender nach dem Passwort oder der vollständigen URL.",
     "downloading": "Lade Datei …"
   },
   "nav": {

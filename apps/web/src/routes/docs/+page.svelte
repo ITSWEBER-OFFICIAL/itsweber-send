@@ -21,7 +21,7 @@
     {
       Icon: Key,
       title: 'Schlüssel & Codes',
-      body: 'Jeder Share hat eine lange URL mit #k=…-Fragment sowie einen leserlichen 4-Wort-Code zum Diktieren. Optional kann ein Passwort zusätzlich gesetzt werden, das den Master-Key mit PBKDF2 (200.000 Iterationen) umwickelt.',
+      body: 'Jeder Share hat eine lange URL mit #k=…-Fragment. Zusätzlich gibt es einen 4-Wort-Code als Kurzlink. Wer den Share rein per Stimme weitergeben will, setzt ein Passwort: Code findet den Share, Passwort entschlüsselt ihn (PBKDF2, 200.000 Iterationen).',
     },
     {
       Icon: Gauge,
@@ -95,7 +95,9 @@
       </details>
       <details class="faq-item">
         <summary>Was bedeutet der 4-Wort-Code?</summary>
-        <p>Jeder Share bekommt einen menschenlesbaren Code aus 4 deutschen Wörtern (z. B. tasche-lampe-schnee-ofen). Dieser Code kann auf der Empfangen-Seite eingegeben werden, um den Share zu finden. Zum Entschlüsseln wird aber trotzdem die vollständige URL mit Schlüssel benötigt.</p>
+        <p>Jeder Share bekommt einen menschenlesbaren Code aus 4 deutschen Wörtern (z. B. <code>tasche-lampe-schnee-ofen</code>). Der Code kann auf der Empfangen-Seite eingegeben werden, um den Share zu finden. Mathematisch trägt er rund 32 Bit Information — zu wenig, um einen 256-Bit-Schlüssel zu codieren.</p>
+        <p><strong>Per Stimme teilen:</strong> Wenn du beim Upload zusätzlich ein Passwort setzt, reichen <em>Code + Passwort</em> aus, um den Share vollständig zu entschlüsseln. Der Code findet den Share, das Passwort leitet via PBKDF2 den Schlüssel ab. Beides ist kurz genug, um es am Telefon zu diktieren.</p>
+        <p><strong>Ohne Passwort</strong> dient der Code nur als Kurzlink zum Auffinden — der Empfänger braucht zusätzlich die vollständige URL mit <code>#k=…</code>.</p>
       </details>
       <details class="faq-item">
         <summary>Wie richte ich ITSWEBER Send ein?</summary>
@@ -184,4 +186,13 @@
   }
   .faq-item a { color: var(--brand); text-decoration: none; }
   .faq-item a:hover { text-decoration: underline; }
+  .faq-item code {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1px 5px;
+  }
+  .faq-item p + p { margin-top: 8px; }
 </style>
