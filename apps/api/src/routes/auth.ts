@@ -25,6 +25,7 @@ import {
 import { requireAuth } from '../plugins/session.js';
 import { verifyTotp } from '../utils/totp.js';
 import { consumeRecoveryCode } from '../utils/recovery-codes.js';
+import { effectiveDefaultQuotaBytes, isRegistrationEnabled } from '../runtime-settings.js';
 
 // OWASP 2026 Argon2id defaults
 const ARGON2_OPTIONS = {
@@ -96,7 +97,10 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
     '/api/v1/auth/register',
     { config: { rateLimit: REGISTER_RATE_LIMIT } },
     async (request, reply) => {
-      if (!config.enableAccounts || !config.auth.registrationEnabled) {
+      // `enableAccounts` is the boot-time hard kill-switch (an operator
+      // who never ran the auth subsystem); the admin-tunable runtime
+      // setting layered over it is the soft toggle. Both must be true.
+      if (!config.enableAccounts || !isRegistrationEnabled()) {
         return reply.status(404).send({ error: 'Accounts are disabled' });
       }
 
@@ -123,7 +127,7 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
         password_hash: passwordHash,
         created_at: now,
         role: isFirstUser ? 'admin' : 'user',
-        quota_bytes: config.auth.defaultQuotaBytes,
+        quota_bytes: effectiveDefaultQuotaBytes(),
       });
 
       const sessionId = randomBytes(32).toString('hex');

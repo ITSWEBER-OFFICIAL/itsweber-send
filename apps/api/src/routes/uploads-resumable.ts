@@ -44,6 +44,7 @@ import {
 } from '../db/sqlite.js';
 import type { StorageAdapter } from '../storage/interface.js';
 import { emitWebhook } from '../plugins/webhooks.js';
+import { effectiveMaxBlobBytes, effectiveMaxExpiryHours } from '../runtime-settings.js';
 
 interface BlobProgress {
   blobId: string;
@@ -124,12 +125,25 @@ export function createUploadsResumableRoute(storage: StorageAdapter) {
 
         const declaredTotal = body.blobs.reduce((sum, b) => sum + b.cipherSize, 0);
 
-        // Per-blob and overall ceilings.
+        // Reject when expiryHours exceeds the admin-configured cap. The
+        // shared schema only checks the value is one of the allowed
+        // presets; the runtime ceiling is enforced here.
+        const maxExpiryHours = effectiveMaxExpiryHours();
+        if (body.expiryHours > maxExpiryHours) {
+          return reply.status(400).send({
+            error: 'expiryHours exceeds the admin-configured maximum',
+            maxExpiryHours,
+          });
+        }
+
+        // Per-blob and overall ceilings — admin's runtime setting can
+        // lower the env-set MAX_BLOB_BYTES but never raise it.
+        const maxBlobBytes = effectiveMaxBlobBytes();
         for (const blob of body.blobs) {
-          if (blob.cipherSize > config.uploads.maxBlobBytes) {
+          if (blob.cipherSize > maxBlobBytes) {
             return reply.status(413).send({
               error: 'Blob exceeds server max-blob-bytes',
-              maxBlobBytes: config.uploads.maxBlobBytes,
+              maxBlobBytes,
             });
           }
           // Each chunk is plaintext + 16-byte GCM tag. The server-announced
@@ -193,7 +207,7 @@ export function createUploadsResumableRoute(storage: StorageAdapter) {
           uploadId,
           shareId,
           chunkSize: config.uploads.chunkSizeBytes,
-          maxBlobBytes: config.uploads.maxBlobBytes,
+          maxBlobBytes,
           expiresAt: expiresAt.toISOString(),
         });
       },

@@ -36,12 +36,35 @@ All configuration is done via environment variables. No configuration file is re
 
 ## Accounts
 
-| Variable               | Default      | Description                                                                                                                        |
-| ---------------------- | ------------ | ---------------------------------------------------------------------------------------------------------------------------------- |
-| `ENABLE_ACCOUNTS`      | `true`       | Allow user registration and login. When set to `false`, the auth routes return 404 and uploads are always anonymous.               |
-| `REGISTRATION_ENABLED` | `true`       | Allow new account registrations. Set to `false` to lock account creation after the initial admin is set up.                        |
-| `SESSION_EXPIRY_DAYS`  | `30`         | Lifetime of a session cookie in days. After expiry the user must log in again.                                                     |
-| `DEFAULT_QUOTA_BYTES`  | `5368709120` | Per-user upload quota in bytes. Default: 5 GB. Applies to new accounts; existing accounts retain their quota at registration time. |
+| Variable               | Default      | Description                                                                                                                                                                                                                                 |
+| ---------------------- | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ENABLE_ACCOUNTS`      | `true`       | Boot-time hard kill-switch for the auth subsystem. When `false`, the auth routes return 404 and uploads are always anonymous. Cannot be changed at runtime.                                                                                 |
+| `REGISTRATION_ENABLED` | `true`       | Boot default for self-service registration. The matching admin setting (`registration_enabled` in `system_settings`) takes precedence at runtime once set.                                                                                  |
+| `SESSION_EXPIRY_DAYS`  | `30`         | Lifetime of a session cookie in days. After expiry the user must log in again.                                                                                                                                                              |
+| `DEFAULT_QUOTA_BYTES`  | `5368709120` | Boot default for per-user upload quota in bytes (5 GB). Admin override `default_quota_bytes` in `system_settings` takes precedence at runtime once set. Applies to new accounts; existing accounts retain their quota at registration time. |
+
+---
+
+## Uploads
+
+| Variable              | Default                 | Description                                                                                                                                                                                                                                                    |
+| --------------------- | ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `CHUNK_SIZE_BYTES`    | `16777216` (16 MiB)     | Plaintext bytes per chunk in the resumable upload path. On `STORAGE_BACKEND=s3` this MUST be at least 5 MiB (S3 multipart minimum part size); the server refuses to start otherwise.                                                                           |
+| `MAX_BLOB_BYTES`      | `107374182400` (100 GB) | Hard server-side ceiling per single file. Non-overridable upper bound — the admin-tunable `max_upload_size_bytes` setting can lower the effective ceiling at runtime but cannot raise it past this value. Increasing this is the way to support 100 GB+ files. |
+| `UPLOAD_RESUME_HOURS` | `24`                    | Lifetime of a pending resumable upload before the cleanup job removes it and frees its partial blobs.                                                                                                                                                          |
+
+---
+
+## Runtime-tunable admin settings
+
+These four values can be changed by an admin through the admin UI without restarting the container; the server reads them on every request. Each falls back to the matching environment variable when no admin override has been set yet, so a fresh container starts with the env defaults.
+
+| Setting key (in `system_settings`) | Env fallback           | Effect                                                                                                                                                                                                                                                                                                   |
+| ---------------------------------- | ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `registration_enabled`             | `REGISTRATION_ENABLED` | Soft-toggles self-service registration. The boot-time `ENABLE_ACCOUNTS=false` kill-switch overrides this — both must be `true` for new accounts to be created.                                                                                                                                           |
+| `default_quota_bytes`              | `DEFAULT_QUOTA_BYTES`  | Quota assigned to a freshly-registered user. Existing users keep the quota they were registered with.                                                                                                                                                                                                    |
+| `max_upload_size_bytes`            | `MAX_BLOB_BYTES`       | Effective ceiling on the ciphertext size of one file (one blob). Clamped to `min(env.MAX_BLOB_BYTES, admin_value)` — admin can lower it at runtime but cannot raise it past `MAX_BLOB_BYTES`. Applies to NEW uploads only; in-progress uploads finish under the value that was in effect at create time. |
+| `max_expiry_hours`                 | `168` (7 days)         | Maximum `expiryHours` a sender can pick on a new share. Validated server-side after the shared schema's preset check.                                                                                                                                                                                    |
 
 ---
 
