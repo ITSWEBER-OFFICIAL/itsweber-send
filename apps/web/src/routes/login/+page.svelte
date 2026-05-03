@@ -6,18 +6,31 @@
   let email = $state('');
   let password = $state('');
   let totpCode = $state('');
+  let recoveryCode = $state('');
   let loading = $state(false);
   let error = $state('');
   let requires2FA = $state(false);
+  let useRecovery = $state(false);
+
+  function canSubmit2FA(): boolean {
+    if (useRecovery) return recoveryCode.trim().length >= 8;
+    return totpCode.length === 6;
+  }
 
   async function submit() {
     if (!email || !password) return;
-    if (requires2FA && totpCode.length !== 6) return;
+    if (requires2FA && !canSubmit2FA()) return;
     loading = true;
     error = '';
     try {
       const body: Record<string, string> = { email, password };
-      if (requires2FA) body.totpCode = totpCode;
+      if (requires2FA) {
+        if (useRecovery) {
+          body.recoveryCode = recoveryCode.trim();
+        } else {
+          body.totpCode = totpCode;
+        }
+      }
 
       const res = await fetch('/api/v1/auth/login', {
         method: 'POST',
@@ -26,9 +39,9 @@
       });
 
       if (res.status === 202) {
-        // 2FA required
         requires2FA = true;
         totpCode = '';
+        recoveryCode = '';
         return;
       }
 
@@ -38,14 +51,15 @@
       } else {
         const resp = (await res.json()) as { error?: string };
         if (res.status === 401 && requires2FA) {
-          error = 'Ungültiger Authenticator-Code.';
+          error = $_('auth.error_invalid_2fa');
+          totpCode = '';
+          recoveryCode = '';
         } else {
           error =
             res.status === 401
               ? $_('auth.error_invalid')
               : (resp.error ?? $_('auth.error_generic'));
         }
-        if (requires2FA) totpCode = '';
       }
     } catch {
       error = $_('auth.error_generic');
@@ -101,47 +115,80 @@
           </button>
         </form>
       {:else}
-        <h1 class="title">Zwei-Faktor-Authentifizierung</h1>
-        <p class="totp-hint">Gib den 6-stelligen Code aus deiner Authenticator-App ein.</p>
+        <h1 class="title">
+          {useRecovery ? $_('auth.2fa_recovery_title') : $_('auth.2fa_title')}
+        </h1>
+        <p class="totp-hint">
+          {useRecovery ? $_('auth.2fa_recovery_hint') : $_('auth.2fa_hint')}
+        </p>
         <form
           onsubmit={(e) => {
             e.preventDefault();
             void submit();
           }}
         >
-          <div class="field">
-            <label class="label" for="totp">Authenticator-Code</label>
-            <input
-              id="totp"
-              type="text"
-              inputmode="numeric"
-              pattern="[0-9]{6}"
-              maxlength="6"
-              class="input totp-input"
-              placeholder="123456"
-              bind:value={totpCode}
-              autocomplete="one-time-code"
-            />
-          </div>
+          {#if useRecovery}
+            <div class="field">
+              <label class="label" for="recovery-code">{$_('auth.2fa_recovery_label')}</label>
+              <input
+                id="recovery-code"
+                type="text"
+                class="input totp-input"
+                placeholder={$_('auth.2fa_recovery_placeholder')}
+                bind:value={recoveryCode}
+                autocomplete="off"
+                spellcheck="false"
+              />
+            </div>
+          {:else}
+            <div class="field">
+              <label class="label" for="totp">{$_('auth.2fa_code_label')}</label>
+              <input
+                id="totp"
+                type="text"
+                inputmode="numeric"
+                pattern="[0-9]{6}"
+                maxlength="6"
+                class="input totp-input"
+                placeholder="123456"
+                bind:value={totpCode}
+                autocomplete="one-time-code"
+              />
+            </div>
+          {/if}
           {#if error}
             <p class="error">{error}</p>
           {/if}
-          <button class="btn-primary" type="submit" disabled={loading || totpCode.length !== 6}>
+          <button class="btn-primary" type="submit" disabled={loading || !canSubmit2FA()}>
             {#if loading}
               <span class="spinner" aria-hidden="true"></span>
             {/if}
-            Bestätigen
+            {$_('auth.2fa_confirm')}
+          </button>
+          <button
+            class="btn-toggle"
+            type="button"
+            onclick={() => {
+              useRecovery = !useRecovery;
+              totpCode = '';
+              recoveryCode = '';
+              error = '';
+            }}
+          >
+            {useRecovery ? $_('auth.2fa_use_totp') : $_('auth.2fa_use_recovery')}
           </button>
           <button
             class="btn-secondary"
             type="button"
             onclick={() => {
               requires2FA = false;
+              useRecovery = false;
               totpCode = '';
+              recoveryCode = '';
               error = '';
             }}
           >
-            Zurück
+            {$_('auth.2fa_back')}
           </button>
         </form>
       {/if}
@@ -259,6 +306,21 @@
   .btn-secondary:hover {
     color: var(--text);
     border-color: var(--text);
+  }
+  .btn-toggle {
+    width: 100%;
+    padding: 8px;
+    background: transparent;
+    color: var(--brand);
+    border: none;
+    font-size: 13px;
+    cursor: pointer;
+    margin-top: 6px;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+  .btn-toggle:hover {
+    opacity: 0.8;
   }
   .spinner {
     width: 14px;
