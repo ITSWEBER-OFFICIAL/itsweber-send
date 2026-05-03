@@ -25,6 +25,7 @@
   import { wordCodeFromId } from '$lib/share/wordcode.js';
   import { UploadError } from '$lib/upload/client.js';
   import { auth } from '$lib/stores/auth.svelte.js';
+  import { APP_VERSION } from '$lib/version.js';
 
   type FilePhase = 'queued' | 'encrypting' | 'encrypted' | 'uploading' | 'paused' | 'done';
   type Phase = 'idle' | 'encrypting' | 'uploading' | 'paused' | 'done' | 'error';
@@ -971,6 +972,7 @@
     <a href="https://github.com/itsweber/itsweber-send" target="_blank" rel="noopener noreferrer"
       >github.com/itsweber/itsweber-send</a
     >
+    · <span class="footnote-version" title="Build version">v{APP_VERSION}</span>
   </p>
 </main>
 
@@ -1608,6 +1610,10 @@
   }
   .footnote a {
     color: var(--brand);
+  }
+  .footnote-version {
+    font-family: var(--font-mono, ui-monospace, monospace);
+    color: var(--muted, var(--dim));
   }
 
   .visually-hidden {

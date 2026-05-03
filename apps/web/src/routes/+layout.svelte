@@ -11,6 +11,7 @@
   import ThemeToggle from '$lib/components/ThemeToggle.svelte';
   import LangPill from '$lib/components/LangPill.svelte';
   import UserChip from '$lib/components/UserChip.svelte';
+  import { APP_VERSION } from '$lib/version.js';
 
   interface Props {
     children?: import('svelte').Snippet;
@@ -69,7 +70,33 @@
 
 {@render children?.()}
 
+<footer class="app-footer" aria-label="Build info">
+  <span class="app-footer-version" title="Build version">v{APP_VERSION}</span>
+</footer>
+
 <style>
+  .app-footer {
+    /* Lightweight build-info strip — sits at the document end so no page
+       has to opt in. Uses a fixed corner instead of a full-width bar so it
+       never crowds the actual page footer / footnote. */
+    position: fixed;
+    right: max(12px, env(safe-area-inset-right, 0px));
+    bottom: max(12px, env(safe-area-inset-bottom, 0px));
+    z-index: 20;
+    pointer-events: none;
+  }
+  .app-footer-version {
+    pointer-events: auto;
+    font-family: var(--font-mono, ui-monospace, monospace);
+    font-size: 11px;
+    color: var(--muted, var(--dim));
+    background: color-mix(in srgb, var(--surface) 75%, transparent);
+    padding: 3px 8px;
+    border-radius: 9999px;
+    border: 1px solid var(--border);
+    user-select: text;
+  }
+
   .appbar {
     position: sticky;
     top: 0;
