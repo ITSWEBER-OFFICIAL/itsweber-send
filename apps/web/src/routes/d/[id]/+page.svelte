@@ -9,8 +9,15 @@
     fromBase64url,
     unwrapMasterKey,
   } from '$lib/crypto/index.js';
-  import { decodeManifest, downloadV1, downloadV2 } from '$lib/download/client.js';
   import {
+    decodeManifest,
+    downloadV1,
+    downloadV2,
+    streamV1ToWritable,
+    streamV2ToWritable,
+  } from '$lib/download/client.js';
+  import {
+    pickFileDestination,
     pickZipDestination,
     streamShareAsZip,
     supportsFileSystemAccess,
@@ -159,8 +166,63 @@
     if (!file) return;
 
     fileStates[fileIndex] = 'downloading';
+    const blobNum = parseInt(file.blobId.replace('blob-', ''), 10);
+
+    // FSA streaming-to-disk path (Chrome/Edge). For v2 this keeps peak
+    // RAM bounded by the manifest's chunk size — a 50 GB file decrypts in
+    // 16 MiB increments and writes plaintext straight to disk, so the
+    // browser never holds the full plaintext in memory. v1 remains a
+    // single AES-GCM op (legacy 500 MB cap), but skipping the Blob save
+    // step still halves peak RAM.
+    //
+    // Fall back to the buffered Blob path when FSA is unavailable, the
+    // permission flow rejects (no user gesture, no transient activation,
+    // SecurityError under automation), or the call throws for any other
+    // reason. The user-cancel case (`null` from pickFileDestination)
+    // intentionally does NOT fall back — the user explicitly said no.
+    if (fsaSupported) {
+      let writable: WritableStream<Uint8Array> | null = null;
+      let pickerThrew = false;
+      try {
+        writable = await pickFileDestination(file.name, file.mime || 'application/octet-stream');
+      } catch {
+        pickerThrew = true;
+      }
+      if (writable) {
+        try {
+          if (manifestVersion === 1) {
+            const v1file = file as Manifest['files'][number];
+            await streamV1ToWritable(shareId, blobNum, v1file.iv, masterKey, writable);
+          } else {
+            const v2file = file as ManifestV2['files'][number];
+            await streamV2ToWritable(shareId, blobNum, v2file.chunks, masterKey, writable);
+          }
+          fileStates[fileIndex] = 'done';
+        } catch {
+          try {
+            await writable.abort('decrypt or pipe failed');
+          } catch {
+            /* writable may already be locked / closed */
+          }
+          fileStates[fileIndex] = 'idle';
+          errorMsg = $_('download.error_decrypt');
+        }
+        return;
+      }
+      // User-cancel (null + no throw): respect it — don't auto-fall-back.
+      if (!pickerThrew) {
+        fileStates[fileIndex] = 'idle';
+        return;
+      }
+      // Picker threw (no user gesture / permission denied / unsupported
+      // under automation) — fall through to the buffered Blob path so
+      // the recipient still gets the file.
+    }
+
+    // Fallback: Safari / Firefox without FSA. Buffered Blob path; capped
+    // by browser RAM. Single-file sends >~2 GB will OOM here — surfaced
+    // as the existing decrypt error rather than crashing the tab.
     try {
-      const blobNum = parseInt(file.blobId.replace('blob-', ''), 10);
       if (manifestVersion === 1) {
         const v1file = file as Manifest['files'][number];
         const iv = fromBase64url(v1file.iv);

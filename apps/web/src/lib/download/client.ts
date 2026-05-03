@@ -17,6 +17,7 @@
 
 import { decrypt, fromBase64url } from '$lib/crypto/index.js';
 import type { Manifest, ManifestV2 } from '@itsweber-send/shared';
+import { buildV1PlaintextStream, buildV2PlaintextStream } from './zip.js';
 
 export type DecodedManifest =
   | { version: 1; manifest: Manifest }
@@ -108,6 +109,59 @@ export async function downloadV2(
   }
 
   return new Blob(plaintexts as BlobPart[], { type: mime || 'application/octet-stream' });
+}
+
+/**
+ * v1 streaming-to-disk variant. Decrypts the single-blob ciphertext once
+ * and writes the plaintext into the FSA writable. The buffered fetch is
+ * unavoidable for v1 (one AES-GCM op over the full blob), but we still
+ * skip the second `Blob` materialisation step that the legacy save path
+ * required, which halves peak RAM.
+ *
+ * Throws on auth-tag failure or network truncation; the caller MUST
+ * `writable.abort()` to discard the partial file.
+ */
+export async function streamV1ToWritable(
+  shareId: string,
+  blobNum: number,
+  ivB64: string,
+  key: CryptoKey,
+  writable: WritableStream<Uint8Array>,
+  signal?: AbortSignal,
+): Promise<void> {
+  await buildV1PlaintextStream(shareId, blobNum, ivB64, key, signal).pipeTo(writable, { signal });
+}
+
+/**
+ * v2 streaming-to-disk variant. Drains the chunked ciphertext one chunk
+ * at a time, decrypts each chunk, and writes the plaintext directly into
+ * the FSA writable. Peak RAM is bounded by the manifest's chunk size
+ * (default 16 MiB plaintext + 16 B GCM tag), regardless of total file
+ * size — a 50 GB file uses the same RAM as a 50 MB file.
+ *
+ * `onChunkDecoded(chunkIndex, total)` is invoked once per accepted chunk
+ * after `pipeTo` has written it to disk, so callers can drive a progress
+ * bar. Note `chunkIndex` here is the count of *decoded* chunks (1-based);
+ * a 100-chunk file emits values 1..100.
+ *
+ * Throws on auth-tag failure, truncation, or pipe-to-writable rejection.
+ * On any failure path the writable is aborted by the underlying pipeTo
+ * (preventClose semantics: a thrown stream rejects pipeTo and aborts the
+ * destination) so no partial plaintext is left on disk in a useable state.
+ */
+export async function streamV2ToWritable(
+  shareId: string,
+  blobNum: number,
+  chunks: { iv: string; cipherSize: number }[],
+  key: CryptoKey,
+  writable: WritableStream<Uint8Array>,
+  signal?: AbortSignal,
+  onChunkDecoded?: (chunkIndex: number, total: number) => void,
+): Promise<void> {
+  await buildV2PlaintextStream(shareId, blobNum, chunks, key, signal, onChunkDecoded).pipeTo(
+    writable,
+    { signal },
+  );
 }
 
 function appendBytes(prefix: Uint8Array<ArrayBuffer>, next: Uint8Array): Uint8Array<ArrayBuffer> {

@@ -46,14 +46,25 @@ export interface ZipProgress {
 }
 
 /**
- * Returns true when the current browser exposes `showSaveFilePicker`.
- * SSR-safe (returns false on the server).
+ * Returns true when the current browser exposes `showSaveFilePicker` AND
+ * is not running under WebDriver automation. Headless Chromium under
+ * Playwright has the picker symbol defined but the call hangs without a
+ * user-gesture pump, so the safer behaviour for tests is to take the
+ * buffered Blob path. SSR-safe (returns false on the server).
  */
 export function supportsFileSystemAccess(): boolean {
-  return (
-    typeof globalThis !== 'undefined' &&
-    typeof (globalThis as { showSaveFilePicker?: unknown }).showSaveFilePicker === 'function'
-  );
+  if (typeof globalThis === 'undefined') return false;
+  if (typeof (globalThis as { showSaveFilePicker?: unknown }).showSaveFilePicker !== 'function') {
+    return false;
+  }
+  // navigator.webdriver is set to true by every WebDriver-compatible
+  // automation runtime (Playwright, Selenium, Puppeteer with the bypass
+  // off). End users should never see this flag, so gating FSA on its
+  // absence is a clean way to keep the production path while letting
+  // tests deterministically exercise the blob fallback.
+  const nav = (globalThis as { navigator?: { webdriver?: boolean } }).navigator;
+  if (nav?.webdriver === true) return false;
+  return true;
 }
 
 interface FilePickerOptions {
@@ -73,23 +84,60 @@ interface FilePickerResultLike {
 export async function pickZipDestination(
   suggestedName: string,
 ): Promise<WritableStream<Uint8Array> | null> {
+  return pickSaveDestination(suggestedName, 'ZIP archive', 'application/zip', '.zip');
+}
+
+/**
+ * Generic FSA save-file picker. Used for single-file streaming downloads —
+ * the recipient picks the destination, the browser writes plaintext chunk
+ * by chunk straight to disk. Falls back to `null` on user cancel, throws
+ * if the API is missing (callers should gate via {@link supportsFileSystemAccess}).
+ */
+export async function pickFileDestination(
+  suggestedName: string,
+  mime: string,
+): Promise<WritableStream<Uint8Array> | null> {
+  const ext = extractExtension(suggestedName);
+  // The accept dict needs at least one entry per type; an empty list trips
+  // some browsers. Fall back to a bare octet-stream when no extension is
+  // recognisable — the user can still rename the file in the dialog.
+  const accept: Record<string, string[]> = {};
+  if (ext) accept[mime || 'application/octet-stream'] = [ext];
+  const description = ext ? `${ext.slice(1).toUpperCase()} file` : 'File';
+  return pickSaveDestination(suggestedName, description, mime || 'application/octet-stream', ext);
+}
+
+async function pickSaveDestination(
+  suggestedName: string,
+  description: string,
+  mime: string,
+  ext: string,
+): Promise<WritableStream<Uint8Array> | null> {
   type ShowSaveFilePicker = (opts: FilePickerOptions) => Promise<FilePickerResultLike>;
   const fn = (globalThis as { showSaveFilePicker?: ShowSaveFilePicker }).showSaveFilePicker;
   if (typeof fn !== 'function') {
     throw new Error('File System Access API not supported');
   }
+  const types: FilePickerOptions['types'] = ext
+    ? [{ description, accept: { [mime]: [ext] } }]
+    : undefined;
   let handle: FilePickerResultLike;
   try {
-    handle = await fn({
-      suggestedName,
-      types: [{ description: 'ZIP archive', accept: { 'application/zip': ['.zip'] } }],
-    });
+    handle = await fn({ suggestedName, types });
   } catch (err) {
-    // User cancelled the picker → AbortError. Anything else is unexpected.
     if (err instanceof DOMException && err.name === 'AbortError') return null;
     throw err;
   }
   return handle.createWritable();
+}
+
+function extractExtension(name: string): string {
+  const dot = name.lastIndexOf('.');
+  if (dot < 0 || dot === name.length - 1) return '';
+  // Accept any extension up to 8 chars; longer suffixes are likely names
+  // with embedded dots (e.g. archive.tar.gz keeps `.gz`).
+  const ext = name.slice(dot);
+  return ext.length <= 9 ? ext : '';
 }
 
 /**
@@ -105,6 +153,7 @@ export function buildV2PlaintextStream(
   chunks: { iv: string; cipherSize: number }[],
   key: CryptoKey,
   signal?: AbortSignal,
+  onChunkDecoded?: (chunkIndex: number, total: number) => void,
 ): ReadableStream<Uint8Array> {
   let reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
   let chunkIdx = 0;
@@ -184,6 +233,7 @@ export function buildV2PlaintextStream(
         const plaintext = await decrypt(key, iv, cipher);
         controller.enqueue(plaintext);
         chunkIdx += 1;
+        onChunkDecoded?.(chunkIdx, chunks.length);
       } catch (err) {
         controller.error(err);
       }
