@@ -259,6 +259,45 @@ volumes:
 
 ---
 
+## v1.2 — FSA-Single-Download hängt unter Playwright
+
+**Symptom**
+E2E-Tests timeouten beim `page.waitForEvent('download')`. Im Headless-Chromium passiert nichts, sobald der "Herunterladen"-Button geklickt wurde.
+
+**Ursache**
+`showSaveFilePicker` ist im Chromium-Build vorhanden, aber unter Playwright/WebDriver hängt der Aufruf ohne User-Activation. Der Promise resolves nie und wirft auch nicht — der Code blockiert auf `await fn(...)`.
+
+**Fix**
+`supportsFileSystemAccess()` in [apps/web/src/lib/download/zip.ts](../apps/web/src/lib/download/zip.ts) gated zusätzlich gegen `navigator.webdriver === true`. Headless-Tests fallen damit deterministisch auf den gepufferten Blob-Pfad zurück, Endnutzer-Browser bleiben auf dem Streaming-Pfad.
+
+---
+
+## v1.2 — Cross-Session-Resume verliert den Master-Key
+
+**Symptom**
+Nutzer schließt Tab während des Uploads, öffnet die Hauptseite wieder, sieht keine Resume-Möglichkeit oder bekommt "Resume requires the master key" Fehler.
+
+**Ursache**
+Der Master-Key liegt by design nur im URL-Fragment, nie in localStorage. Wer die Upload-URL nicht behält, hat keinen Weg, den Key wieder zur Hand zu haben.
+
+**Fix**
+[apps/web/src/routes/+page.svelte](../apps/web/src/routes/+page.svelte) schreibt beim Upload-Start `#u=<id>&k=<keyB64>` in die Adressleiste. Wer den Tab schließt und die URL über History/Lesezeichen wieder öffnet, hat beide Hälften (localStorage-State + Fragment-Key) und kann fortsetzen. Fehlt das Fragment, zeigt der Banner einen klaren Hinweis statt eine stille Resume-Verweigerung.
+
+---
+
+## v1.2 — `notifyEmail requires an authenticated session` (400)
+
+**Symptom**
+Bei aktivierter Notification fängt die Resumable-Upload-Erstellung mit HTTP 400 zurück, obwohl der Nutzer eingeloggt zu sein scheint.
+
+**Ursache**
+`request.user` wird vom `sessionMiddleware` nur gesetzt, wenn entweder die `sid`-Cookie oder ein Bearer-Token gültig auflöst. Bei abgelaufener Session kommt der Toggle aus dem Frontend mit, der API-Call ist aber anonym → 400.
+
+**Fix**
+Frontend deaktiviert den Toggle automatisch wenn `auth.user === null` ([apps/web/src/routes/+page.svelte](../apps/web/src/routes/+page.svelte) → `notifyAvailable` derived). Nach Logout wird `useNotify` per `$effect` zurückgesetzt. Falls die Session zwischen Toggle-Klick und API-Call abläuft, ist der 400-Fehler die korrekte Antwort und wird vom UI als generischer Upload-Fehler angezeigt.
+
+---
+
 ## Handhabe
 
 Beim Hinzufügen eines neuen Eintrags: knappes Symptom (was sieht der Entwickler in Logs/UI), präzise Ursache (warum, nicht bloß was), und konkreter Fix (Code-Snippet oder Link auf Datei). Keine Lehrbuch-Erklärungen — wer das hier liest, braucht die Lösung.

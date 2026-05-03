@@ -13,9 +13,18 @@
   import Eye from '$lib/components/icons/Eye.svelte';
   import EyeOff from '$lib/components/icons/EyeOff.svelte';
   import Check from '$lib/components/icons/Check.svelte';
-  import { startResumableUpload, type ResumableUploadHandle } from '$lib/upload/resumable.js';
+  import { onMount } from 'svelte';
+  import {
+    startResumableUpload,
+    resumeExistingUpload,
+    listPendingUploads,
+    discardPendingUpload,
+    type PendingUploadSummary,
+    type ResumableUploadHandle,
+  } from '$lib/upload/resumable.js';
   import { wordCodeFromId } from '$lib/share/wordcode.js';
   import { UploadError } from '$lib/upload/client.js';
+  import { auth } from '$lib/stores/auth.svelte.js';
 
   type FilePhase = 'queued' | 'encrypting' | 'encrypted' | 'uploading' | 'paused' | 'done';
   type Phase = 'idle' | 'encrypting' | 'uploading' | 'paused' | 'done' | 'error';
@@ -142,6 +151,14 @@
       downloadLimit,
       password: usePassword ? password : undefined,
       note: note.trim() || undefined,
+      notifyEmail: useNotify && notifyAvailable ? notifyEmailAddress : undefined,
+      onUploadIdReady: (uploadId, keyB64) => {
+        // Park the id+key in the URL fragment so a tab close + reopen
+        // of the *same* URL exposes both halves of the resume contract:
+        // the localStorage entry (id, IVs) plus the master key. Without
+        // this hop the user would have no way to recover after closing.
+        setUploadFragment(uploadId, keyB64);
+      },
       onProgress: (sent, total) => {
         uploadProgress = total === 0 ? 0 : sent / total;
         if (phase === 'encrypting') phase = 'uploading';
@@ -169,6 +186,8 @@
       filePhases = filePhases.map(() => 'done');
       uploadProgress = 1;
       phase = 'done';
+      clearUploadFragment();
+      refreshPendingUploads();
     } catch (e) {
       if (e instanceof UploadError) {
         if (e.code === 'http_error') {
@@ -275,6 +294,130 @@
   // True when the share can be fully reconstructed from wordcode + password (voice-only sharing).
   const voiceShareReady = $derived(useWordcode && usePassword && password.length >= 4);
   const wordcodeNeedsPassword = $derived(useWordcode && !usePassword);
+
+  // Notify-on-download is gated by login: the API rejects anonymous
+  // uploads that set notifyEmail, and only an authenticated user has a
+  // recipient address to use.
+  const notifyAvailable = $derived(Boolean(auth.user?.email));
+  const notifyEmailAddress = $derived(auth.user?.email ?? '');
+  // Auto-disable the toggle if the user logs out mid-session.
+  $effect(() => {
+    if (!notifyAvailable && useNotify) useNotify = false;
+  });
+
+  // Cross-session resume state. The URL fragment carries the master key
+  // (`#u=<uploadId>&k=<keyB64>`) — without it we cannot decrypt or
+  // continue any prior upload, so the banner explains the situation
+  // rather than silently no-opping.
+  let pendingUploads = $state<PendingUploadSummary[]>([]);
+  let pendingMatchedId = $state<string | null>(null);
+  let pendingFragmentKey = $state<string | null>(null);
+  let resumeError = $state('');
+  let resumeFileInput: HTMLInputElement | undefined = $state();
+
+  function refreshPendingUploads(): void {
+    pendingUploads = listPendingUploads();
+    if (typeof window === 'undefined') return;
+    const hash = window.location.hash.startsWith('#') ? window.location.hash.slice(1) : '';
+    const params = new URLSearchParams(hash);
+    const u = params.get('u');
+    const k = params.get('k');
+    if (u && k && pendingUploads.some((p) => p.uploadId === u)) {
+      pendingMatchedId = u;
+      pendingFragmentKey = k;
+    } else {
+      pendingMatchedId = null;
+      pendingFragmentKey = null;
+    }
+  }
+
+  function setUploadFragment(uploadId: string, keyB64: string): void {
+    if (typeof window === 'undefined') return;
+    // Replace, never push, so the back button does not move through
+    // intermediate "during upload" states.
+    const url = new URL(window.location.href);
+    url.hash = `#u=${uploadId}&k=${keyB64}`;
+    window.history.replaceState({}, '', url.toString());
+  }
+
+  function clearUploadFragment(): void {
+    if (typeof window === 'undefined') return;
+    const url = new URL(window.location.href);
+    url.hash = '';
+    window.history.replaceState({}, '', url.pathname + url.search);
+  }
+
+  function pickResumeFiles(): void {
+    resumeFileInput?.click();
+  }
+
+  function discardPending(uploadId: string): void {
+    discardPendingUpload(uploadId);
+    if (pendingMatchedId === uploadId) {
+      pendingMatchedId = null;
+      pendingFragmentKey = null;
+      clearUploadFragment();
+    }
+    refreshPendingUploads();
+  }
+
+  async function onResumeFilesPicked(e: Event): Promise<void> {
+    const input = e.target as HTMLInputElement;
+    const picked = input.files;
+    if (!picked || picked.length === 0 || !pendingMatchedId || !pendingFragmentKey) return;
+    const files = Array.from(picked);
+    input.value = '';
+
+    resumeError = '';
+    errorMsg = '';
+    selectedFiles = files;
+    filePhases = files.map(() => 'queued' as FilePhase);
+    uploadProgress = 0;
+    isPaused = false;
+    phase = 'uploading';
+
+    const handle = resumeExistingUpload(pendingMatchedId, files, pendingFragmentKey, {
+      expiryHours,
+      downloadLimit,
+      onUploadIdReady: (uploadId, keyB64) => setUploadFragment(uploadId, keyB64),
+      onProgress: (sent, total) => {
+        uploadProgress = total === 0 ? 0 : sent / total;
+      },
+      onChunkAccepted: (blobIndex) => {
+        filePhases = filePhases.map((p, i) => {
+          if (i < blobIndex) return 'done';
+          if (i === blobIndex) return 'uploading';
+          return 'queued';
+        });
+      },
+    });
+    uploadHandle = handle;
+
+    try {
+      const result = await handle.done;
+      shareId = result.id;
+      shareUrl = `${window.location.origin}/d/${result.id}#k=${result.key}`;
+      wordCode = result.wordcode ?? (await wordCodeFromId(result.id));
+      shareExpiresAt = result.expiresAt;
+      filePhases = filePhases.map(() => 'done');
+      uploadProgress = 1;
+      phase = 'done';
+      pendingMatchedId = null;
+      pendingFragmentKey = null;
+      clearUploadFragment();
+      refreshPendingUploads();
+    } catch (e2) {
+      resumeError = e2 instanceof Error ? e2.message : 'Resume failed';
+      errorMsg = resumeError;
+      phase = 'error';
+    } finally {
+      uploadHandle = null;
+    }
+  }
+
+  onMount(() => {
+    refreshPendingUploads();
+  });
 </script>
 
 <main class="page">
@@ -296,6 +439,61 @@
         <span class="enc-pill"><Lock size={14} /> {$_('upload.enc_pill')}</span>
       </div>
       <div class="panel-body">
+        {#if (phase === 'idle' || phase === 'error') && pendingUploads.length > 0}
+          {#each pendingUploads as p (p.uploadId)}
+            <div class="resume-banner" role="status" aria-live="polite">
+              <div class="resume-head">
+                <strong>{$_('upload.resume_banner_title')}</strong>
+                <span class="resume-meta">
+                  {$_('upload.resume_banner_meta', {
+                    values: {
+                      count: p.fileCount,
+                      size: formatBytes(p.totalCipherBytes),
+                      expires: formatExpiry(p.expiresAt),
+                    },
+                  })}
+                </span>
+              </div>
+              {#if pendingMatchedId === p.uploadId && pendingFragmentKey}
+                <p class="resume-hint">{$_('upload.resume_banner_pick_files')}</p>
+                <div class="resume-actions">
+                  <button type="button" class="btn btn-primary btn-sm" onclick={pickResumeFiles}>
+                    {$_('upload.resume_banner_button_resume')}
+                  </button>
+                  <button
+                    type="button"
+                    class="btn btn-ghost btn-sm"
+                    onclick={() => discardPending(p.uploadId)}
+                  >
+                    {$_('upload.resume_banner_button_discard')}
+                  </button>
+                </div>
+              {:else}
+                <p class="resume-hint warn">{$_('upload.resume_banner_key_missing')}</p>
+                <div class="resume-actions">
+                  <button
+                    type="button"
+                    class="btn btn-ghost btn-sm"
+                    onclick={() => discardPending(p.uploadId)}
+                  >
+                    {$_('upload.resume_banner_button_discard')}
+                  </button>
+                </div>
+              {/if}
+              {#if resumeError && pendingMatchedId === p.uploadId}
+                <p class="resume-error">{resumeError}</p>
+              {/if}
+            </div>
+          {/each}
+          <input
+            type="file"
+            multiple
+            class="visually-hidden"
+            bind:this={resumeFileInput}
+            onchange={(e) => void onResumeFilesPicked(e)}
+          />
+        {/if}
+
         {#if phase === 'idle' || phase === 'error'}
           <!-- Drop zone -->
           <div
@@ -713,12 +911,22 @@
               aria-checked={useNotify}
               aria-label={$_('upload.notify_toggle_aria')}
               onclick={() => (useNotify = !useNotify)}
-              disabled
+              disabled={!notifyAvailable}
             >
               <span class="switch-track"></span>
             </button>
           </div>
-          <span class="hint-line">{$_('upload.notify_hint')}</span>
+          {#if !notifyAvailable}
+            <span class="hint-line">{$_('upload.notify_hint_login_required')}</span>
+          {:else if useNotify}
+            <span class="hint-line ok"
+              >{$_('upload.notify_hint_active', { values: { email: notifyEmailAddress } })}</span
+            >
+          {:else}
+            <span class="hint-line"
+              >{$_('upload.notify_hint_ready', { values: { email: notifyEmailAddress } })}</span
+            >
+          {/if}
         </div>
       </div>
     </aside>
@@ -1378,6 +1586,46 @@
     clip: rect(0, 0, 0, 0);
     white-space: nowrap;
     border: 0;
+  }
+
+  .resume-banner {
+    margin-bottom: 18px;
+    padding: 14px 16px;
+    border-radius: var(--radius);
+    background: color-mix(in srgb, var(--brand) 8%, var(--surface));
+    border: 1px solid color-mix(in srgb, var(--brand) 25%, var(--border));
+    display: grid;
+    gap: 8px;
+  }
+  .resume-head {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 8px;
+  }
+  .resume-meta {
+    color: var(--muted);
+    font-size: 12px;
+  }
+  .resume-hint {
+    margin: 0;
+    font-size: 13px;
+    color: var(--text);
+    line-height: 1.5;
+  }
+  .resume-hint.warn {
+    color: var(--warning, #b45309);
+  }
+  .resume-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .resume-error {
+    margin: 0;
+    font-size: 12px;
+    color: var(--danger);
   }
 
   @media (max-width: 480px) {
