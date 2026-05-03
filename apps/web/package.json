@@ -20,6 +20,7 @@
   "dependencies": {
     "@itsweber-send/shared": "workspace:*",
     "@itsweber-send/theme": "workspace:*",
+    "client-zip": "^2.5.0",
     "qrcode": "^1.5.4",
     "svelte-i18n": "^4.0.1"
   },

@@ -10,10 +10,17 @@
     unwrapMasterKey,
   } from '$lib/crypto/index.js';
   import { decodeManifest, downloadV1, downloadV2 } from '$lib/download/client.js';
+  import {
+    pickZipDestination,
+    streamShareAsZip,
+    supportsFileSystemAccess,
+    type ZipProgress,
+  } from '$lib/download/zip.js';
   import type { DownloadManifestResponse } from '@itsweber-send/shared';
 
   type Phase = 'loading' | 'password_required' | 'decrypting' | 'ready' | 'error';
   type FileState = 'idle' | 'downloading' | 'done';
+  type ZipPhase = 'idle' | 'streaming' | 'done' | 'error';
 
   const { data } = $props<{ data: { id: string } }>();
   const shareId = $derived(data.id);
@@ -29,7 +36,13 @@
   let masterKey = $state<CryptoKey | null>(null);
 
   let fileStates = $state<FileState[]>([]);
-  let downloadingAll = $state(false);
+
+  // Block B (ZIP streaming) state. The browser-capability check happens
+  // once on mount; the FSA gate is the only thing standing between the
+  // ZIP path and a memory blow-up on huge multi-file shares.
+  let fsaSupported = $state(false);
+  let zipPhase = $state<ZipPhase>('idle');
+  let zipProgress = $state<ZipProgress | null>(null);
 
   function formatBytes(bytes: number): string {
     if (bytes < 1024) return `${bytes} B`;
@@ -165,21 +178,63 @@
     }
   }
 
-  async function downloadAll(): Promise<void> {
-    if (!manifest || !masterKey || downloadingAll) return;
-    downloadingAll = true;
-    for (let i = 0; i < manifest.files.length; i++) {
-      if (fileStates[i] !== 'done') {
-        await downloadFile(i);
-        if (i < manifest.files.length - 1) {
-          await new Promise<void>((r) => setTimeout(r, 250));
-        }
+  /**
+   * ZIP-streaming path. Uses showSaveFilePicker so the browser writes the
+   * archive directly to disk — no in-memory ZIP buffer. The streamShareAsZip
+   * helper fetches each blob in manifest order, decrypts chunk-by-chunk,
+   * and pipes the plaintext through the ZIP encoder into the writable.
+   * The server-side download counter increments exactly once on the last
+   * blob's full read, so a ZIP counts as one share-download.
+   */
+  async function downloadAllAsZip(): Promise<void> {
+    if (!manifest || !masterKey || zipPhase === 'streaming') return;
+    if (!fsaSupported) return;
+
+    let writable: WritableStream<Uint8Array> | null;
+    try {
+      writable = await pickZipDestination(`share-${shareId}.zip`);
+    } catch {
+      zipPhase = 'error';
+      errorMsg = $_('download.zip_failed');
+      return;
+    }
+    if (!writable) {
+      // User cancelled the save dialog; stay in idle, no error.
+      return;
+    }
+
+    zipPhase = 'streaming';
+    zipProgress = null;
+    errorMsg = '';
+    try {
+      await streamShareAsZip(
+        shareId,
+        manifestVersion === 2
+          ? { version: 2, manifest: manifest as ManifestV2 }
+          : { version: 1, manifest: manifest as Manifest },
+        masterKey,
+        writable,
+        (p) => {
+          zipProgress = p;
+        },
+      );
+      zipPhase = 'done';
+      zipProgress = null;
+      // Mark every per-file state as 'done' so the UI reflects completion.
+      fileStates = fileStates.map(() => 'done' as FileState);
+    } catch {
+      zipPhase = 'error';
+      errorMsg = $_('download.zip_failed');
+      try {
+        await writable.abort('zip stream failed');
+      } catch {
+        // best-effort cleanup
       }
     }
-    downloadingAll = false;
   }
 
   onMount(() => {
+    fsaSupported = supportsFileSystemAccess();
     void fetchManifest();
   });
 </script>
@@ -248,14 +303,50 @@
         {/if}
 
         {#if manifest.files.length > 1}
-          <button
-            class="btn-download-all"
-            onclick={() => void downloadAll()}
-            disabled={downloadingAll}
-          >
-            {#if downloadingAll}
-              <span class="spinner-sm" aria-hidden="true"></span>
-            {:else}
+          {#if fsaSupported}
+            <button
+              class="btn-download-all"
+              onclick={() => void downloadAllAsZip()}
+              disabled={zipPhase === 'streaming'}
+            >
+              {#if zipPhase === 'streaming'}
+                <span class="spinner-sm" aria-hidden="true"></span>
+              {:else}
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.6"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  width="15"
+                  height="15"
+                  aria-hidden="true"
+                >
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="7 10 12 15 17 10" />
+                  <line x1="12" y1="15" x2="12" y2="3" />
+                </svg>
+              {/if}
+              {#if zipPhase === 'streaming'}
+                {$_('download.zip_streaming_in_progress')}
+              {:else}
+                {$_('download.download_all_zip')}
+              {/if}
+            </button>
+            {#if zipPhase === 'streaming' && zipProgress}
+              <p class="zip-progress" aria-live="polite">
+                {$_('download.zip_progress_file', {
+                  values: {
+                    current: zipProgress.fileIndex + 1,
+                    total: zipProgress.fileCount,
+                    name: zipProgress.fileName,
+                  },
+                })}
+              </p>
+            {/if}
+          {:else}
+            <div class="zip-unavailable" role="note" aria-live="polite">
               <svg
                 viewBox="0 0 24 24"
                 fill="none"
@@ -263,17 +354,20 @@
                 stroke-width="1.6"
                 stroke-linecap="round"
                 stroke-linejoin="round"
-                width="15"
-                height="15"
+                width="14"
+                height="14"
                 aria-hidden="true"
               >
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                <polyline points="7 10 12 15 17 10" />
-                <line x1="12" y1="15" x2="12" y2="3" />
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="8" x2="12" y2="12" />
+                <line x1="12" y1="16" x2="12.01" y2="16" />
               </svg>
-            {/if}
-            {$_('download.download_all')}
-          </button>
+              <div>
+                <p class="zip-unavailable-title">{$_('download.zip_unavailable_title')}</p>
+                <p class="zip-unavailable-hint">{$_('download.zip_unavailable_hint')}</p>
+              </div>
+            </div>
+          {/if}
         {/if}
 
         <ul class="file-list" aria-label="Dateien">
@@ -490,6 +584,42 @@
   }
   .btn-download-all:not(:disabled):hover {
     opacity: 0.88;
+  }
+
+  .zip-progress {
+    color: var(--muted);
+    font-size: 12px;
+    margin: 0 0 14px;
+    text-align: center;
+    word-break: break-word;
+  }
+
+  .zip-unavailable {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 12px 14px;
+    margin-bottom: 14px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--muted);
+  }
+  .zip-unavailable svg {
+    color: var(--muted);
+    margin-top: 2px;
+    flex-shrink: 0;
+  }
+  .zip-unavailable-title {
+    font-size: 13px;
+    font-weight: 600;
+    margin: 0 0 2px;
+    color: var(--text);
+  }
+  .zip-unavailable-hint {
+    font-size: 12px;
+    line-height: 1.45;
+    margin: 0;
   }
 
   /* File list */

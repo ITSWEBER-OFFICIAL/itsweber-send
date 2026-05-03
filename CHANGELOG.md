@@ -4,10 +4,11 @@ All notable changes to ITSWEBER Send are documented here.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.1.0] - 2026-05-02
+## [1.1.0] - 2026-05-03
 
 ### Added
 
+- Streaming ZIP download for multi-file shares: when the recipient's browser supports the File System Access API (`showSaveFilePicker`), the "Alle als ZIP herunterladen" button streams every file through a `client-zip` encoder directly into a writable on disk — no in-memory ZIP buffer, no 2× file-size RAM peak. Each blob is fetched and decrypted chunk-by-chunk; an auth-tag failure aborts the writable so partial mis-authenticated plaintext is never delivered. The button is hidden on browsers without the API (Safari, Firefox) with an explanatory note; per-file downloads stay available everywhere. The server-side download counter increments exactly once per ZIP, matching `docs/V1.1_DECISIONS.md` §6.
 - Resumable, chunked uploads (`/api/v1/uploads/*`) so files of arbitrary size — well past the previous 500 MB single-shot ceiling — can be uploaded without buffering the full plaintext or ciphertext on either side. The browser splits each file into 16 MiB chunks (configurable via `CHUNK_SIZE_BYTES`) and PATCHes one chunk at a time; the server appends each chunk to disk via `fs.createWriteStream`. The legacy `/api/v1/upload` route stays for v1.0 client compatibility.
 - Manifest format v2: chunked AES-256-GCM with a unique random IV per chunk, written into the encrypted manifest. v1 manifests stay decryptable. Spec: [`packages/crypto-spec/README.md`](packages/crypto-spec/README.md).
 - `StorageAdapter` stream extension (`appendStream`, `getStream`, `size`); the filesystem adapter implements true streaming append + Range read; the S3 adapter ships range-aware streaming downloads (the multipart-based resumable adapter for S3 is tracked for the next iteration).
