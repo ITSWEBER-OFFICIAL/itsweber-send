@@ -41,10 +41,19 @@ LABEL org.opencontainers.image.title="ITSWEBER Send" \
       org.opencontainers.image.licenses="AGPL-3.0-only"
 
 ENV NODE_ENV=production \
-    HOST=0.0.0.0 \
+    HOST=127.0.0.1 \
     PORT=3000 \
     STORAGE_PATH=/data/uploads \
-    DB_PATH=/data/shares.db
+    DB_PATH=/data/shares.db \
+    XDG_DATA_HOME=/data \
+    XDG_CONFIG_HOME=/data/caddy-config
+
+# Caddy provides HTTPS termination on 8443 inside the same container so
+# the deployment is a single image with a single port. Caddy stores its
+# self-signed certs under $XDG_DATA_HOME/caddy (= /data/caddy) so they
+# survive container restarts. The image stays small — alpine's caddy
+# package is ~25 MB.
+RUN apk add --no-cache caddy
 
 # Non-root user (UID 10001 to avoid clash with common host users).
 # No extra packages installed: the healthcheck uses node's built-in http module
@@ -60,17 +69,30 @@ COPY --from=builder --chown=app:app /deploy/api ./apps/api
 # Web: static build output served by the Node adapter
 COPY --from=builder --chown=app:app /app/apps/web/build ./apps/web/build
 
+# Caddy reverse-proxy + entrypoint
+COPY docker/Caddyfile.aio /etc/caddy/Caddyfile
+COPY docker/entrypoint.sh /entrypoint.sh
+RUN chmod 0755 /entrypoint.sh
+
 # Data volumes — owned by the unprivileged user so a read-only rootfs at
-# runtime still allows uploads to be written under /data.
-RUN mkdir -p /data/uploads /data/db && chown -R app:app /data
+# runtime still allows uploads to be written under /data, and so Caddy
+# can place its cert / config dirs alongside.
+RUN mkdir -p /data/uploads /data/db /data/caddy /data/caddy-config && \
+    chown -R app:app /data
 VOLUME ["/data"]
 
+# 8443 is an unprivileged port (>=1024) so the unprivileged user can
+# bind it without setcap / NET_BIND_SERVICE. If you ever switch to
+# 80/443 you'll need `apk add libcap` plus `setcap cap_net_bind_service`,
+# OR a fronting reverse proxy on the host that maps the public ports.
+
 USER 10001:10001
-EXPOSE 3000
+EXPOSE 8443
 
 # Container is meant to run with `--read-only` and `--tmpfs /tmp:size=64m,mode=1777`.
-# Healthcheck uses node's http module so no extra binary is required in the image.
+# Healthcheck hits the Node API directly on loopback so a momentary Caddy
+# hiccup does not flap the container's liveness state.
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
   CMD node -e "require('http').get('http://127.0.0.1:'+(process.env.PORT||3000)+'/health',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))" || exit 1
 
-CMD ["node", "apps/api/build/server.js"]
+CMD ["/entrypoint.sh"]

@@ -1,10 +1,11 @@
-# LAN test setup: Send + Caddy with self-signed certs (Web Crypto needs HTTPS).
+# LAN test setup: single all-in-one container running both Caddy (HTTPS
+# termination on 8443 with self-signed certs) and the Node application
+# behind it. Web Crypto needs HTTPS — Caddy's `tls internal` makes the
+# self-signed cert path work for LAN IPs without external dependencies.
+#
 # Bring up:    docker compose -f docker/docker-compose.lan.yml up -d
 # Tear down:   docker compose -f docker/docker-compose.lan.yml down
 # Open:        https://<host-ip>:8443  (accept the cert warning once)
-#
-# Container hardening matches docker-compose.yml so the LAN test environment
-# exercises the same security posture as production.
 
 services:
   send:
@@ -20,49 +21,21 @@ services:
       - no-new-privileges:true
     environment:
       NODE_ENV: production
-      HOST: 0.0.0.0
+      HOST: 127.0.0.1
       PORT: 3000
       ORIGIN: ${ORIGIN:-https://localhost:8443}
       BASE_URL: ${ORIGIN:-https://localhost:8443}
+      # Caddy embeds the LAN IP into its self-signed cert. Override
+      # SEND_HOST when running on a host other than 192.168.0.10 so the
+      # cert covers your hostname / IP.
+      SEND_HOST: ${SEND_HOST:-192.168.0.10}
       LOG_LEVEL: info
       STORAGE_PATH: /data/uploads
       DB_PATH: /data/shares.db
     volumes:
       - send-data:/data
-    networks:
-      - send-net
-    expose:
-      - '3000'
-
-  caddy:
-    image: caddy:2-alpine
-    container_name: itsweber-send-caddy
-    restart: unless-stopped
-    cap_drop:
-      - ALL
-    cap_add:
-      - NET_BIND_SERVICE
-      - CHOWN
-      - SETUID
-      - SETGID
-    security_opt:
-      - no-new-privileges:true
     ports:
       - '8443:8443'
-    volumes:
-      - ./Caddyfile.lan:/etc/caddy/Caddyfile:ro
-      - caddy-data:/data
-      - caddy-config:/config
-    networks:
-      - send-net
-    depends_on:
-      - send
-
-networks:
-  send-net:
-    driver: bridge
 
 volumes:
   send-data:
-  caddy-data:
-  caddy-config:
