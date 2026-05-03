@@ -46,6 +46,28 @@ export async function buildServer() {
     if (!config.storage.s3.bucket) {
       throw new Error('S3_BUCKET must be set when STORAGE_BACKEND=s3');
     }
+    // S3 multipart enforces a 5 MiB minimum part size (except the last
+    // part) and a 10 000-part ceiling per object. Validate the configured
+    // chunk size up front so we fail at boot rather than mid-upload.
+    const minPartSize = 5 * 1024 * 1024;
+    if (config.uploads.chunkSizeBytes < minPartSize) {
+      throw new Error(
+        `STORAGE_BACKEND=s3 requires CHUNK_SIZE_BYTES >= ${minPartSize} (5 MiB); ` +
+          `got ${config.uploads.chunkSizeBytes}`,
+      );
+    }
+    const s3MaxBlobBytes = 10000 * config.uploads.chunkSizeBytes;
+    if (config.uploads.maxBlobBytes > s3MaxBlobBytes) {
+      app.log.warn(
+        {
+          maxBlobBytes: config.uploads.maxBlobBytes,
+          chunkSizeBytes: config.uploads.chunkSizeBytes,
+          s3MaxBlobBytes,
+        },
+        'MAX_BLOB_BYTES exceeds the S3 multipart per-object ceiling at the current chunk size; ' +
+          'increase CHUNK_SIZE_BYTES or lower MAX_BLOB_BYTES',
+      );
+    }
     storage = new S3Storage(config.storage.s3.bucket, {
       endpoint: config.storage.s3.endpoint || undefined,
       region: config.storage.s3.region,

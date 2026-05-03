@@ -8,6 +8,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
+- S3 multipart-based resumable uploads: `S3Storage.appendStream` no longer throws on chunked input — each blob now maps to one S3 multipart upload. The adapter creates the multipart on the first chunk, uses `PartNumber = chunkIndex + 1` for every subsequent `UploadPart`, and commits via the new `finalizeAppend` interface method during the share's finalize handler. After a process restart mid-upload the adapter transparently recovers the open `UploadId` from S3 (`ListMultipartUploads` filtered by the full key) and rejoins the in-progress upload from the next chunk. `S3Storage.delete` aborts every open multipart under the share prefix in addition to deleting committed objects, so cancellation never leaks billable in-flight parts. Boot-time validation refuses `STORAGE_BACKEND=s3` with `CHUNK_SIZE_BYTES < 5 MiB` (S3 multipart minimum part size) and warns when `MAX_BLOB_BYTES > 10 000 × CHUNK_SIZE_BYTES` (S3 max parts ceiling).
 - Streaming ZIP download for multi-file shares: when the recipient's browser supports the File System Access API (`showSaveFilePicker`), the "Alle als ZIP herunterladen" button streams every file through a `client-zip` encoder directly into a writable on disk — no in-memory ZIP buffer, no 2× file-size RAM peak. Each blob is fetched and decrypted chunk-by-chunk; an auth-tag failure aborts the writable so partial mis-authenticated plaintext is never delivered. The button is hidden on browsers without the API (Safari, Firefox) with an explanatory note; per-file downloads stay available everywhere. The server-side download counter increments exactly once per ZIP, matching `docs/V1.1_DECISIONS.md` §6.
 - Resumable, chunked uploads (`/api/v1/uploads/*`) so files of arbitrary size — well past the previous 500 MB single-shot ceiling — can be uploaded without buffering the full plaintext or ciphertext on either side. The browser splits each file into 16 MiB chunks (configurable via `CHUNK_SIZE_BYTES`) and PATCHes one chunk at a time; the server appends each chunk to disk via `fs.createWriteStream`. The legacy `/api/v1/upload` route stays for v1.0 client compatibility.
 - Manifest format v2: chunked AES-256-GCM with a unique random IV per chunk, written into the encrypted manifest. v1 manifests stay decryptable. Spec: [`packages/crypto-spec/README.md`](packages/crypto-spec/README.md).
@@ -28,7 +29,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Notes
 
-The S3 backend can stream downloads but does not yet accept resumable chunk uploads — `appendStream` throws an explicit error. Files up to 500 MB still work via the legacy single-shot route on S3. Multipart-based S3 resumable uploads are tracked for a follow-up release; use the filesystem backend for >500 MB on S3-only deployments in the meantime.
+The S3 backend now supports resumable chunked uploads via S3 multipart and is tested against MinIO. Per-blob ceiling on S3 is `10 000 × CHUNK_SIZE_BYTES` (≈156 GB at the default 16 MiB chunk size); raise `CHUNK_SIZE_BYTES` for larger files on S3, or use the filesystem backend which has no part-count cap.
 
 ## [1.0.0] - 2026-05-02
 

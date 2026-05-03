@@ -61,6 +61,7 @@ export class FilesystemStorage implements StorageAdapter {
     shareId: string,
     name: string,
     source: Readable,
+    _chunkIndex?: number,
   ): Promise<{ bytesWritten: number }> {
     await mkdir(this.dir(shareId), { recursive: true });
 
@@ -76,6 +77,12 @@ export class FilesystemStorage implements StorageAdapter {
     const sink = createWriteStream(this.path(shareId, name), { flags: 'a' });
     await pipeline(counter(source), sink);
     return { bytesWritten };
+  }
+
+  async finalizeAppend(_shareId: string, _name: string): Promise<void> {
+    // Filesystem writes are durable as soon as the writeStream closes; no
+    // commit step is needed. The interface declaration of `finalizeAppend`
+    // exists for multipart-upload backends like S3.
   }
 
   async size(shareId: string, name: string): Promise<number | null> {

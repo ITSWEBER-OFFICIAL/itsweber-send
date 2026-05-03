@@ -305,7 +305,7 @@ export function createUploadsResumableRoute(storage: StorageAdapter) {
 
         let written: number;
         try {
-          const result = await storage.appendStream(record.share_id, blob.blobId, source);
+          const result = await storage.appendStream(record.share_id, blob.blobId, source, cIdx);
           written = result.bytesWritten;
         } catch (err) {
           request.log.error({ err, uploadId, bIdx, cIdx }, 'chunk append failed');
@@ -399,6 +399,22 @@ export function createUploadsResumableRoute(storage: StorageAdapter) {
         // Server-measured ciphertext sizes are authoritative.
         const totalSizeBytes =
           manifestBytes.byteLength + blobs.reduce((s, b) => s + b.receivedBytes, 0);
+
+        // Multipart-upload backends (S3) need an explicit commit per blob
+        // before the object becomes downloadable. Filesystem treats this
+        // as a no-op. Done before manifest/meta puts so a partial finalize
+        // can't expose a manifest pointing to nonexistent blobs.
+        for (const blob of blobs) {
+          try {
+            await storage.finalizeAppend(record.share_id, blob.blobId);
+          } catch (err) {
+            request.log.error(
+              { err, uploadId: request.params.uploadId, blobId: blob.blobId },
+              'finalizeAppend failed',
+            );
+            return reply.status(500).send({ error: 'Storage commit failed' });
+          }
+        }
 
         await storage.put(record.share_id, 'manifest', manifestBytes);
         await storage.put(record.share_id, 'manifest.iv', Buffer.from(manifestIv));

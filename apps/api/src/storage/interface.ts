@@ -34,8 +34,27 @@ export interface StorageAdapter {
    * not exist. Used by the resumable upload path to write ciphertext
    * chunks one by one. Resolves with the number of bytes written by this
    * call (not the total file size).
+   *
+   * `chunkIndex` is the 0-based index of this chunk within the blob. The
+   * resumable upload route always passes it; backends like S3 multipart
+   * use it as `PartNumber = chunkIndex + 1` to make per-chunk writes
+   * idempotent across retries. The filesystem backend ignores it.
    */
-  appendStream(shareId: string, name: string, source: Readable): Promise<{ bytesWritten: number }>;
+  appendStream(
+    shareId: string,
+    name: string,
+    source: Readable,
+    chunkIndex?: number,
+  ): Promise<{ bytesWritten: number }>;
+
+  /**
+   * Mark `<shareId>/<name>` as fully written. For multipart-upload
+   * backends (S3) this commits the parts into a single object. The
+   * filesystem backend has no commit step and treats this as a no-op.
+   * Called by the resumable upload finalize handler once per blob,
+   * BEFORE the manifest and meta.json `put` calls. Idempotent.
+   */
+  finalizeAppend(shareId: string, name: string): Promise<void>;
 
   /**
    * Total bytes currently stored at `<shareId>/<name>`, or `null` if the

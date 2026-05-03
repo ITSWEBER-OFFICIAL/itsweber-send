@@ -23,9 +23,24 @@ Pause and resume are first-class: pressing pause halts the chunk loop after the 
 | Docker tmpfs `/tmp`            | `tmpfs size`                | 64 MiB                                                                         | Uploads do _not_ spool through `/tmp`. This is sized for short-lived per-process scratch only.                                                                                                                |
 | Container disk / volume        | physical                    | bound by the host                                                              | The on-disk encrypted blob lives under `STORAGE_PATH` (default `/data/uploads`). Make sure the volume has at least 2× the largest expected total share size to leave headroom for cleanup.                    |
 
-## S3 backend caveat
+## S3 backend
 
-The buffer-based S3 adapter that ships with v1.1 supports streaming downloads (Range-aware) but **not yet** resumable chunk uploads — `appendStream` throws an explicit error. Files up to 500 MB still work via the legacy `/api/v1/upload` route on S3 storage. Resumable chunked S3 uploads (multipart-based) are tracked for the next iteration. Use the filesystem backend for >500 MB on S3-only deployments until the multipart adapter ships.
+The S3 adapter supports both range-aware streaming downloads and resumable chunked uploads (S3 multipart). Each blob in a share maps to one S3 multipart upload; `chunkIndex` becomes `PartNumber = chunkIndex + 1`, and the upload commits via `CompleteMultipartUploadCommand` during finalize. The adapter persists no extra state in the application database — S3 itself is the source of truth for in-flight uploads, so a process restart mid-upload transparently resumes via `ListMultipartUploads` + `ListParts`.
+
+Per-blob ceiling on S3 is `10 000 × CHUNK_SIZE_BYTES` (≈156 GB at the default 16 MiB chunk size). Boot-time validation refuses `STORAGE_BACKEND=s3` with `CHUNK_SIZE_BYTES < 5 MiB` (S3 multipart minimum part size) and warns when `MAX_BLOB_BYTES` exceeds the per-blob ceiling. The filesystem backend has no part-count cap.
+
+To run the S3 multipart integration tests against a local MinIO container:
+
+```bash
+docker run --rm -d --name minio-test -p 9000:9000 \
+  -e MINIO_ROOT_USER=minioadmin -e MINIO_ROOT_PASSWORD=minioadmin \
+  minio/minio server /data
+S3_TEST_ENDPOINT=http://127.0.0.1:9000 S3_TEST_BUCKET=itsweber-send-test \
+  AWS_ACCESS_KEY_ID=minioadmin AWS_SECRET_ACCESS_KEY=minioadmin \
+  pnpm --filter @itsweber-send/api test
+```
+
+Without `S3_TEST_ENDPOINT` set the multipart suite is skipped, so the default `pnpm test` run on a developer machine without MinIO stays green.
 
 ## Verifying a large-file deployment
 
