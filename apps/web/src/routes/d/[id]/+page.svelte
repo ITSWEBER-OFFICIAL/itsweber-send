@@ -44,6 +44,11 @@
   let masterKey = $state<CryptoKey | null>(null);
 
   let fileStates = $state<FileState[]>([]);
+  // 0 .. 1 fraction of chunks decoded for the file currently downloading.
+  // Only populated for v2 / FSA streaming; the legacy Blob path doesn't
+  // expose chunk granularity. Reset to 0 between downloads so a stale
+  // bar from one file never shows on the next.
+  let fileProgress = $state<number[]>([]);
 
   // Block B (ZIP streaming) state. The browser-capability check happens
   // once on mount; the FSA gate is the only thing standing between the
@@ -147,6 +152,7 @@
     manifest = decoded.manifest;
     manifestVersion = decoded.version;
     fileStates = Array.from({ length: decoded.manifest.files.length }, () => 'idle' as FileState);
+    fileProgress = Array.from({ length: decoded.manifest.files.length }, () => 0);
     phase = 'ready';
   }
 
@@ -167,6 +173,7 @@
     if (!file) return;
 
     fileStates[fileIndex] = 'downloading';
+    fileProgress[fileIndex] = 0;
     const blobNum = parseInt(file.blobId.replace('blob-', ''), 10);
 
     // FSA streaming-to-disk path (Chrome/Edge/Vivaldi). For v2 this
@@ -186,11 +193,27 @@
           if (manifestVersion === 1) {
             const v1file = file as Manifest['files'][number];
             await streamV1ToWritable(shareId, blobNum, v1file.iv, masterKey, writable);
+            fileProgress[fileIndex] = 1;
           } else {
             const v2file = file as ManifestV2['files'][number];
-            await streamV2ToWritable(shareId, blobNum, v2file.chunks, masterKey, writable);
+            await streamV2ToWritable(
+              shareId,
+              blobNum,
+              v2file.chunks,
+              masterKey,
+              writable,
+              undefined,
+              (decoded, total) => {
+                // Progress is driven by the chunk-decoded callback that
+                // streamV2ToWritable already invokes. Each tick is "chunk
+                // N has been decrypted AND piped into the writable" — so
+                // the bar advances in lockstep with bytes hitting disk.
+                fileProgress[fileIndex] = total === 0 ? 0 : decoded / total;
+              },
+            );
           }
           fileStates[fileIndex] = 'done';
+          fileProgress[fileIndex] = 1;
         } catch {
           try {
             await writable.abort('decrypt or pipe failed');
@@ -439,7 +462,23 @@
               <span class="file-icon"><FileIcon size={15} /></span>
               <div class="file-info">
                 <span class="file-name">{file.name}</span>
-                <span class="file-meta">{formatBytes(file.size)} · {file.mime}</span>
+                <span class="file-meta">
+                  {formatBytes(file.size)} · {file.mime}
+                  {#if fileStates[i] === 'downloading' && fileProgress[i] !== undefined}
+                    · {Math.round((fileProgress[i] ?? 0) * 100)}%
+                  {/if}
+                </span>
+                {#if fileStates[i] === 'downloading'}
+                  <div
+                    class="dl-progress"
+                    role="progressbar"
+                    aria-valuemin="0"
+                    aria-valuemax="100"
+                    aria-valuenow={Math.round((fileProgress[i] ?? 0) * 100)}
+                  >
+                    <span style="width: {Math.round((fileProgress[i] ?? 0) * 100)}%"></span>
+                  </div>
+                {/if}
               </div>
               <button
                 class="btn-download"
@@ -722,6 +761,20 @@
     color: var(--muted);
     font-size: 12px;
     margin-top: 2px;
+  }
+  .dl-progress {
+    height: 4px;
+    background: var(--surface-3);
+    border-radius: 99px;
+    overflow: hidden;
+    margin-top: 8px;
+  }
+  .dl-progress > span {
+    display: block;
+    height: 100%;
+    background: var(--brand);
+    border-radius: 99px;
+    transition: width 0.2s linear;
   }
 
   .btn-download {
