@@ -953,9 +953,9 @@
     gap: 6px;
   }
   .file-actions button {
-    width: 28px;
-    height: 28px;
-    border-radius: 6px;
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
     border: 1px solid var(--border);
     background: var(--surface);
     color: var(--muted);
@@ -966,6 +966,15 @@
     transition:
       color var(--transition-fast),
       border-color var(--transition-fast);
+  }
+  /* Mobile: bump the per-file action buttons (remove / pause / resume) up
+     to a 44 px minimum so they meet WCAG 2.5.5 / Apple HIG touch-target
+     guidance. */
+  @media (max-width: 640px) {
+    .file-actions button {
+      width: 44px;
+      height: 44px;
+    }
   }
   .file-actions button:hover:not(:disabled) {
     color: var(--danger);

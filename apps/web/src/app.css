@@ -47,6 +47,10 @@ body {
 
 body {
   min-height: 100vh;
+  /* dvh accounts for the dynamic browser chrome on iOS Safari / Chrome
+     mobile so the gradient background fills the actually-visible area
+     instead of leaving a band under the URL bar. */
+  min-height: 100dvh;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
   background-image:
@@ -175,6 +179,13 @@ a:hover {
   border-color: transparent;
   font-weight: 500;
 }
+@media (max-width: 640px) {
+  /* Min 44 px tap target for the expiry / download-limit chips on mobile. */
+  .chip {
+    min-height: 44px;
+    padding: 8px 14px;
+  }
+}
 .btn {
   display: inline-flex;
   align-items: center;
@@ -228,6 +239,19 @@ a:hover {
   color: var(--text);
   font-family: inherit;
   width: 100%;
+}
+/* iOS Safari zooms when a focused input's computed font-size is below
+   16px. Bump every text input above that threshold on touch widths to
+   keep the layout stable when the receive- or password-field is tapped. */
+@media (max-width: 640px) {
+  .input,
+  input[type='text'],
+  input[type='password'],
+  input[type='email'],
+  input[type='search'],
+  textarea {
+    font-size: 16px;
+  }
 }
 .input:focus {
   outline: none;

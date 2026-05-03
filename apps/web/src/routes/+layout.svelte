@@ -78,7 +78,11 @@
     grid-template-columns: auto 1fr auto;
     align-items: center;
     gap: 16px;
-    padding: 12px 28px;
+    /* viewport-fit=cover (set in app.html) lets the page render under the
+       iOS notch / Android display cutout. Pad with the safe-area inset so
+       the brand and nav never disappear behind the camera housing. */
+    padding: max(12px, env(safe-area-inset-top, 0px)) max(28px, env(safe-area-inset-right, 0px))
+      12px max(28px, env(safe-area-inset-left, 0px));
     background: color-mix(in srgb, var(--surface) 85%, transparent);
     backdrop-filter: blur(14px) saturate(140%);
     border-bottom: 1px solid var(--border);
@@ -162,7 +166,8 @@
     .appbar {
       grid-template-columns: auto auto;
       grid-template-rows: auto auto;
-      padding: 10px 16px;
+      padding: max(10px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px))
+        10px max(16px, env(safe-area-inset-left, 0px));
     }
     .brand {
       grid-row: 1;
