@@ -21,6 +21,7 @@ import {
 } from '../db/sqlite.js';
 import { requireAdmin } from '../plugins/session.js';
 import type { StorageAdapter } from '../storage/interface.js';
+import { verifyAndSendTest } from '../utils/mailer.js';
 
 const DEFAULT_SETTINGS: Record<string, string> = {
   registration_enabled: 'true',
@@ -247,5 +248,124 @@ export function createAdminRoutes(storage: StorageAdapter) {
       }
       return reply.send(result);
     });
+
+    // ------------------------------------------------------------------ smtp
+    //
+    // SMTP runtime settings live in `system_settings` so an admin can
+    // configure the notify-on-download mailer at runtime. Sensitive
+    // fields (password) NEVER round-trip back to the client — the GET
+    // response replaces the stored value with the literal string
+    // `__set__` when one is configured, so the UI can show "stored"
+    // without exposing the secret. PATCH only updates fields that the
+    // client explicitly sent; an empty string clears, undefined leaves
+    // the existing value alone.
+
+    const SmtpKeys = [
+      'smtp_host',
+      'smtp_port',
+      'smtp_secure',
+      'smtp_user',
+      'smtp_pass',
+      'smtp_from',
+    ] as const;
+    type SmtpKey = (typeof SmtpKeys)[number];
+
+    function readSmtpForResponse(): Record<SmtpKey, string> {
+      const out = {} as Record<SmtpKey, string>;
+      for (const key of SmtpKeys) {
+        const v = getSetting(key) ?? '';
+        out[key] = key === 'smtp_pass' && v !== '' ? '__set__' : v;
+      }
+      return out;
+    }
+
+    app.get(
+      '/api/v1/admin/settings/smtp',
+      { preHandler: requireAdmin },
+      async (_request, reply) => {
+        return reply.send({
+          env: {
+            // Surface env-only values so the admin UI can show "currently
+            // taken from env" hints when no DB override exists.
+            host: (process.env.SMTP_HOST ?? '').trim(),
+            port: (process.env.SMTP_PORT ?? '').trim(),
+            secure: (process.env.SMTP_SECURE ?? '').trim(),
+            user: (process.env.SMTP_USER ?? '').trim(),
+            from: (process.env.SMTP_FROM ?? '').trim(),
+            // never echo SMTP_PASS — even via env diagnostics
+          },
+          settings: readSmtpForResponse(),
+        });
+      },
+    );
+
+    const SmtpBody = z.object({
+      smtp_host: z.string().max(254).optional(),
+      smtp_port: z
+        .string()
+        .regex(/^\d{1,5}$/, 'must be 1–65535')
+        .optional()
+        .or(z.literal('')),
+      smtp_secure: z.enum(['true', 'false', '']).optional(),
+      smtp_user: z.string().max(254).optional(),
+      smtp_pass: z.string().max(1024).optional(),
+      smtp_from: z.string().max(254).optional(),
+    });
+
+    app.patch(
+      '/api/v1/admin/settings/smtp',
+      { preHandler: requireAdmin },
+      async (request, reply) => {
+        const parsed = SmtpBody.safeParse(request.body);
+        if (!parsed.success) {
+          return reply
+            .status(400)
+            .send({ error: 'Invalid request', details: parsed.error.flatten() });
+        }
+        const data = parsed.data;
+        // Empty string deliberately clears; the DB-vs-env fallback in
+        // `getMailerConfig` then surfaces the env value (or disables the
+        // mailer entirely if env is also empty).
+        for (const key of SmtpKeys) {
+          if (data[key] !== undefined) {
+            setSetting(key, data[key]!);
+          }
+        }
+        insertAuditLog({
+          user_id: request.user!.id,
+          action: 'admin.smtp.updated',
+          resource: null,
+          ip: request.ip,
+          created_at: new Date().toISOString(),
+        });
+        return reply.send({ settings: readSmtpForResponse() });
+      },
+    );
+
+    const SmtpTestBody = z.object({ to: z.string().email() });
+    app.post(
+      '/api/v1/admin/settings/smtp/test',
+      { preHandler: requireAdmin },
+      async (request, reply) => {
+        const parsed = SmtpTestBody.safeParse(request.body);
+        if (!parsed.success) {
+          return reply.status(400).send({ error: 'Recipient is not a valid email address' });
+        }
+        try {
+          await verifyAndSendTest(parsed.data.to);
+        } catch (err) {
+          const detail = err instanceof Error ? err.message : 'unknown error';
+          return reply.status(502).send({ error: detail });
+        }
+        insertAuditLog({
+          user_id: request.user!.id,
+          action: 'admin.smtp.test_sent',
+          resource: parsed.data.to,
+          ip: request.ip,
+          created_at: new Date().toISOString(),
+        });
+        return reply.send({ ok: true });
+      },
+    );
   };
 }

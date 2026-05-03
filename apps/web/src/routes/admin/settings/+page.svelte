@@ -26,6 +26,49 @@
   let successMsg = $state<string | null>(null);
   let errorMsg = $state<string | null>(null);
 
+  // SMTP form state. The pass field is treated specially: when the
+  // server reports `__set__` we leave the input empty in the UI (so a
+  // save without typing leaves the stored secret untouched). The user
+  // has to actively type a new value to overwrite, or send an empty
+  // string to clear.
+  interface SmtpResponse {
+    env: { host: string; port: string; secure: string; user: string; from: string };
+    settings: {
+      smtp_host: string;
+      smtp_port: string;
+      smtp_secure: string;
+      smtp_user: string;
+      smtp_pass: string;
+      smtp_from: string;
+    };
+  }
+  let smtpHost = $state('');
+  let smtpPort = $state('');
+  let smtpSecure = $state(false);
+  let smtpUser = $state('');
+  let smtpPass = $state('');
+  let smtpPassConfigured = $state(false);
+  let smtpFrom = $state('');
+  let smtpEnv = $state<SmtpResponse['env']>({ host: '', port: '', secure: '', user: '', from: '' });
+  let smtpSaving = $state(false);
+  let smtpSuccessMsg = $state<string | null>(null);
+  let smtpErrorMsg = $state<string | null>(null);
+  let smtpTestRecipient = $state('');
+  let smtpTesting = $state(false);
+  let smtpTestMsg = $state<string | null>(null);
+  let smtpTestErr = $state<string | null>(null);
+
+  function applySmtp(raw: SmtpResponse) {
+    smtpEnv = raw.env;
+    smtpHost = raw.settings.smtp_host;
+    smtpPort = raw.settings.smtp_port;
+    smtpSecure = raw.settings.smtp_secure === 'true';
+    smtpUser = raw.settings.smtp_user;
+    smtpPass = '';
+    smtpPassConfigured = raw.settings.smtp_pass === '__set__';
+    smtpFrom = raw.settings.smtp_from;
+  }
+
   function applySettings(raw: RawSettings) {
     registrationEnabled = raw.registration_enabled === 'true';
     defaultQuotaGb = Math.round(parseInt(raw.default_quota_bytes, 10) / GB) || 0;
@@ -36,21 +79,117 @@
   async function load() {
     loading = true;
     try {
-      const res = await fetch('/api/v1/admin/settings');
-      if (res.status === 401) {
+      const [genRes, smtpRes] = await Promise.all([
+        fetch('/api/v1/admin/settings'),
+        fetch('/api/v1/admin/settings/smtp'),
+      ]);
+      if (genRes.status === 401) {
         await goto('/login');
         return;
       }
-      if (res.status === 403) {
+      if (genRes.status === 403) {
         forbidden = true;
         return;
       }
-      if (res.ok) {
-        const raw = (await res.json()) as RawSettings;
+      if (genRes.ok) {
+        const raw = (await genRes.json()) as RawSettings;
         applySettings(raw);
+      }
+      if (smtpRes.ok) {
+        applySmtp((await smtpRes.json()) as SmtpResponse);
       }
     } finally {
       loading = false;
+    }
+  }
+
+  async function saveSmtp() {
+    smtpSaving = true;
+    smtpSuccessMsg = null;
+    smtpErrorMsg = null;
+    try {
+      // Only include `smtp_pass` in the payload when the user actually
+      // typed something. An untouched, empty input means "leave the
+      // stored secret alone"; the explicit `__clear` checkbox below is
+      // the way to wipe a stored secret.
+      const payload: Record<string, string> = {
+        smtp_host: smtpHost.trim(),
+        smtp_port: smtpPort.trim(),
+        smtp_secure: smtpSecure ? 'true' : 'false',
+        smtp_user: smtpUser.trim(),
+        smtp_from: smtpFrom.trim(),
+      };
+      if (smtpPass.length > 0) {
+        payload.smtp_pass = smtpPass;
+      }
+      const res = await fetch('/api/v1/admin/settings/smtp', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        const err = (await res.json().catch(() => ({}))) as { error?: string };
+        smtpErrorMsg = err.error ?? 'Save failed';
+        return;
+      }
+      const updated = (await res.json()) as { settings: SmtpResponse['settings'] };
+      // Refresh just the settings half from the response.
+      applySmtp({ env: smtpEnv, settings: updated.settings });
+      smtpSuccessMsg = 'SMTP-Einstellungen gespeichert.';
+      setTimeout(() => {
+        smtpSuccessMsg = null;
+      }, 3500);
+    } finally {
+      smtpSaving = false;
+    }
+  }
+
+  async function clearSmtpPass() {
+    smtpSaving = true;
+    smtpSuccessMsg = null;
+    smtpErrorMsg = null;
+    try {
+      const res = await fetch('/api/v1/admin/settings/smtp', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ smtp_pass: '' }),
+      });
+      if (!res.ok) {
+        smtpErrorMsg = 'Konnte Passwort nicht löschen.';
+        return;
+      }
+      const updated = (await res.json()) as { settings: SmtpResponse['settings'] };
+      applySmtp({ env: smtpEnv, settings: updated.settings });
+      smtpSuccessMsg = 'SMTP-Passwort gelöscht.';
+      setTimeout(() => {
+        smtpSuccessMsg = null;
+      }, 3500);
+    } finally {
+      smtpSaving = false;
+    }
+  }
+
+  async function sendTestMail() {
+    smtpTesting = true;
+    smtpTestMsg = null;
+    smtpTestErr = null;
+    try {
+      const res = await fetch('/api/v1/admin/settings/smtp/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ to: smtpTestRecipient.trim() }),
+      });
+      if (!res.ok) {
+        const err = (await res.json().catch(() => ({}))) as { error?: string };
+        smtpTestErr = err.error ?? `Test fehlgeschlagen (${res.status})`;
+        return;
+      }
+      smtpTestMsg = `Test-E-Mail an ${smtpTestRecipient.trim()} versendet.`;
+      setTimeout(() => {
+        smtpTestMsg = null;
+      }, 5000);
+    } finally {
+      smtpTesting = false;
     }
   }
 
@@ -222,6 +361,207 @@
       </div>
     </div>
   </section>
+
+  <section class="panel">
+    <div class="panel-h">
+      <h2>SMTP / Benachrichtigungen</h2>
+    </div>
+    <div class="panel-body">
+      <p class="panel-intro">
+        Konfiguriert den Mailversand für die "Beim Download benachrichtigen"-Option. Solange kein
+        Host gesetzt ist (weder hier noch über die Umgebungsvariable <code>SMTP_HOST</code>), ist
+        die Benachrichtigung still deaktiviert — Uploads funktionieren trotzdem, der Toggle im
+        Frontend bleibt aber wirkungslos.
+      </p>
+
+      <div class="form">
+        <div class="field">
+          <div class="field-label-group">
+            <label class="field-label" for="smtp-host">SMTP-Host</label>
+            <span class="field-hint">
+              z. B. <code>smtp.gmail.com</code>, <code>smtp.fastmail.com</code>.
+              {#if !smtpHost && smtpEnv.host}Aktuell aus <code>SMTP_HOST</code>: {smtpEnv.host}{/if}
+            </span>
+          </div>
+          <div class="input-wrap">
+            <input
+              id="smtp-host"
+              type="text"
+              autocomplete="off"
+              spellcheck="false"
+              placeholder="smtp.example.com"
+              bind:value={smtpHost}
+            />
+          </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="field">
+          <div class="field-label-group">
+            <label class="field-label" for="smtp-port">Port</label>
+            <span class="field-hint">587 (STARTTLS) oder 465 (TLS)</span>
+          </div>
+          <div class="input-wrap">
+            <input
+              id="smtp-port"
+              type="text"
+              inputmode="numeric"
+              pattern="[0-9]*"
+              placeholder="587"
+              bind:value={smtpPort}
+            />
+          </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="field">
+          <div class="field-label-group">
+            <label class="field-label" for="smtp-secure">Implicit TLS (Port 465)</label>
+            <span class="field-hint"
+              >Aktivieren, wenn der Server auf 465 erwartet — sonst aus für STARTTLS auf 587.</span
+            >
+          </div>
+          <button
+            id="smtp-secure"
+            type="button"
+            role="switch"
+            aria-checked={smtpSecure}
+            aria-label="Implicit TLS (Port 465)"
+            class="toggle"
+            class:toggle-on={smtpSecure}
+            onclick={() => (smtpSecure = !smtpSecure)}
+          >
+            <span class="toggle-thumb"></span>
+          </button>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="field">
+          <div class="field-label-group">
+            <label class="field-label" for="smtp-user">Benutzername</label>
+            <span class="field-hint">Leer lassen, wenn der Relay keine Auth erwartet.</span>
+          </div>
+          <div class="input-wrap">
+            <input
+              id="smtp-user"
+              type="text"
+              autocomplete="off"
+              spellcheck="false"
+              placeholder="user@example.com"
+              bind:value={smtpUser}
+            />
+          </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="field">
+          <div class="field-label-group">
+            <label class="field-label" for="smtp-pass">Passwort / App-Token</label>
+            <span class="field-hint">
+              {#if smtpPassConfigured}
+                Aktuell gespeichert. Feld leer lassen = unverändert. Mit "Löschen" entfernen.
+              {:else}
+                Wird verschlüsselt-at-rest in der SQLite-DB gespeichert.
+              {/if}
+            </span>
+          </div>
+          <div class="input-wrap">
+            <input
+              id="smtp-pass"
+              type="password"
+              autocomplete="new-password"
+              placeholder={smtpPassConfigured ? '••••••••' : ''}
+              bind:value={smtpPass}
+            />
+            {#if smtpPassConfigured}
+              <button type="button" class="input-aux" onclick={() => void clearSmtpPass()}
+                >Löschen</button
+              >
+            {/if}
+          </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="field">
+          <div class="field-label-group">
+            <label class="field-label" for="smtp-from">From-Adresse</label>
+            <span class="field-hint"
+              >Leer lassen → SMTP-Benutzer wird als Absender verwendet. Format z. B.
+              <code>ITSWEBER Send &lt;noreply@example.com&gt;</code>.</span
+            >
+          </div>
+          <div class="input-wrap">
+            <input
+              id="smtp-from"
+              type="text"
+              autocomplete="off"
+              spellcheck="false"
+              placeholder="noreply@example.com"
+              bind:value={smtpFrom}
+            />
+          </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="actions">
+          <button class="btn-primary" onclick={() => void saveSmtp()} disabled={smtpSaving}>
+            {#if smtpSaving}
+              <span class="spinner-sm" aria-hidden="true"></span> Speichert …
+            {:else}
+              <Check size={14} /> Speichern
+            {/if}
+          </button>
+          {#if smtpSuccessMsg}
+            <div class="feedback success" role="status">{smtpSuccessMsg}</div>
+          {/if}
+          {#if smtpErrorMsg}
+            <div class="feedback error" role="alert">{smtpErrorMsg}</div>
+          {/if}
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="field">
+          <div class="field-label-group">
+            <label class="field-label" for="smtp-test">Test-E-Mail senden</label>
+            <span class="field-hint"
+              >Verifiziert die Verbindung gegen den konfigurierten Relay und schickt eine
+              Test-Nachricht. Speichere zuerst, falls du gerade Werte geändert hast.</span
+            >
+          </div>
+          <div class="input-wrap">
+            <input
+              id="smtp-test"
+              type="email"
+              autocomplete="off"
+              placeholder="empfaenger@example.com"
+              bind:value={smtpTestRecipient}
+            />
+            <button
+              type="button"
+              class="input-aux"
+              onclick={() => void sendTestMail()}
+              disabled={smtpTesting || !smtpTestRecipient.trim()}
+            >
+              {smtpTesting ? 'Sende …' : 'Senden'}
+            </button>
+          </div>
+        </div>
+        {#if smtpTestMsg}
+          <div class="feedback success" role="status">{smtpTestMsg}</div>
+        {/if}
+        {#if smtpTestErr}
+          <div class="feedback error" role="alert">{smtpTestErr}</div>
+        {/if}
+      </div>
+    </div>
+  </section>
 {/if}
 
 <style>
@@ -385,6 +725,24 @@
     align-items: center;
     gap: 8px;
     flex-shrink: 0;
+    min-width: 240px;
+  }
+  /* Long-form text fields (host, user, from-address) take the full row
+     width so the user can read what they typed; the row itself wraps
+     under its label on narrow viewports. */
+  .field:has(.input-wrap input[type='text']),
+  .field:has(.input-wrap input[type='email']),
+  .field:has(.input-wrap input[type='password']) {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+  .field:has(.input-wrap input[type='text']) .input-wrap,
+  .field:has(.input-wrap input[type='email']) .input-wrap,
+  .field:has(.input-wrap input[type='password']) .input-wrap {
+    flex-shrink: 1;
+    min-width: 0;
+    width: 100%;
   }
   .input-wrap input[type='number'] {
     width: 90px;
@@ -399,9 +757,62 @@
     text-align: right;
     transition: border-color var(--transition-fast);
   }
-  .input-wrap input[type='number']:focus {
+  .input-wrap input[type='number']:focus,
+  .input-wrap input[type='text']:focus,
+  .input-wrap input[type='email']:focus,
+  .input-wrap input[type='password']:focus {
     outline: none;
     border-color: var(--brand);
+  }
+  .input-wrap input[type='text'],
+  .input-wrap input[type='email'],
+  .input-wrap input[type='password'] {
+    flex: 1;
+    min-width: 0;
+    height: 36px;
+    padding: 0 10px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 14px;
+    transition: border-color var(--transition-fast);
+  }
+  .input-aux {
+    height: 36px;
+    padding: 0 14px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text);
+    font-family: inherit;
+    font-size: 13px;
+    cursor: pointer;
+    transition:
+      border-color var(--transition-fast),
+      color var(--transition-fast);
+  }
+  .input-aux:hover:not(:disabled) {
+    border-color: var(--brand);
+    color: var(--brand);
+  }
+  .input-aux:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+  .panel-intro {
+    margin: 0 22px 16px;
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1.55;
+  }
+  .panel-intro code {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1px 6px;
+    font-size: 12px;
   }
   .input-unit {
     font-size: 12px;
