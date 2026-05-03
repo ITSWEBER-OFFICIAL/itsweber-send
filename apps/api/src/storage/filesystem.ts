@@ -85,6 +85,16 @@ export class FilesystemStorage implements StorageAdapter {
     // exists for multipart-upload backends like S3.
   }
 
+  async listShareIds(): Promise<string[]> {
+    let entries;
+    try {
+      entries = await readdir(this.basePath, { withFileTypes: true });
+    } catch {
+      return [];
+    }
+    return entries.filter((e) => e.isDirectory()).map((e) => e.name);
+  }
+
   async size(shareId: string, name: string): Promise<number | null> {
     try {
       const s = await stat(this.path(shareId, name));

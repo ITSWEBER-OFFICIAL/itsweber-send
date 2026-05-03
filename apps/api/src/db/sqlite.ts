@@ -299,6 +299,28 @@ export function getExpiredShareIds(cutoff: Date): string[] {
   return rows.map((r) => r.id);
 }
 
+/**
+ * Set of all share-ids currently tracked in the DB. Used by the storage
+ * orphan-reconciliation pass to detect on-disk shares that no longer
+ * have a DB row (e.g. from a crashed delete).
+ */
+export function getAllShareIdSet(): Set<string> {
+  const rows = db().prepare('SELECT id FROM shares').all() as { id: string }[];
+  return new Set(rows.map((r) => r.id));
+}
+
+/**
+ * Set of all in-progress upload share-ids. Pending uploads write into
+ * the same on-disk share-id slot before finalize, so they must be
+ * excluded from orphan detection until they expire.
+ */
+export function getAllPendingUploadShareIdSet(): Set<string> {
+  const rows = db()
+    .prepare('SELECT share_id FROM uploads_in_progress WHERE finalized = 0')
+    .all() as { share_id: string }[];
+  return new Set(rows.map((r) => r.share_id));
+}
+
 export function getSharesByUser(userId: string): ShareRecord[] {
   return db()
     .prepare('SELECT * FROM shares WHERE user_id = ? ORDER BY created_at DESC')
@@ -309,7 +331,7 @@ export function getUserQuotaUsed(userId: string): number {
   const row = db()
     .prepare(
       `SELECT COALESCE(SUM(total_size_bytes), 0) AS used
-       FROM shares WHERE user_id = ? AND expires_at > datetime('now')`,
+       FROM shares WHERE user_id = ? AND datetime(expires_at) > datetime('now')`,
     )
     .get(userId) as { used: number };
   return row.used;
@@ -450,8 +472,12 @@ export function insertSession(session: SessionRecord): void {
 }
 
 export function getSession(id: string): SessionRecord | undefined {
+  // Note: expires_at is stored in ISO-8601 with `T` and `Z` (e.g.
+  // "2026-05-03T12:00:00.000Z"). SQLite's `datetime('now')` returns
+  // "YYYY-MM-DD HH:MM:SS", so a raw lexical comparison would always be
+  // true ('T' > ' '). Wrap both sides in `datetime()` to canonicalise.
   return db()
-    .prepare("SELECT * FROM sessions WHERE id = ? AND expires_at > datetime('now')")
+    .prepare("SELECT * FROM sessions WHERE id = ? AND datetime(expires_at) > datetime('now')")
     .get(id) as SessionRecord | undefined;
 }
 
@@ -460,7 +486,7 @@ export function deleteSession(id: string): void {
 }
 
 export function deleteExpiredSessions(): void {
-  db().prepare("DELETE FROM sessions WHERE expires_at <= datetime('now')").run();
+  db().prepare("DELETE FROM sessions WHERE datetime(expires_at) <= datetime('now')").run();
 }
 
 export function deleteUserSessions(userId: string): void {
@@ -493,7 +519,11 @@ export function getApiTokensByUser(userId: string): ApiTokenRecord[] {
 export function getApiTokenByHash(hash: string): ApiTokenRecord | undefined {
   return db()
     .prepare(
-      "SELECT * FROM api_tokens WHERE token_hash = ? AND (expires_at IS NULL OR expires_at > datetime('now'))",
+      // expires_at is ISO-8601 with `T`/`Z`; wrap both sides in datetime()
+      // so the lexical comparison vs datetime('now') is correct. Without
+      // this wrap, the `T` separator (0x54) lexically beats datetime('now')'s
+      // space (0x20) and expired tokens would never be filtered out.
+      "SELECT * FROM api_tokens WHERE token_hash = ? AND (expires_at IS NULL OR datetime(expires_at) > datetime('now'))",
     )
     .get(hash) as ApiTokenRecord | undefined;
 }
@@ -624,7 +654,7 @@ export function getUserUploadInProgressBytes(userId: string): number {
     .prepare(
       `SELECT COALESCE(SUM(declared_total_bytes), 0) AS used
        FROM uploads_in_progress
-       WHERE user_id = ? AND finalized = 0 AND expires_at > datetime('now')`,
+       WHERE user_id = ? AND finalized = 0 AND datetime(expires_at) > datetime('now')`,
     )
     .get(userId) as { used: number };
   return row.used;
@@ -683,14 +713,16 @@ export function getStats(): {
   const totalShares = (db().prepare('SELECT COUNT(*) AS cnt FROM shares').get() as { cnt: number })
     .cnt;
   const activeShares = (
-    db().prepare("SELECT COUNT(*) AS cnt FROM shares WHERE expires_at > datetime('now')").get() as {
+    db()
+      .prepare("SELECT COUNT(*) AS cnt FROM shares WHERE datetime(expires_at) > datetime('now')")
+      .get() as {
       cnt: number;
     }
   ).cnt;
   const totalStorageBytes = (
     db()
       .prepare(
-        "SELECT COALESCE(SUM(total_size_bytes), 0) AS total FROM shares WHERE expires_at > datetime('now')",
+        "SELECT COALESCE(SUM(total_size_bytes), 0) AS total FROM shares WHERE datetime(expires_at) > datetime('now')",
       )
       .get() as { total: number }
   ).total;

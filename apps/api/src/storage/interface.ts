@@ -30,6 +30,21 @@ export interface StorageAdapter {
   expireBefore(cutoff: Date): Promise<string[]>;
 
   /**
+   * Enumerate every share-id currently visible to the storage backend.
+   * Used by the cleanup job's orphan reconciliation pass — any share-id
+   * present in storage but absent from the DB is a leftover from a
+   * crashed delete (storage.delete failed AFTER the DB row was removed,
+   * a manual DB intervention, or a user-delete cascade where storage
+   * was offline) and must be removed so it is not billed indefinitely.
+   *
+   * Implementations should return only top-level "directories" /
+   * key-prefixes (one entry per share). For S3 this is the CommonPrefixes
+   * result of a `Delimiter='/'` listing; for the filesystem it is the
+   * `readdir` of `basePath`.
+   */
+  listShareIds(): Promise<string[]>;
+
+  /**
    * Append `source` to `<shareId>/<name>`, creating the file if it does
    * not exist. Used by the resumable upload path to write ciphertext
    * chunks one by one. Resolves with the number of bytes written by this

@@ -356,6 +356,28 @@ export class S3Storage implements StorageAdapter {
     }
   }
 
+  async listShareIds(): Promise<string[]> {
+    const ids = new Set<string>();
+    let token: string | undefined;
+    do {
+      const list = await this.client.send(
+        new ListObjectsV2Command({
+          Bucket: this.bucket,
+          Delimiter: '/',
+          ContinuationToken: token,
+        }),
+      );
+      for (const cp of list.CommonPrefixes ?? []) {
+        // CommonPrefixes look like "<shareId>/" — strip the trailing slash.
+        if (cp.Prefix && cp.Prefix.endsWith('/')) {
+          ids.add(cp.Prefix.slice(0, -1));
+        }
+      }
+      token = list.IsTruncated ? list.NextContinuationToken : undefined;
+    } while (token);
+    return Array.from(ids);
+  }
+
   async getStream(
     shareId: string,
     name: string,
