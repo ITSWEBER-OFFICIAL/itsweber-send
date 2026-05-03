@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
+  import { _ } from 'svelte-i18n';
   import { auth } from '$lib/stores/auth.svelte.js';
   import Key from '$lib/components/icons/Key.svelte';
   import Plus from '$lib/components/icons/Plus.svelte';
@@ -35,7 +36,7 @@
   let deletingId = $state<string | null>(null);
 
   function formatDate(iso: string | null): string {
-    if (!iso) return 'Noch nie';
+    if (!iso) return $_('account.tokens.never_used');
     return new Date(iso).toLocaleDateString('de-DE', {
       day: '2-digit',
       month: '2-digit',
@@ -62,12 +63,12 @@
         return;
       }
       if (!res.ok) {
-        error = 'Tokens konnten nicht geladen werden.';
+        error = $_('account.tokens.error_load');
         return;
       }
       tokens = (await res.json()) as Token[];
     } catch {
-      error = 'Netzwerkfehler beim Laden.';
+      error = $_('account.tokens.error_network');
     } finally {
       loading = false;
     }
@@ -75,7 +76,7 @@
 
   async function createToken() {
     if (!formName.trim()) {
-      formError = 'Bitte einen Namen angeben.';
+      formError = $_('account.tokens.error_name_required');
       return;
     }
     formLoading = true;
@@ -90,7 +91,7 @@
       });
       if (!res.ok) {
         const json = (await res.json().catch(() => ({}))) as { message?: string };
-        formError = json.message ?? 'Fehler beim Erstellen.';
+        formError = json.message ?? $_('account.tokens.error_create');
         return;
       }
       const json = (await res.json()) as {
@@ -116,7 +117,7 @@
       formExpiry = '';
       showForm = false;
     } catch {
-      formError = 'Netzwerkfehler.';
+      formError = $_('account.tokens.error_network_create');
     } finally {
       formLoading = false;
     }
@@ -124,12 +125,7 @@
 
   async function deleteToken(id: string) {
     if (deletingId) return;
-    if (
-      !confirm(
-        'Diesen API-Token wirklich löschen? Alle Clients, die ihn nutzen, verlieren den Zugang.',
-      )
-    )
-      return;
+    if (!confirm($_('account.tokens.confirm_delete'))) return;
     deletingId = id;
     try {
       const res = await fetch(`/api/v1/account/tokens/${id}`, { method: 'DELETE' });
@@ -183,7 +179,7 @@
   <div class="page-header">
     <div class="page-title-row">
       <Key size={22} />
-      <h1 class="page-title">API-Tokens</h1>
+      <h1 class="page-title">{$_('account.tokens.title')}</h1>
     </div>
     <button
       type="button"
@@ -193,7 +189,8 @@
         formError = '';
       }}
     >
-      <Plus size={15} /> Neuer Token
+      <Plus size={15} />
+      {$_('account.tokens.new_btn')}
     </button>
   </div>
 
@@ -209,7 +206,7 @@
       <div class="token-reveal panel">
         <div class="panel-body">
           <p class="reveal-warn">
-            Dieser Token wird nur einmal angezeigt. Kopiere ihn jetzt und bewahre ihn sicher auf.
+            {$_('account.tokens.reveal_warn')}
           </p>
           <div class="token-display">
             <code class="token-code">{newToken}</code>
@@ -217,8 +214,8 @@
               type="button"
               class="btn-copy"
               onclick={() => void copyToken()}
-              title="Kopieren"
-              aria-label="Token kopieren"
+              title={$_('account.tokens.copy')}
+              aria-label={$_('account.tokens.copy_token')}
             >
               {#if copied}
                 <Check size={15} />
@@ -228,10 +225,10 @@
             </button>
           </div>
           {#if copied}
-            <p class="copied-hint">Kopiert.</p>
+            <p class="copied-hint">{$_('account.tokens.copied_hint')}</p>
           {/if}
           <button type="button" class="btn-dismiss" onclick={dismissToken}
-            >Verstanden, Token gespeichert</button
+            >{$_('account.tokens.dismiss')}</button
           >
         </div>
       </div>
@@ -241,7 +238,7 @@
     {#if showForm}
       <div class="panel form-panel">
         <div class="panel-head">
-          <h2 class="panel-heading">Neuer API-Token</h2>
+          <h2 class="panel-heading">{$_('account.tokens.form_heading')}</h2>
         </div>
         <div class="panel-body">
           <form
@@ -251,12 +248,14 @@
             }}
           >
             <div class="field">
-              <label for="token-name" class="label">Name <span class="req">*</span></label>
+              <label for="token-name" class="label"
+                >{$_('account.tokens.field_name')} <span class="req">*</span></label
+              >
               <input
                 id="token-name"
                 type="text"
                 class="input"
-                placeholder="z. B. CI-Pipeline"
+                placeholder={$_('account.tokens.field_name_placeholder')}
                 bind:value={formName}
                 maxlength={64}
                 required
@@ -264,7 +263,7 @@
             </div>
             <div class="field">
               <label for="token-expiry" class="label"
-                >Ablaufdatum <span class="opt">(optional)</span></label
+                >{$_('account.tokens.field_expiry')} <span class="opt">(optional)</span></label
               >
               <input
                 id="token-expiry"
@@ -278,7 +277,7 @@
             {/if}
             <div class="form-actions">
               <button type="submit" class="btn-primary" disabled={formLoading}>
-                {formLoading ? 'Erstelle…' : 'Token erstellen'}
+                {formLoading ? $_('account.tokens.creating') : $_('account.tokens.create')}
               </button>
               <button
                 type="button"
@@ -288,7 +287,7 @@
                   formError = '';
                 }}
               >
-                Abbrechen
+                {$_('common.cancel')}
               </button>
             </div>
           </form>
@@ -299,22 +298,24 @@
     <!-- Token list -->
     <section class="panel">
       <div class="panel-head">
-        <h2 class="panel-heading">Deine Tokens <span class="count-badge">{tokens.length}</span></h2>
+        <h2 class="panel-heading">
+          {$_('account.tokens.list_heading')} <span class="count-badge">{tokens.length}</span>
+        </h2>
       </div>
       {#if tokens.length === 0}
         <div class="panel-body empty-state">
           <Key size={32} />
-          <p>Noch keine API-Tokens vorhanden.</p>
+          <p>{$_('account.tokens.no_tokens')}</p>
         </div>
       {:else}
         <div class="table-wrap">
           <table>
             <thead>
               <tr>
-                <th>Name</th>
-                <th>Erstellt</th>
-                <th>Zuletzt genutzt</th>
-                <th>Ablauf</th>
+                <th>{$_('account.tokens.col_name')}</th>
+                <th>{$_('account.tokens.col_created')}</th>
+                <th>{$_('account.tokens.col_last_used')}</th>
+                <th>{$_('account.tokens.col_expiry')}</th>
                 <th></th>
               </tr>
             </thead>
@@ -329,8 +330,8 @@
                     <button
                       type="button"
                       class="btn-row-action danger"
-                      title="Token löschen"
-                      aria-label="Token löschen"
+                      title={$_('account.tokens.delete_token')}
+                      aria-label={$_('account.tokens.delete_token')}
                       onclick={() => void deleteToken(token.id)}
                       disabled={deletingId === token.id}
                     >

@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
+  import { _ } from 'svelte-i18n';
   import { auth } from '$lib/stores/auth.svelte.js';
   import Gauge from '$lib/components/icons/Gauge.svelte';
   import RefreshCw from '$lib/components/icons/RefreshCw.svelte';
@@ -37,7 +38,7 @@
   }
 
   function formatExpiry(iso: string, expired: boolean): string {
-    if (expired) return 'Abgelaufen';
+    if (expired) return $_('account.quota.badge_expired');
     return new Date(iso).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' });
   }
 
@@ -51,7 +52,7 @@
         return;
       }
       if (!res.ok) {
-        error = `Fehler beim Laden (${res.status})`;
+        error = $_('account.quota.error_load', { values: { status: res.status } });
         return;
       }
       const json = (await res.json()) as QuotaData;
@@ -59,7 +60,7 @@
       json.uploads = [...json.uploads].sort((a, b) => b.totalSizeBytes - a.totalSizeBytes);
       data = json;
     } catch {
-      error = 'Verbindungsfehler. Bitte Seite neu laden.';
+      error = $_('account.quota.error_network');
     } finally {
       loading = false;
     }
@@ -95,16 +96,16 @@
   <header class="page-header">
     <Gauge size={20} />
     <div>
-      <h1>Quota &amp; Limits</h1>
-      <p class="sub">Überblick über deinen genutzten Speicherplatz und aktive Shares.</p>
+      <h1>{$_('account.quota.title')}</h1>
+      <p class="sub">{$_('account.quota.sub')}</p>
     </div>
     <button
       type="button"
       class="reload-btn"
       onclick={() => void load()}
       disabled={loading}
-      aria-label="Neu laden"
-      title="Neu laden"
+      aria-label={$_('account.quota.reload')}
+      title={$_('account.quota.reload')}
     >
       <RefreshCw size={15} />
     </button>
@@ -118,7 +119,7 @@
     <!-- Quota bar -->
     <section class="panel">
       <div class="panel-head">
-        <h2>Speicher-Quota</h2>
+        <h2>{$_('account.quota.storage_heading')}</h2>
         <span class="pct-badge" class:warn={usedPct >= 80} class:danger={usedPct >= 95}
           >{pctLabel}</span
         >
@@ -130,7 +131,7 @@
           aria-valuenow={usedPct}
           aria-valuemin={0}
           aria-valuemax={100}
-          aria-label="Speicherbelegung"
+          aria-label={$_('account.quota.aria_storage_bar')}
         >
           <div class="quota-bar">
             <div
@@ -148,19 +149,19 @@
 
         <div class="stats-grid">
           <div class="stat">
-            <div class="stat-label">Belegt</div>
+            <div class="stat-label">{$_('account.quota.stat_used')}</div>
             <div class="stat-value">{formatBytes(data.quota.usedBytes)}</div>
           </div>
           <div class="stat">
-            <div class="stat-label">Gesamt</div>
+            <div class="stat-label">{$_('account.quota.stat_total')}</div>
             <div class="stat-value">{formatBytes(data.quota.totalBytes)}</div>
           </div>
           <div class="stat">
-            <div class="stat-label">Verfügbar</div>
+            <div class="stat-label">{$_('account.quota.stat_available')}</div>
             <div class="stat-value">{formatBytes(data.quota.remainingBytes)}</div>
           </div>
           <div class="stat">
-            <div class="stat-label">Aktive Shares</div>
+            <div class="stat-label">{$_('account.quota.stat_active_shares')}</div>
             <div class="stat-value">{activeCount}</div>
           </div>
         </div>
@@ -170,22 +171,22 @@
     <!-- Shares table -->
     <section class="panel">
       <div class="panel-head">
-        <h2>Shares nach Größe</h2>
+        <h2>{$_('account.quota.shares_heading')}</h2>
         <span class="count-badge">{data.uploads.length}</span>
       </div>
       {#if data.uploads.length === 0}
         <div class="panel-body">
-          <p class="empty">Noch keine Shares vorhanden.</p>
+          <p class="empty">{$_('account.quota.no_shares')}</p>
         </div>
       {:else}
         <div class="table-wrap">
           <table>
             <thead>
               <tr>
-                <th>Share-ID</th>
-                <th>Größe</th>
-                <th>Ablauf</th>
-                <th>Status</th>
+                <th>{$_('account.quota.col_share_id')}</th>
+                <th>{$_('account.quota.col_size')}</th>
+                <th>{$_('account.quota.col_expiry')}</th>
+                <th>{$_('account.quota.col_status')}</th>
               </tr>
             </thead>
             <tbody>
@@ -198,9 +199,9 @@
                   <td class="date">{formatExpiry(upload.expiresAt, upload.expired)}</td>
                   <td>
                     {#if upload.expired}
-                      <span class="badge badge-expired">Abgelaufen</span>
+                      <span class="badge badge-expired">{$_('account.quota.badge_expired')}</span>
                     {:else}
-                      <span class="badge badge-active">Aktiv</span>
+                      <span class="badge badge-active">{$_('account.quota.badge_active')}</span>
                     {/if}
                   </td>
                 </tr>

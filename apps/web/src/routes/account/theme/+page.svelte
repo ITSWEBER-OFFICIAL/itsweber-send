@@ -1,5 +1,6 @@
 <script lang="ts">
   import { theme } from '$lib/stores/theme.svelte.js';
+  import { _ } from 'svelte-i18n';
   import type { ThemeMode } from '@itsweber-send/shared';
   import Palette from '$lib/components/icons/Palette.svelte';
   import Sun from '$lib/components/icons/Sun.svelte';
@@ -8,28 +9,28 @@
 
   interface ThemeOption {
     value: ThemeMode;
-    label: string;
-    description: string;
+    labelKey: string;
+    descKey: string;
     Icon: typeof Sun;
   }
 
   const options: ThemeOption[] = [
     {
       value: 'light',
-      label: 'Hell',
-      description: 'Helle Hintergrundfarben, dunkle Schrift.',
+      labelKey: 'account.theme.light_label',
+      descKey: 'account.theme.light_desc',
       Icon: Sun,
     },
     {
       value: 'dark',
-      label: 'Dunkel',
-      description: 'Dunkle Hintergrundfarben, helle Schrift.',
+      labelKey: 'account.theme.dark_label',
+      descKey: 'account.theme.dark_desc',
       Icon: Moon,
     },
     {
       value: 'system',
-      label: 'System',
-      description: 'Folgt automatisch der Systemeinstellung.',
+      labelKey: 'account.theme.system_label',
+      descKey: 'account.theme.system_desc',
       Icon: Monitor,
     },
   ];
@@ -39,9 +40,9 @@
   <header class="page-header">
     <Palette size={20} />
     <div>
-      <h1>Theme &amp; Darstellung</h1>
+      <h1>{$_('account.theme.title')}</h1>
       <p class="sub">
-        Wähle aus, wie die Oberfläche dargestellt wird. Die Einstellung wird lokal gespeichert.
+        {$_('account.theme.sub')}
       </p>
     </div>
   </header>
@@ -49,10 +50,10 @@
   <section class="section">
     <div class="card">
       <div class="card-head">
-        <h2>Farbschema</h2>
+        <h2>{$_('account.theme.color_heading')}</h2>
       </div>
       <div class="card-body">
-        <div class="theme-grid" role="radiogroup" aria-label="Farbschema wählen">
+        <div class="theme-grid" role="radiogroup" aria-label={$_('account.theme.color_aria')}>
           {#each options as opt (opt.value)}
             {@const SvelteIcon = opt.Icon}
             <button
@@ -67,8 +68,8 @@
                 <SvelteIcon size={22} />
               </div>
               <div class="theme-info">
-                <span class="theme-label">{opt.label}</span>
-                <span class="theme-desc">{opt.description}</span>
+                <span class="theme-label">{$_(opt.labelKey)}</span>
+                <span class="theme-desc">{$_(opt.descKey)}</span>
               </div>
               {#if theme.value === opt.value}
                 <div class="check-mark" aria-hidden="true">
@@ -94,7 +95,7 @@
 
     <div class="card card-preview">
       <div class="card-head">
-        <h2>Vorschau</h2>
+        <h2>{$_('account.theme.preview_heading')}</h2>
       </div>
       <div class="card-body preview-body">
         <div class="preview-surface">
@@ -105,9 +106,8 @@
           <div class="preview-pill"></div>
         </div>
         <p class="preview-note">
-          Aktives Farbschema: <strong
-            >{options.find((o) => o.value === theme.value)?.label ?? '—'}</strong
-          >
+          {$_('account.theme.active_scheme')}
+          <strong>{$_(options.find((o) => o.value === theme.value)?.labelKey ?? '') || '—'}</strong>
         </p>
       </div>
     </div>

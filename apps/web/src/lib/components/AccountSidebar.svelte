@@ -1,5 +1,6 @@
 <script lang="ts">
   import { page } from '$app/stores';
+  import { _ } from 'svelte-i18n';
   import LayoutDashboard from '$lib/components/icons/LayoutDashboard.svelte';
   import Files from '$lib/components/icons/Files.svelte';
   import Key from '$lib/components/icons/Key.svelte';
@@ -19,53 +20,53 @@
 
   type Item = {
     href: string;
-    label: string;
+    labelKey: string;
     Icon: typeof LayoutDashboard;
   };
 
-  const accountGroups: { title: string; items: Item[] }[] = [
+  const accountGroups: { titleKey: string; items: Item[] }[] = [
     {
-      title: 'Account',
+      titleKey: 'sidebar.group.account',
       items: [
-        { href: '/account', label: 'Übersicht', Icon: LayoutDashboard },
-        { href: '/account/uploads', label: 'Meine Uploads', Icon: Files },
-        { href: '/account/tokens', label: 'API-Tokens', Icon: Key },
-        { href: '/account/notifications', label: 'Benachrichtigungen', Icon: Bell },
+        { href: '/account', labelKey: 'sidebar.nav.overview', Icon: LayoutDashboard },
+        { href: '/account/uploads', labelKey: 'sidebar.nav.my_uploads', Icon: Files },
+        { href: '/account/tokens', labelKey: 'sidebar.nav.api_tokens', Icon: Key },
+        { href: '/account/notifications', labelKey: 'sidebar.nav.notifications', Icon: Bell },
       ],
     },
     {
-      title: 'Einstellungen',
+      titleKey: 'sidebar.group.settings',
       items: [
-        { href: '/account/profile', label: 'Profil', Icon: User },
-        { href: '/account/security', label: 'Sicherheit (2FA)', Icon: Shield },
-        { href: '/account/locale', label: 'Sprache & Zeitzone', Icon: Globe },
-        { href: '/account/theme', label: 'Theme', Icon: Palette },
+        { href: '/account/profile', labelKey: 'sidebar.nav.profile', Icon: User },
+        { href: '/account/security', labelKey: 'sidebar.nav.security', Icon: Shield },
+        { href: '/account/locale', labelKey: 'sidebar.nav.locale', Icon: Globe },
+        { href: '/account/theme', labelKey: 'sidebar.nav.theme', Icon: Palette },
       ],
     },
     {
-      title: 'Plan',
+      titleKey: 'sidebar.group.plan',
       items: [
-        { href: '/account/quota', label: 'Quota & Limits', Icon: Gauge },
-        { href: '/account/audit', label: 'Audit-Log', Icon: FileText },
+        { href: '/account/quota', labelKey: 'sidebar.nav.quota', Icon: Gauge },
+        { href: '/account/audit', labelKey: 'sidebar.nav.audit', Icon: FileText },
       ],
     },
   ];
 
-  const adminGroups: { title: string; items: Item[] }[] = [
+  const adminGroups: { titleKey: string; items: Item[] }[] = [
     {
-      title: 'Admin',
+      titleKey: 'sidebar.group.admin',
       items: [
-        { href: '/admin', label: 'Übersicht', Icon: LayoutDashboard },
-        { href: '/admin/users', label: 'Nutzer', Icon: User },
-        { href: '/admin/shares', label: 'Shares', Icon: Files },
-        { href: '/admin/audit', label: 'Audit-Log', Icon: FileText },
+        { href: '/admin', labelKey: 'sidebar.nav.overview', Icon: LayoutDashboard },
+        { href: '/admin/users', labelKey: 'sidebar.nav.users', Icon: User },
+        { href: '/admin/shares', labelKey: 'sidebar.nav.shares', Icon: Files },
+        { href: '/admin/audit', labelKey: 'sidebar.nav.audit', Icon: FileText },
       ],
     },
     {
-      title: 'System',
+      titleKey: 'sidebar.group.system',
       items: [
-        { href: '/admin/health', label: 'Health & Stats', Icon: Gauge },
-        { href: '/admin/settings', label: 'Einstellungen', Icon: Shield },
+        { href: '/admin/health', labelKey: 'sidebar.nav.health', Icon: Gauge },
+        { href: '/admin/settings', labelKey: 'sidebar.nav.admin_settings', Icon: Shield },
       ],
     },
   ];
@@ -85,18 +86,20 @@
       <span class="avatar">{(auth.user.email[0] ?? 'U').toUpperCase()}</span>
       <div class="me-stack">
         <div class="me-name">{auth.user.email.split('@')[0]}</div>
-        <div class="me-role">{auth.user.role === 'admin' ? 'Administrator' : 'Konto'}</div>
+        <div class="me-role">
+          {auth.user.role === 'admin' ? $_('sidebar.role_admin') : $_('sidebar.role_user')}
+        </div>
       </div>
     </div>
   {/if}
   {#each groups as group}
     <div class="group">
-      <h3>{group.title}</h3>
+      <h3>{$_(group.titleKey)}</h3>
       {#each group.items as item}
         {@const SvelteIcon = item.Icon}
         <a class="link" class:active={isActive(item.href)} href={item.href}>
           <SvelteIcon size={16} />
-          <span>{item.label}</span>
+          <span>{$_(item.labelKey)}</span>
         </a>
       {/each}
     </div>

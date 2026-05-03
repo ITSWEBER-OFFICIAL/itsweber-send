@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
+  import { _ } from 'svelte-i18n';
   import { auth } from '$lib/stores/auth.svelte.js';
   import Shield from '$lib/components/icons/Shield.svelte';
   import ShieldCheck from '$lib/components/icons/ShieldCheck.svelte';
@@ -64,7 +65,7 @@
       const res = await fetch('/api/v1/account/security/2fa/recovery-codes', { method: 'POST' });
       if (!res.ok) {
         const json = (await res.json().catch(() => ({}))) as { error?: string };
-        recoveryError = json.error ?? 'Fehler beim Erzeugen der Recovery-Codes.';
+        recoveryError = json.error ?? $_('account.security.recovery_error_generate');
         return;
       }
       const json = (await res.json()) as { codes: string[]; remaining: number };
@@ -73,7 +74,7 @@
       recoveryAcknowledged = false;
       recoveryCopied = false;
     } catch {
-      recoveryError = 'Netzwerkfehler.';
+      recoveryError = $_('account.security.recovery_error_network');
     } finally {
       recoveryLoading = false;
     }
@@ -123,13 +124,13 @@
         return;
       }
       if (!res.ok) {
-        error = 'Sicherheitseinstellungen konnten nicht geladen werden.';
+        error = $_('account.security.error_load');
         return;
       }
       status = (await res.json()) as SecurityStatus;
       if (status.totpEnabled) await loadRecoveryStatus();
     } catch {
-      error = 'Netzwerkfehler beim Laden.';
+      error = $_('account.security.error_network');
     } finally {
       loading = false;
     }
@@ -139,15 +140,15 @@
   async function changePassword() {
     if (pwLoading) return;
     if (!pwCurrent || !pwNew || !pwConfirm) {
-      pwError = 'Alle Felder sind erforderlich.';
+      pwError = $_('account.security.pw_error_fields');
       return;
     }
     if (pwNew.length < 8) {
-      pwError = 'Neues Passwort muss mindestens 8 Zeichen haben.';
+      pwError = $_('account.security.pw_error_length');
       return;
     }
     if (pwNew !== pwConfirm) {
-      pwError = 'Passwörter stimmen nicht überein.';
+      pwError = $_('account.security.pw_error_mismatch');
       return;
     }
     pwLoading = true;
@@ -161,10 +162,10 @@
       });
       if (!res.ok) {
         const json = (await res.json().catch(() => ({}))) as { message?: string };
-        pwError = json.message ?? 'Fehler beim Ändern des Passworts.';
+        pwError = json.message ?? $_('account.security.pw_error_change');
         return;
       }
-      pwSuccess = 'Passwort erfolgreich geändert.';
+      pwSuccess = $_('account.security.pw_success');
       pwCurrent = '';
       pwNew = '';
       pwConfirm = '';
@@ -172,7 +173,7 @@
         pwSuccess = '';
       }, 3500);
     } catch {
-      pwError = 'Netzwerkfehler.';
+      pwError = $_('account.security.pw_error_network');
     } finally {
       pwLoading = false;
     }
@@ -186,7 +187,7 @@
       const res = await fetch('/api/v1/account/security/2fa/setup', { method: 'POST' });
       if (!res.ok) {
         const json = (await res.json().catch(() => ({}))) as { message?: string };
-        totpError = json.message ?? 'Fehler beim Einrichten von 2FA.';
+        totpError = json.message ?? $_('account.security.totp_error_setup');
         return;
       }
       const json = (await res.json()) as { uri: string; secret: string };
@@ -194,7 +195,7 @@
       totpSecret = json.secret;
       totpPhase = 'setup';
     } catch {
-      totpError = 'Netzwerkfehler.';
+      totpError = $_('account.security.totp_error_network');
     } finally {
       totpLoading = false;
     }
@@ -202,7 +203,7 @@
 
   async function confirm2fa() {
     if (!totpCode.trim()) {
-      totpError = 'Bitte den Code eingeben.';
+      totpError = $_('account.security.totp_code_error');
       return;
     }
     totpLoading = true;
@@ -215,7 +216,7 @@
       });
       if (!res.ok) {
         const json = (await res.json().catch(() => ({}))) as { message?: string };
-        totpError = json.message ?? 'Ungültiger Code.';
+        totpError = json.message ?? $_('account.security.totp_code_invalid');
         return;
       }
       if (status) status = { ...status, totpEnabled: true };
@@ -223,32 +224,32 @@
       totpUri = '';
       totpSecret = '';
       totpCode = '';
-      totpSuccess = '2FA erfolgreich aktiviert.';
+      totpSuccess = $_('account.security.totp_success');
       setTimeout(() => {
         totpSuccess = '';
       }, 4000);
     } catch {
-      totpError = 'Netzwerkfehler.';
+      totpError = $_('account.security.totp_error_network');
     } finally {
       totpLoading = false;
     }
   }
 
   async function disable2fa() {
-    if (!confirm('2FA wirklich deaktivieren? Dein Konto ist danach weniger geschützt.')) return;
+    if (!confirm($_('account.security.totp_disable_confirm'))) return;
     totpLoading = true;
     totpError = '';
     try {
       const res = await fetch('/api/v1/account/security/2fa', { method: 'DELETE' });
       if (!res.ok) {
         const json = (await res.json().catch(() => ({}))) as { message?: string };
-        totpError = json.message ?? 'Fehler beim Deaktivieren.';
+        totpError = json.message ?? $_('account.security.totp_error_disable');
         return;
       }
       if (status) status = { ...status, totpEnabled: false };
       totpPhase = 'idle';
     } catch {
-      totpError = 'Netzwerkfehler.';
+      totpError = $_('account.security.totp_error_network');
     } finally {
       totpLoading = false;
     }
@@ -301,12 +302,12 @@
     pwStrength === 0
       ? ''
       : pwStrength <= 1
-        ? 'Schwach'
+        ? $_('account.security.pw_strength_weak')
         : pwStrength <= 2
-          ? 'Mittel'
+          ? $_('account.security.pw_strength_medium')
           : pwStrength <= 3
-            ? 'Gut'
-            : 'Stark',
+            ? $_('account.security.pw_strength_good')
+            : $_('account.security.pw_strength_strong'),
   );
 
   const pwStrengthTone = $derived(
@@ -339,7 +340,7 @@
   <div class="page-header">
     <div class="page-title-row">
       <Shield size={22} />
-      <h1 class="page-title">Sicherheit</h1>
+      <h1 class="page-title">{$_('account.security.title')}</h1>
     </div>
   </div>
 
@@ -351,7 +352,7 @@
     <!-- Password change -->
     <section class="panel">
       <div class="panel-head">
-        <h2 class="panel-heading">Passwort ändern</h2>
+        <h2 class="panel-heading">{$_('account.security.pw_section')}</h2>
       </div>
       <div class="panel-body">
         <form
@@ -362,7 +363,7 @@
         >
           <div class="field">
             <label for="pw-current" class="label"
-              >Aktuelles Passwort <span class="req">*</span></label
+              >{$_('account.security.pw_current')} <span class="req">*</span></label
             >
             <div class="pw-wrap">
               <input
@@ -379,7 +380,9 @@
                 onclick={() => {
                   pwShowCurrent = !pwShowCurrent;
                 }}
-                aria-label={pwShowCurrent ? 'Passwort verbergen' : 'Passwort anzeigen'}
+                aria-label={pwShowCurrent
+                  ? $_('account.security.pw_hide')
+                  : $_('account.security.pw_show')}
               >
                 {#if pwShowCurrent}
                   <EyeOff size={15} />
@@ -390,7 +393,9 @@
             </div>
           </div>
           <div class="field">
-            <label for="pw-new" class="label">Neues Passwort <span class="req">*</span></label>
+            <label for="pw-new" class="label"
+              >{$_('account.security.pw_new')} <span class="req">*</span></label
+            >
             <div class="pw-wrap">
               <input
                 id="pw-new"
@@ -407,7 +412,9 @@
                 onclick={() => {
                   pwShowNew = !pwShowNew;
                 }}
-                aria-label={pwShowNew ? 'Passwort verbergen' : 'Passwort anzeigen'}
+                aria-label={pwShowNew
+                  ? $_('account.security.pw_hide')
+                  : $_('account.security.pw_show')}
               >
                 {#if pwShowNew}
                   <EyeOff size={15} />
@@ -435,7 +442,7 @@
           </div>
           <div class="field">
             <label for="pw-confirm" class="label"
-              >Neues Passwort bestätigen <span class="req">*</span></label
+              >{$_('account.security.pw_confirm')} <span class="req">*</span></label
             >
             <input
               id="pw-confirm"
@@ -455,7 +462,7 @@
           {/if}
 
           <button type="submit" class="btn-primary" disabled={pwLoading}>
-            {pwLoading ? 'Speichert…' : 'Passwort ändern'}
+            {pwLoading ? $_('account.security.pw_saving') : $_('account.security.pw_save')}
           </button>
         </form>
       </div>
@@ -464,13 +471,14 @@
     <!-- 2FA section -->
     <section class="panel">
       <div class="panel-head">
-        <h2 class="panel-heading">Zwei-Faktor-Authentifizierung</h2>
+        <h2 class="panel-heading">{$_('account.security.totp_section')}</h2>
         {#if status.totpEnabled}
           <span class="status-chip on">
-            <ShieldCheck size={13} /> Aktiv
+            <ShieldCheck size={13} />
+            {$_('account.security.totp_active')}
           </span>
         {:else}
-          <span class="status-chip off">Inaktiv</span>
+          <span class="status-chip off">{$_('account.security.totp_inactive')}</span>
         {/if}
       </div>
       <div class="panel-body">
@@ -483,8 +491,7 @@
 
         {#if !status.totpEnabled && totpPhase === 'idle'}
           <p class="body-text">
-            Schütze dein Konto mit einem zweiten Faktor. Nach der Aktivierung benötigst du beim
-            Anmelden zusätzlich ein Einmalpasswort (TOTP) aus einer Authenticator-App.
+            {$_('account.security.totp_desc')}
           </p>
           <button
             type="button"
@@ -492,13 +499,15 @@
             onclick={() => void start2faSetup()}
             disabled={totpLoading}
           >
-            {totpLoading ? 'Wird vorbereitet…' : '2FA aktivieren'}
+            {totpLoading
+              ? $_('account.security.totp_enabling')
+              : $_('account.security.totp_enable')}
           </button>
         {:else if totpPhase === 'setup' || totpPhase === 'confirm'}
           <div class="totp-setup">
             <p class="setup-step">
-              <strong>Schritt 1:</strong> Scanne die folgenden Daten in deiner Authenticator-App (z. B.
-              Aegis, Google Authenticator, Bitwarden).
+              <strong>{$_('account.security.totp_step1')}</strong>
+              {$_('account.security.totp_step1_desc')}
             </p>
 
             <div class="totp-field-group">
@@ -510,8 +519,8 @@
                     type="button"
                     class="btn-copy"
                     onclick={() => void copyUri()}
-                    aria-label="URI kopieren"
-                    title="URI kopieren"
+                    aria-label={$_('account.security.totp_copy_uri')}
+                    title={$_('account.security.totp_copy_uri')}
                   >
                     {#if uriCopied}<Check size={14} />{:else}<Copy size={14} />{/if}
                   </button>
@@ -525,8 +534,8 @@
                     type="button"
                     class="btn-copy"
                     onclick={() => void copySecret()}
-                    aria-label="Secret kopieren"
-                    title="Secret kopieren"
+                    aria-label={$_('account.security.totp_copy_secret')}
+                    title={$_('account.security.totp_copy_secret')}
                   >
                     {#if secretCopied}<Check size={14} />{:else}<Copy size={14} />{/if}
                   </button>
@@ -535,8 +544,8 @@
             </div>
 
             <p class="setup-step">
-              <strong>Schritt 2:</strong> Gib den 6-stelligen Code aus der App ein, um die Einrichtung
-              abzuschliessen.
+              <strong>{$_('account.security.totp_step2')}</strong>
+              {$_('account.security.totp_step2_desc')}
             </p>
 
             <form
@@ -546,7 +555,8 @@
               }}
             >
               <div class="field code-field">
-                <label for="totp-code" class="label">Authenticator-Code</label>
+                <label for="totp-code" class="label">{$_('account.security.totp_code_label')}</label
+                >
                 <input
                   id="totp-code"
                   type="text"
@@ -562,16 +572,19 @@
               </div>
               <div class="form-actions">
                 <button type="submit" class="btn-primary" disabled={totpLoading}>
-                  {totpLoading ? 'Bestätige…' : 'Bestätigen'}
+                  {totpLoading
+                    ? $_('account.security.totp_confirming')
+                    : $_('account.security.totp_confirm')}
                 </button>
-                <button type="button" class="btn-ghost" onclick={cancelSetup}>Abbrechen</button>
+                <button type="button" class="btn-ghost" onclick={cancelSetup}
+                  >{$_('account.security.totp_cancel')}</button
+                >
               </div>
             </form>
           </div>
         {:else if status.totpEnabled}
           <p class="body-text">
-            Zwei-Faktor-Authentifizierung ist aktiv. Beim Anmelden wirst du nach einem Code aus
-            deiner Authenticator-App gefragt.
+            {$_('account.security.totp_active_desc')}
           </p>
           <button
             type="button"
@@ -579,16 +592,16 @@
             onclick={() => void disable2fa()}
             disabled={totpLoading}
           >
-            {totpLoading ? 'Deaktiviert…' : '2FA deaktivieren'}
+            {totpLoading
+              ? $_('account.security.totp_disabling')
+              : $_('account.security.totp_disable')}
           </button>
 
           <hr class="recovery-divider" />
 
-          <h3 class="subhead">Recovery-Codes</h3>
+          <h3 class="subhead">{$_('account.security.recovery_heading')}</h3>
           <p class="body-text">
-            Recovery-Codes sind Einmal-Codes für den Notfall, falls du keinen Zugriff auf deine
-            Authenticator-App hast. Bewahre sie an einem sicheren Ort auf — die Codes werden nur
-            einmal angezeigt.
+            {$_('account.security.recovery_desc')}
           </p>
           {#if recoveryCodes !== null}
             <div class="recovery-box">
@@ -599,15 +612,17 @@
               </div>
               <div class="recovery-actions">
                 <button type="button" class="btn-ghost" onclick={copyRecoveryCodes}>
-                  {recoveryCopied ? 'Kopiert' : 'Alle kopieren'}
+                  {recoveryCopied
+                    ? $_('account.security.recovery_copied')
+                    : $_('account.security.recovery_copy_all')}
                 </button>
                 <button type="button" class="btn-ghost" onclick={downloadRecoveryCodes}>
-                  Als TXT herunterladen
+                  {$_('account.security.recovery_download_txt')}
                 </button>
               </div>
               <label class="recovery-confirm">
                 <input type="checkbox" bind:checked={recoveryAcknowledged} />
-                Ich habe die Codes sicher gespeichert
+                {$_('account.security.recovery_acknowledge')}
               </label>
               <button
                 type="button"
@@ -615,14 +630,16 @@
                 disabled={!recoveryAcknowledged}
                 onclick={dismissRecoveryCodes}
               >
-                Fertig
+                {$_('account.security.recovery_done')}
               </button>
             </div>
           {:else}
             <p class="body-text">
               {recoveryRemaining === null
-                ? 'Lade Status …'
-                : `${recoveryRemaining} ${recoveryRemaining === 1 ? 'Code' : 'Codes'} verbleibend.`}
+                ? $_('account.security.recovery_loading_status')
+                : $_('account.security.recovery_remaining', {
+                    values: { count: recoveryRemaining },
+                  })}
             </p>
             {#if recoveryError}
               <p class="error-inline">{recoveryError}</p>
@@ -634,10 +651,10 @@
               disabled={recoveryLoading}
             >
               {recoveryLoading
-                ? 'Erzeuge …'
+                ? $_('account.security.recovery_generating')
                 : recoveryRemaining && recoveryRemaining > 0
-                  ? 'Codes neu erzeugen'
-                  : 'Recovery-Codes erzeugen'}
+                  ? $_('account.security.recovery_regenerate')
+                  : $_('account.security.recovery_generate')}
             </button>
           {/if}
         {/if}

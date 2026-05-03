@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
+  import { _ } from 'svelte-i18n';
   import { auth } from '$lib/stores/auth.svelte.js';
   import Bell from '$lib/components/icons/Bell.svelte';
   import Check from '$lib/components/icons/Check.svelte';
@@ -26,12 +27,12 @@
         return;
       }
       if (!res.ok) {
-        error = 'Einstellungen konnten nicht geladen werden.';
+        error = $_('account.notifications.error_load');
         return;
       }
       settings = (await res.json()) as NotificationSettings;
     } catch {
-      error = 'Netzwerkfehler beim Laden.';
+      error = $_('account.profile.error_network');
     } finally {
       loading = false;
     }
@@ -50,7 +51,7 @@
       });
       if (!res.ok) {
         const json = (await res.json().catch(() => ({}))) as { message?: string };
-        error = json.message ?? 'Fehler beim Speichern.';
+        error = json.message ?? $_('account.notifications.error_save');
         return;
       }
       saved = true;
@@ -58,7 +59,7 @@
         saved = false;
       }, 2500);
     } catch {
-      error = 'Netzwerkfehler.';
+      error = $_('account.notifications.error_network');
     } finally {
       saving = false;
     }
@@ -96,11 +97,12 @@
   <div class="page-header">
     <div class="page-title-row">
       <Bell size={22} />
-      <h1 class="page-title">Benachrichtigungen</h1>
+      <h1 class="page-title">{$_('account.notifications.title')}</h1>
     </div>
     {#if saved}
       <span class="saved-hint">
-        <Check size={14} /> Gespeichert
+        <Check size={14} />
+        {$_('account.notifications.saved')}
       </span>
     {/if}
   </div>
@@ -112,14 +114,14 @@
   {:else if settings}
     <section class="panel">
       <div class="panel-head">
-        <h2 class="panel-heading">E-Mail-Benachrichtigungen</h2>
+        <h2 class="panel-heading">{$_('account.notifications.section_email')}</h2>
       </div>
 
       <!-- Toggle: email on download -->
       <div class="toggle-row">
         <div class="toggle-info">
-          <span class="toggle-label">E-Mail bei Download</span>
-          <span class="toggle-desc">Wenn jemand einen deiner Shares herunterlädt</span>
+          <span class="toggle-label">{$_('account.notifications.email_download_label')}</span>
+          <span class="toggle-desc">{$_('account.notifications.email_download_desc')}</span>
         </div>
         <button
           type="button"
@@ -129,7 +131,7 @@
           class:on={settings.emailOnDownload}
           onclick={() => void toggle('emailOnDownload')}
           disabled={saving}
-          aria-label="E-Mail bei Download"
+          aria-label={$_('account.notifications.email_download_label')}
         >
           <span class="thumb" aria-hidden="true"></span>
         </button>
@@ -140,8 +142,8 @@
       <!-- Toggle: email on expiry -->
       <div class="toggle-row">
         <div class="toggle-info">
-          <span class="toggle-label">E-Mail bei Ablauf</span>
-          <span class="toggle-desc">Kurz bevor ein Share abläuft</span>
+          <span class="toggle-label">{$_('account.notifications.email_expiry_label')}</span>
+          <span class="toggle-desc">{$_('account.notifications.email_expiry_desc')}</span>
         </div>
         <button
           type="button"
@@ -151,7 +153,7 @@
           class:on={settings.emailOnExpiry}
           onclick={() => void toggle('emailOnExpiry')}
           disabled={saving}
-          aria-label="E-Mail bei Ablauf"
+          aria-label={$_('account.notifications.email_expiry_label')}
         >
           <span class="thumb" aria-hidden="true"></span>
         </button>
@@ -160,8 +162,7 @@
 
     <div class="info-note">
       <Bell size={14} />
-      <span>E-Mail-Benachrichtigungen werden versendet, wenn ein SMTP-Server konfiguriert ist.</span
-      >
+      <span>{$_('account.notifications.smtp_note')}</span>
     </div>
   {/if}
 </div>

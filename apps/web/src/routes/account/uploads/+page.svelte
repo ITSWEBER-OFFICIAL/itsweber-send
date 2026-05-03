@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
+  import { _ } from 'svelte-i18n';
   import { auth } from '$lib/stores/auth.svelte.js';
   import Trash from '$lib/components/icons/Trash.svelte';
   import RefreshCw from '$lib/components/icons/RefreshCw.svelte';
@@ -65,12 +66,12 @@
         return;
       }
       if (!res.ok) {
-        error = 'Uploads konnten nicht geladen werden.';
+        error = $_('account.uploads.error_load');
         return;
       }
       data = (await res.json()) as PageData;
     } catch {
-      error = 'Netzwerkfehler beim Laden.';
+      error = $_('account.uploads.error_network');
     } finally {
       loading = false;
     }
@@ -78,10 +79,7 @@
 
   async function deleteUpload(id: string) {
     if (deletingId) return;
-    if (
-      !confirm('Diesen Upload endgültig löschen? Die Aktion kann nicht rückgängig gemacht werden.')
-    )
-      return;
+    if (!confirm($_('account.uploads.confirm_delete'))) return;
     deletingId = id;
     try {
       const res = await fetch(`/api/v1/account/uploads/${id}`, { method: 'DELETE' });
@@ -121,13 +119,13 @@
   <div class="page-header">
     <div class="page-title-row">
       <Files size={22} />
-      <h1 class="page-title">Meine Uploads</h1>
+      <h1 class="page-title">{$_('account.uploads.title')}</h1>
     </div>
     <button
       type="button"
       class="btn-icon"
-      title="Aktualisieren"
-      aria-label="Aktualisieren"
+      title={$_('account.uploads.refresh')}
+      aria-label={$_('account.uploads.refresh')}
       onclick={() => void load()}
       disabled={loading}
     >
@@ -144,7 +142,7 @@
     <section class="panel quota-panel">
       <div class="panel-body">
         <div class="quota-head">
-          <span class="quota-label">Speicher-Quota</span>
+          <span class="quota-label">{$_('account.uploads.quota_label')}</span>
           <span class="quota-value">
             <b>{formatBytes(data.quota.usedBytes)}</b> von {formatBytes(data.quota.totalBytes)} &middot;
             {formatBytes(data.quota.remainingBytes)} frei
@@ -166,26 +164,27 @@
     <section class="panel">
       <div class="panel-head">
         <h2 class="panel-heading">
-          Uploads <span class="count-badge">{data.uploads.length}</span>
+          {$_('account.uploads.uploads_heading')}
+          <span class="count-badge">{data.uploads.length}</span>
         </h2>
       </div>
       {#if data.uploads.length === 0}
         <div class="panel-body empty-state">
           <Files size={32} />
-          <p>Noch keine Uploads vorhanden.</p>
-          <a href="/" class="link">Jetzt eine Datei senden</a>
+          <p>{$_('account.uploads.no_uploads')}</p>
+          <a href="/" class="link">{$_('account.uploads.send_file')}</a>
         </div>
       {:else}
         <div class="table-wrap">
           <table>
             <thead>
               <tr>
-                <th>Wordcode</th>
-                <th>Erstellt</th>
-                <th>Ablauf</th>
-                <th>Downloads</th>
-                <th>Grösse</th>
-                <th>Schutz</th>
+                <th>{$_('account.uploads.col_wordcode')}</th>
+                <th>{$_('account.uploads.col_created')}</th>
+                <th>{$_('account.uploads.col_expiry')}</th>
+                <th>{$_('account.uploads.col_downloads')}</th>
+                <th>{$_('account.uploads.col_size')}</th>
+                <th>{$_('account.uploads.col_protection')}</th>
                 <th></th>
               </tr>
             </thead>
@@ -197,7 +196,9 @@
                   </td>
                   <td class="muted">{formatDate(upload.createdAt)}</td>
                   <td class:danger-text={upload.expired}>
-                    {upload.expired ? 'Abgelaufen' : formatDate(upload.expiresAt)}
+                    {upload.expired
+                      ? $_('account.uploads.expired_label')
+                      : formatDate(upload.expiresAt)}
                   </td>
                   <td>
                     {upload.downloadsUsed} / {upload.downloadLimit === 0
@@ -209,8 +210,8 @@
                     {#if upload.passwordProtected}
                       <span
                         class="lock-icon"
-                        title="Passwortgeschützt"
-                        aria-label="Passwortgeschützt"
+                        title={$_('account.uploads.password_protected')}
+                        aria-label={$_('account.uploads.password_protected')}
                       >
                         <Lock size={14} />
                       </span>
@@ -220,8 +221,8 @@
                     <button
                       type="button"
                       class="btn-row-action danger"
-                      title="Löschen"
-                      aria-label="Upload löschen"
+                      title={$_('account.uploads.delete_btn')}
+                      aria-label={$_('account.uploads.delete_aria')}
                       onclick={() => void deleteUpload(upload.id)}
                       disabled={deletingId === upload.id}
                     >

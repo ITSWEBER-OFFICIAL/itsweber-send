@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
+  import { _ } from 'svelte-i18n';
   import { auth } from '$lib/stores/auth.svelte.js';
   import FileText from '$lib/components/icons/FileText.svelte';
   import RefreshCw from '$lib/components/icons/RefreshCw.svelte';
@@ -21,18 +22,18 @@
 
   const PAGE_SIZE = 50;
 
-  const ACTION_LABELS: Record<string, string> = {
-    'user.login': 'Anmeldung',
-    'user.logout': 'Abmeldung',
-    'user.register': 'Registrierung',
-    'share.created': 'Share erstellt',
-    'share.deleted': 'Share gelöscht',
-    'token.created': 'API-Token erstellt',
-    'token.deleted': 'API-Token gelöscht',
-    'profile.updated': 'Profil aktualisiert',
-    'password.changed': 'Passwort geändert',
-    '2fa.enabled': '2FA aktiviert',
-    '2fa.disabled': '2FA deaktiviert',
+  const ACTION_KEY_MAP: Record<string, string> = {
+    'user.login': 'account.audit.action_login',
+    'user.logout': 'account.audit.action_logout',
+    'user.register': 'account.audit.action_register',
+    'share.created': 'account.audit.action_share_created',
+    'share.deleted': 'account.audit.action_share_deleted',
+    'token.created': 'account.audit.action_token_created',
+    'token.deleted': 'account.audit.action_token_deleted',
+    'profile.updated': 'account.audit.action_profile_updated',
+    'password.changed': 'account.audit.action_password_changed',
+    '2fa.enabled': 'account.audit.action_2fa_enabled',
+    '2fa.disabled': 'account.audit.action_2fa_disabled',
   };
 
   let entries = $state<AuditEntry[]>([]);
@@ -43,7 +44,8 @@
   let error = $state<string | null>(null);
 
   function actionLabel(action: string): string {
-    return ACTION_LABELS[action] ?? action;
+    const key = ACTION_KEY_MAP[action];
+    return key ? $_(key) : action;
   }
 
   function formatDate(iso: string): string {
@@ -66,7 +68,7 @@
         return;
       }
       if (!res.ok) {
-        error = `Fehler beim Laden (${res.status})`;
+        error = $_('account.audit.error_load', { values: { status: res.status } });
         return;
       }
       const json = (await res.json()) as AuditResponse;
@@ -80,7 +82,7 @@
         offset = json.entries.length;
       }
     } catch {
-      error = 'Verbindungsfehler. Bitte Seite neu laden.';
+      error = $_('account.audit.error_network');
     } finally {
       loading = false;
       loadingMore = false;
@@ -119,16 +121,16 @@
   <header class="page-header">
     <FileText size={20} />
     <div>
-      <h1>Audit-Log</h1>
-      <p class="sub">Protokoll aller sicherheitsrelevanten Aktionen auf deinem Konto.</p>
+      <h1>{$_('account.audit.title')}</h1>
+      <p class="sub">{$_('account.audit.sub')}</p>
     </div>
     <button
       type="button"
       class="reload-btn"
       onclick={() => void load(false)}
       disabled={loading || loadingMore}
-      aria-label="Neu laden"
-      title="Neu laden"
+      aria-label={$_('account.audit.reload')}
+      title={$_('account.audit.reload')}
     >
       <RefreshCw size={15} />
     </button>
@@ -141,7 +143,7 @@
   {:else}
     <section class="panel">
       <div class="panel-head">
-        <h2>Ereignisse</h2>
+        <h2>{$_('account.audit.events_heading')}</h2>
         {#if total > 0}
           <span class="count-badge">{total}</span>
         {/if}
@@ -149,17 +151,17 @@
 
       {#if entries.length === 0}
         <div class="panel-body">
-          <p class="empty">Keine Einträge vorhanden.</p>
+          <p class="empty">{$_('account.audit.no_entries')}</p>
         </div>
       {:else}
         <div class="table-wrap">
           <table>
             <thead>
               <tr>
-                <th>Zeitstempel</th>
-                <th>Aktion</th>
-                <th>Ressource</th>
-                <th>IP</th>
+                <th>{$_('account.audit.col_timestamp')}</th>
+                <th>{$_('account.audit.col_action')}</th>
+                <th>{$_('account.audit.col_resource')}</th>
+                <th>{$_('account.audit.col_ip')}</th>
               </tr>
             </thead>
             <tbody>
@@ -201,15 +203,15 @@
             >
               {#if loadingMore}
                 <span class="spinner-sm" aria-hidden="true"></span>
-                Wird geladen&hellip;
+                {$_('account.audit.loading_more')}
               {:else}
-                Altere laden ({total - entries.length} weitere)
+                {$_('account.audit.load_more', { values: { count: total - entries.length } })}
               {/if}
             </button>
           </div>
         {:else if total > PAGE_SIZE}
           <div class="load-more-row">
-            <span class="all-loaded">Alle {total} Einträge geladen.</span>
+            <span class="all-loaded">{$_('account.audit.all_loaded', { values: { total } })}</span>
           </div>
         {/if}
       {/if}

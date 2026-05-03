@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
+  import { _ } from 'svelte-i18n';
   import { auth } from '$lib/stores/auth.svelte.js';
   import User from '$lib/components/icons/User.svelte';
   import Check from '$lib/components/icons/Check.svelte';
@@ -35,9 +36,9 @@
   function roleLabel(role: string): string {
     switch (role) {
       case 'admin':
-        return 'Administrator';
+        return $_('account.profile.role_admin');
       case 'user':
-        return 'Nutzer';
+        return $_('account.profile.role_user');
       default:
         return role;
     }
@@ -53,14 +54,14 @@
         return;
       }
       if (!res.ok) {
-        error = 'Profil konnte nicht geladen werden.';
+        error = $_('account.profile.error_load');
         return;
       }
       profile = (await res.json()) as Profile;
       formEmail = profile.email;
       formDisplayName = profile.displayName ?? '';
     } catch {
-      error = 'Netzwerkfehler beim Laden.';
+      error = $_('account.profile.error_network');
     } finally {
       loading = false;
     }
@@ -69,7 +70,7 @@
   async function saveProfile() {
     if (!profile || formLoading) return;
     if (!formEmail.trim()) {
-      formError = 'E-Mail-Adresse ist erforderlich.';
+      formError = $_('account.profile.error_email_required');
       return;
     }
     formLoading = true;
@@ -86,18 +87,18 @@
       });
       if (!res.ok) {
         const json = (await res.json().catch(() => ({}))) as { message?: string };
-        formError = json.message ?? 'Fehler beim Speichern.';
+        formError = json.message ?? $_('account.profile.error_save');
         return;
       }
       profile = (await res.json()) as Profile;
       formEmail = profile.email;
       formDisplayName = profile.displayName ?? '';
-      formSuccess = 'Profil erfolgreich gespeichert.';
+      formSuccess = $_('account.profile.success');
       setTimeout(() => {
         formSuccess = '';
       }, 3000);
     } catch {
-      formError = 'Netzwerkfehler.';
+      formError = $_('account.profile.error_network_save');
     } finally {
       formLoading = false;
     }
@@ -129,7 +130,7 @@
   <div class="page-header">
     <div class="page-title-row">
       <User size={22} />
-      <h1 class="page-title">Profil</h1>
+      <h1 class="page-title">{$_('account.profile.title')}</h1>
     </div>
   </div>
 
@@ -141,15 +142,15 @@
     <!-- Account info -->
     <section class="panel info-panel">
       <div class="panel-head">
-        <h2 class="panel-heading">Konto-Informationen</h2>
+        <h2 class="panel-heading">{$_('account.profile.section_info')}</h2>
       </div>
       <div class="panel-body info-grid">
         <div class="info-row">
-          <span class="info-key">Konto-ID</span>
+          <span class="info-key">{$_('account.profile.field_id')}</span>
           <span class="info-val mono">{profile.id}</span>
         </div>
         <div class="info-row">
-          <span class="info-key">Rolle</span>
+          <span class="info-key">{$_('account.profile.field_role')}</span>
           <span class="info-val">
             <span class="role-badge" class:admin={profile.role === 'admin'}
               >{roleLabel(profile.role)}</span
@@ -157,7 +158,7 @@
           </span>
         </div>
         <div class="info-row">
-          <span class="info-key">Mitglied seit</span>
+          <span class="info-key">{$_('account.profile.field_member_since')}</span>
           <span class="info-val">{formatDate(profile.createdAt)}</span>
         </div>
       </div>
@@ -166,7 +167,7 @@
     <!-- Edit form -->
     <section class="panel">
       <div class="panel-head">
-        <h2 class="panel-heading">Profil bearbeiten</h2>
+        <h2 class="panel-heading">{$_('account.profile.section_edit')}</h2>
       </div>
       <div class="panel-body">
         <form
@@ -177,20 +178,22 @@
         >
           <div class="field">
             <label for="display-name" class="label"
-              >Anzeigename <span class="opt">(optional)</span></label
+              >{$_('account.profile.field_display_name')} <span class="opt">(optional)</span></label
             >
             <input
               id="display-name"
               type="text"
               class="input"
-              placeholder="Wie soll dein Name angezeigt werden?"
+              placeholder={$_('account.profile.field_display_name_placeholder')}
               bind:value={formDisplayName}
               maxlength={80}
             />
-            <span class="hint">Leer lassen, um den E-Mail-Namen zu verwenden.</span>
+            <span class="hint">{$_('account.profile.field_display_name_hint')}</span>
           </div>
           <div class="field">
-            <label for="email" class="label">E-Mail-Adresse <span class="req">*</span></label>
+            <label for="email" class="label"
+              >{$_('account.profile.field_email')} <span class="req">*</span></label
+            >
             <input
               id="email"
               type="email"
@@ -213,7 +216,7 @@
 
           <div class="form-actions">
             <button type="submit" class="btn-primary" disabled={formLoading}>
-              {formLoading ? 'Speichert…' : 'Speichern'}
+              {formLoading ? $_('account.profile.saving') : $_('account.profile.save')}
             </button>
             <button
               type="button"
@@ -225,7 +228,7 @@
                 formSuccess = '';
               }}
             >
-              Zurücksetzen
+              {$_('account.profile.reset')}
             </button>
           </div>
         </form>

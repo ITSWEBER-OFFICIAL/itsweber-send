@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { _ } from 'svelte-i18n';
   import { locale } from '$lib/stores/locale.svelte.js';
   import Globe from '$lib/components/icons/Globe.svelte';
 
@@ -48,9 +49,9 @@
   <header class="page-header">
     <Globe size={20} />
     <div>
-      <h1>Sprache &amp; Zeitzone</h1>
+      <h1>{$_('account.locale.title')}</h1>
       <p class="sub">
-        Lege fest, in welcher Sprache die Oberfläche erscheint und wie Zeitstempel angezeigt werden.
+        {$_('account.locale.sub')}
       </p>
     </div>
   </header>
@@ -58,14 +59,14 @@
   <section class="section">
     <div class="card">
       <div class="card-head">
-        <h2>Sprache</h2>
+        <h2>{$_('account.locale.lang_heading')}</h2>
         <span class="badge-current">{currentLangLabel}</span>
       </div>
       <div class="card-body">
         <p class="hint">
-          Wähle die Sprache der Benutzeroberfläche. Die Änderung wird sofort übernommen.
+          {$_('account.locale.lang_hint')}
         </p>
-        <div class="lang-group" role="radiogroup" aria-label="Sprache wählen">
+        <div class="lang-group" role="radiogroup" aria-label={$_('account.locale.lang_aria')}>
           <button
             type="button"
             role="radio"
@@ -94,13 +95,13 @@
 
     <div class="card">
       <div class="card-head">
-        <h2>Zeitzone</h2>
+        <h2>{$_('account.locale.tz_heading')}</h2>
       </div>
       <div class="card-body">
         <p class="hint">
-          Die Zeitzone betrifft nur die Darstellung von Zeitstempeln in der Benutzeroberfläche.
+          {$_('account.locale.tz_hint')}
         </p>
-        <label for="tz-select" class="field-label">Zeitzone</label>
+        <label for="tz-select" class="field-label">{$_('account.locale.tz_label')}</label>
         <select
           id="tz-select"
           class="select"
@@ -112,7 +113,7 @@
           {/each}
         </select>
         <p class="tz-note">
-          Aktuelle Auswahl: <code class="mono">{selectedTz}</code>
+          {$_('account.locale.tz_current')} <code class="mono">{selectedTz}</code>
         </p>
       </div>
     </div>

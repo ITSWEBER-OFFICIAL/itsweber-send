@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
+  import { _ } from 'svelte-i18n';
   import { auth } from '$lib/stores/auth.svelte.js';
   import type { AccountUpload } from '@itsweber-send/shared';
   import Copy from '$lib/components/icons/Copy.svelte';
@@ -35,7 +36,7 @@
     if (hours < 1) return `${Math.floor(diff / (1000 * 60))} min`;
     if (hours < 24) return `in ${hours} h`;
     const days = Math.floor(hours / 24);
-    return `in ${days} ${days === 1 ? 'Tag' : 'Tagen'}`;
+    return `in ${days} d`;
   }
 
   function fileTypeBadge(name: string): { label: string; tone: string } {
@@ -64,7 +65,7 @@
 
   async function deleteUpload(id: string) {
     if (deletingId) return;
-    if (!confirm('Diesen Share endgültig löschen?')) return;
+    if (!confirm($_('account.overview.confirm_delete'))) return;
     deletingId = id;
     try {
       const res = await fetch(`/api/v1/account/uploads/${id}`, { method: 'DELETE' });
@@ -132,10 +133,12 @@
 {#if loading}
   <div class="center"><span class="spinner" aria-hidden="true"></span></div>
 {:else if data}
-  <div class="crumbs"><a href="/account">Account</a> · Übersicht</div>
-  <h1 class="hello">Hallo {auth.user?.email.split('@')[0]}</h1>
+  <div class="crumbs"><a href="/account">Account</a> · {$_('account.overview.breadcrumb')}</div>
+  <h1 class="hello">
+    {$_('account.overview.greeting', { values: { name: auth.user?.email.split('@')[0] } })}
+  </h1>
   <p class="sub">
-    {#if auth.user?.role === 'admin'}Administrator-Konto ·
+    {#if auth.user?.role === 'admin'}{$_('account.overview.admin_badge')} ·
     {/if}
     {auth.user?.email}
   </p>
@@ -143,24 +146,30 @@
   <!-- Stat Cards -->
   <div class="stats">
     <div class="stat-card">
-      <div class="label">Aktive Uploads</div>
+      <div class="label">{$_('account.overview.stat_active_uploads')}</div>
       <div class="value">{stats?.active ?? 0}</div>
-      <div class="delta">{data.uploads.length} insgesamt</div>
+      <div class="delta">
+        {$_('account.overview.stat_total', { values: { count: data.uploads.length } })}
+      </div>
     </div>
     <div class="stat-card">
-      <div class="label">Genutzter Speicher</div>
+      <div class="label">{$_('account.overview.stat_storage_used')}</div>
       <div class="value">{formatBytes(data.quota.usedBytes)}</div>
-      <div class="delta">von {formatBytes(data.quota.totalBytes)}</div>
+      <div class="delta">
+        {$_('account.overview.stat_storage_of', {
+          values: { total: formatBytes(data.quota.totalBytes) },
+        })}
+      </div>
     </div>
     <div class="stat-card">
-      <div class="label">Downloads gesamt</div>
+      <div class="label">{$_('account.overview.stat_downloads')}</div>
       <div class="value">{stats?.totalDownloads ?? 0}</div>
-      <div class="delta">über alle Shares</div>
+      <div class="delta">{$_('account.overview.stat_downloads_delta')}</div>
     </div>
     <div class="stat-card">
-      <div class="label">API-Tokens</div>
+      <div class="label">{$_('account.overview.stat_tokens')}</div>
       <div class="value">0</div>
-      <div class="delta dim">verfügbar ab v1.1</div>
+      <div class="delta dim">{$_('account.overview.stat_tokens_soon')}</div>
     </div>
   </div>
 
@@ -168,11 +177,13 @@
   <section class="quota panel">
     <div class="panel-body quota-body">
       <div class="quota-head">
-        <h2>Speicher-Quota</h2>
+        <h2>{$_('account.overview.quota_heading')}</h2>
         <div class="v">
           <b>{formatBytes(data.quota.usedBytes)}</b>
           von {formatBytes(data.quota.totalBytes)} ·
-          {formatBytes(data.quota.remainingBytes)} frei
+          {$_('account.overview.quota_free', {
+            values: { size: formatBytes(data.quota.remainingBytes) },
+          })}
         </div>
       </div>
       <div class="quota-bar">
@@ -182,8 +193,16 @@
         ></div>
       </div>
       <div class="quota-legend">
-        <span><span class="dot used"></span>Belegt · {formatBytes(data.quota.usedBytes)}</span>
-        <span><span class="dot free"></span>Frei · {formatBytes(data.quota.remainingBytes)}</span>
+        <span
+          ><span class="dot used"></span>{$_('account.overview.quota_used_label')} · {formatBytes(
+            data.quota.usedBytes,
+          )}</span
+        >
+        <span
+          ><span class="dot free"></span>{$_('account.overview.quota_free_label')} · {formatBytes(
+            data.quota.remainingBytes,
+          )}</span
+        >
       </div>
     </div>
   </section>
@@ -191,26 +210,28 @@
   <!-- Recent Uploads -->
   <section class="panel">
     <div class="panel-h">
-      <h2>Letzte Uploads</h2>
+      <h2>{$_('account.overview.recent_uploads')}</h2>
       {#if data.uploads.length > 5}
-        <a class="link-btn" href="/account">Alle anzeigen <ChevronRight size={14} /></a>
+        <a class="link-btn" href="/account"
+          >{$_('account.overview.show_all')} <ChevronRight size={14} /></a
+        >
       {/if}
     </div>
     <div class="panel-body table-body">
       {#if data.uploads.length === 0}
         <p class="empty">
-          Du hast noch keine Uploads.
-          <a href="/">Jetzt eine Datei senden</a>.
+          {$_('account.overview.no_uploads')}
+          <a href="/">{$_('account.overview.send_file')}</a>.
         </p>
       {:else}
         <table>
           <thead>
             <tr>
-              <th>Share</th>
-              <th>Größe</th>
-              <th>Downloads</th>
-              <th>Ablauf</th>
-              <th>Status</th>
+              <th>{$_('account.overview.col_share')}</th>
+              <th>{$_('account.overview.col_size')}</th>
+              <th>{$_('account.overview.col_downloads')}</th>
+              <th>{$_('account.overview.col_expiry')}</th>
+              <th>{$_('account.overview.col_status')}</th>
               <th></th>
             </tr>
           </thead>
@@ -232,9 +253,9 @@
                 <td>{relativeExpiry(upload.expiresAt, upload.expired)}</td>
                 <td>
                   {#if upload.expired}
-                    <span class="badge badge-queue">Abgelaufen</span>
+                    <span class="badge badge-queue">{$_('account.overview.badge_expired')}</span>
                   {:else}
-                    <span class="badge badge-ok">Aktiv</span>
+                    <span class="badge badge-ok">{$_('account.overview.badge_active')}</span>
                   {/if}
                   {#if upload.passwordProtected}
                     <span class="badge badge-busy" style="margin-left: 4px;">PW</span>
@@ -245,8 +266,8 @@
                     {#if !upload.expired}
                       <button
                         type="button"
-                        title="ID kopieren"
-                        aria-label="ID kopieren"
+                        title={$_('account.overview.copy_id')}
+                        aria-label={$_('account.overview.copy_id')}
                         onclick={() => void copyId_(upload.id)}
                       >
                         {#if copyId === upload.id}
@@ -258,8 +279,8 @@
                     {:else}
                       <button
                         type="button"
-                        title="Erneut hochladen (folgt)"
-                        aria-label="Erneut hochladen"
+                        title={$_('account.overview.reupload_soon')}
+                        aria-label={$_('account.overview.reupload')}
                         disabled
                       >
                         <RefreshCw size={14} />
@@ -267,8 +288,8 @@
                     {/if}
                     <button
                       type="button"
-                      title="Löschen"
-                      aria-label="Löschen"
+                      title={$_('account.overview.delete')}
+                      aria-label={$_('account.overview.delete')}
                       onclick={() => void deleteUpload(upload.id)}
                       disabled={deletingId === upload.id}
                       class="danger"
@@ -288,16 +309,22 @@
   <!-- API Tokens placeholder -->
   <section class="panel">
     <div class="panel-h">
-      <h2>API-Tokens</h2>
-      <button type="button" class="btn btn-primary btn-sm" disabled title="Verfügbar ab v1.1">
-        <Plus size={14} /> Neuer Token
+      <h2>{$_('account.overview.tokens_heading')}</h2>
+      <button
+        type="button"
+        class="btn btn-primary btn-sm"
+        disabled
+        title={$_('account.overview.available_v11')}
+      >
+        <Plus size={14} />
+        {$_('account.overview.tokens_new')}
       </button>
     </div>
     <div class="panel-body empty-tokens">
       <p>
-        Persönliche Access-Tokens für CLI-Uploads und CI/CD-Pipelines folgen in v1.1. Du kannst
-        Shares aktuell direkt über die Web-UI oder die
-        <a href="/docs">REST-API mit Session-Cookie</a> erstellen.
+        {$_('account.overview.tokens_desc')}
+        <a href="/docs">{$_('account.overview.tokens_api_link')}</a>
+        {$_('account.overview.tokens_api_suffix')}
       </p>
     </div>
   </section>
