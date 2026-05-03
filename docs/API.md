@@ -26,7 +26,7 @@ Returns the server's operational status. Not rate-limited.
 {
   "status": "ok",
   "uptimeMs": 123456,
-  "version": "1.0.0"
+  "version": "1.1.0"
 }
 ```
 

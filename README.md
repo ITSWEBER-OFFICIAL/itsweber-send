@@ -140,30 +140,33 @@ All configuration is done via environment variables. Full reference: [docs/CONFI
 
 ## Documentation
 
-| Document                                                         | Description                                   |
-| ---------------------------------------------------------------- | --------------------------------------------- |
-| [docs/INSTALL.md](docs/INSTALL.md)                               | Installation guide for Docker and from source |
-| [docs/CONFIG.md](docs/CONFIG.md)                                 | Full environment variable reference           |
-| [docs/API.md](docs/API.md)                                       | REST API reference                            |
-| [docs/SECURITY.md](docs/SECURITY.md)                             | Security architecture and threat model        |
-| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)                     | System design and component overview          |
-| [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)               | Known issues and build/runtime pitfalls       |
-| [packages/crypto-spec/README.md](packages/crypto-spec/README.md) | Cryptographic format specification            |
-| [CHANGELOG.md](CHANGELOG.md)                                     | Release history                               |
+| Document                                                         | Description                                          |
+| ---------------------------------------------------------------- | ---------------------------------------------------- |
+| [docs/INSTALL.md](docs/INSTALL.md)                               | Installation guide for Docker and from source        |
+| [docs/CONFIG.md](docs/CONFIG.md)                                 | Full environment variable reference                  |
+| [docs/API.md](docs/API.md)                                       | REST API reference                                   |
+| [docs/SECURITY.md](docs/SECURITY.md)                             | Security architecture and threat model               |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)                     | System design and component overview                 |
+| [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)               | Known issues and build/runtime pitfalls              |
+| [docs/MOBILE_UX_AUDIT.md](docs/MOBILE_UX_AUDIT.md)               | Mobile UX audit (touch targets, viewport, safe-area) |
+| [docs/V1.1_DECISIONS.md](docs/V1.1_DECISIONS.md)                 | v1.1 architecture decisions                          |
+| [docs/LARGE_FILES.md](docs/LARGE_FILES.md)                       | Per-layer ceilings for >5 GB uploads                 |
+| [packages/crypto-spec/README.md](packages/crypto-spec/README.md) | Cryptographic format specification                   |
+| [CHANGELOG.md](CHANGELOG.md)                                     | Release history                                      |
 
 ---
 
 ## Architecture
 
-| Layer     | Choice                                   | Notes                                |
-| --------- | ---------------------------------------- | ------------------------------------ |
-| Backend   | Fastify 5 on Node.js 22                  | Multipart uploads, tus-node-server   |
-| Frontend  | SvelteKit 2 + Svelte 5 + Vite            | TailwindCSS v4, svelte-i18n          |
-| Crypto    | Web Crypto API                           | AES-256-GCM, PBKDF2 200 k iterations |
-| DB        | better-sqlite3                           | Embedded; no separate service        |
-| Storage   | Filesystem (default) / S3 (MinIO) plugin | Pluggable adapter                    |
-| Container | node:22-alpine, multi-stage              | Non-root UID 10001, read-only rootfs |
-| Proxy     | Caddy 2                                  | Automatic TLS, security headers      |
+| Layer     | Choice                                   | Notes                                                     |
+| --------- | ---------------------------------------- | --------------------------------------------------------- |
+| Backend   | Fastify 5 on Node.js 22                  | Resumable chunked uploads (custom protocol), S3 multipart |
+| Frontend  | SvelteKit 2 + Svelte 5 + Vite            | TailwindCSS v4, svelte-i18n                               |
+| Crypto    | Web Crypto API                           | AES-256-GCM, PBKDF2 200 k iterations                      |
+| DB        | better-sqlite3                           | Embedded; no separate service                             |
+| Storage   | Filesystem (default) / S3 (MinIO) plugin | Pluggable adapter                                         |
+| Container | node:22-alpine, multi-stage              | Non-root UID 10001, read-only rootfs                      |
+| Proxy     | Caddy 2                                  | Automatic TLS, security headers                           |
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full write-up.
 

@@ -6,6 +6,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [1.1.0] - 2026-05-03
 
+### Tests
+
+- Playwright end-to-end suite (`apps/web/e2e/`) covering the three v1.1 critical paths: anonymous round-trip (upload → fragment-key download → byte-level match), voice-mode (password + wordcode reconstruct the share without a key in the URL), and resumable pause / resume on a multi-chunk upload throttled via Playwright's `route()` interception so the in-flight UI state is reliably observable. Both API and SvelteKit dev servers are spawned by `playwright.config.ts` against an isolated tmp DB and storage root, so the suite never touches developer state.
+
+### UX
+
+- Mobile UX audit (Block H, [`docs/MOBILE_UX_AUDIT.md`](docs/MOBILE_UX_AUDIT.md)). Per-file action buttons in the upload list bumped from 28 px to 36 px (default) / 44 px (mobile) to clear the WCAG 2.5.5 touch target. Expiry / download-limit chips get `min-height: 44px` on mobile. Global text-input rule sets `font-size: 16px` on `≤ 640 px` viewports so iOS Safari no longer zooms when the password / receive-code field is focused. `body` now uses `min-height: 100dvh` alongside `100vh` so the gradient background fills the actually-visible viewport on iOS Chrome and Safari. The sticky `.appbar` honors `env(safe-area-inset-*)` on both desktop and `≤ 880 px` breakpoints, fixing brand-mark overlap on devices with a notch / display cutout.
+
 ### Security
 
 - Fix expired-row filtering in seven SQL queries (sessions, API tokens, share quota, in-progress uploads, admin stats). Rows store `expires_at` as ISO-8601 with `T`/`Z` (e.g. `2026-05-03T12:00:00.000Z`); SQLite's `datetime('now')` returns the canonical `YYYY-MM-DD HH:MM:SS` format. The previous lexical comparison `expires_at > datetime('now')` was always true (`'T'` (0x54) > `' '` (0x20)), so server-side expiry filtering was inert: expired sessions kept authenticating, expired API tokens kept being accepted, the admin "active shares" / "total storage" stats counted long-expired shares. Both sides of the comparison are now wrapped in `datetime(...)` so the canonicalised values compare correctly.

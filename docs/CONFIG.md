@@ -126,6 +126,6 @@ Each request body is a JSON object with an added `timestamp` field (ISO 8601). D
 
 ## Notes
 
-- The `MAX_FILE_SIZE_MB` cap (default: 5 GB) is enforced at the multipart parser level in the API and at the reverse proxy level in the Caddyfile. To raise it, update both.
+- The per-file size cap is controlled by `MAX_BLOB_BYTES` (default 100 GB) and the admin-tunable `max_upload_size_bytes` runtime setting. For the legacy single-shot upload route the multipart parser enforces a separate 500 MB ceiling. The Caddyfile `request_body { max_size }` provides the reverse-proxy layer (default 64 GB in the provided example).
 - All secrets (session tokens, encryption keys) are generated at runtime using `crypto.getRandomValues` or Node's `crypto.randomBytes`. No secret configuration key is required.
 - The first user to register receives the `admin` role automatically, regardless of email address.
