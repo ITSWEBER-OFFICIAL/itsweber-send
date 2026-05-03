@@ -1,5 +1,5 @@
 import { dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { existsSync } from 'node:fs';
 import Fastify from 'fastify';
 import { config } from './config.js';
@@ -101,7 +101,9 @@ export async function buildServer() {
     const here = dirname(fileURLToPath(import.meta.url));
     const handlerPath = resolve(here, '../../web/build/handler.js');
     if (existsSync(handlerPath)) {
-      const mod = (await import(handlerPath)) as {
+      // Convert to a file:// URL so dynamic import works on Windows (Node's
+      // ESM loader rejects raw `C:\…` paths with ERR_UNSUPPORTED_ESM_URL_SCHEME).
+      const mod = (await import(pathToFileURL(handlerPath).href)) as {
         handler: (
           req: import('node:http').IncomingMessage,
           res: import('node:http').ServerResponse,
@@ -151,7 +153,11 @@ async function main() {
   }
 }
 
-const isMain = import.meta.url === `file://${process.argv[1]}`;
+// Use pathToFileURL so the comparison is correct on Windows, where
+// process.argv[1] is `C:\path\file.js` but import.meta.url is the
+// canonical `file:///C:/path/file.js`.
+const argv1 = process.argv[1];
+const isMain = argv1 ? import.meta.url === pathToFileURL(argv1).href : false;
 if (isMain) {
   void main();
 }
