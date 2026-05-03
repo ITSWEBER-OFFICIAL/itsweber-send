@@ -131,6 +131,7 @@
     "zip_unavailable_title": "ZIP download unavailable",
     "zip_unavailable_hint": "This browser cannot write directly to disk. Please download individual files or use Chrome or Edge.",
     "zip_failed": "ZIP download failed. Please download individual files.",
+    "fsa_required_for_large": "This file is too large for the browser buffer. Your browser does not support writing directly to disk (or the save dialog was blocked). Use Chrome, Edge or Vivaldi and allow the save dialog.",
     "note_from_sender": "Note from sender",
     "encrypted_note": "Decrypted in your browser. The server only sees encrypted data.",
     "error_decrypt": "Decryption failed. Check the link.",

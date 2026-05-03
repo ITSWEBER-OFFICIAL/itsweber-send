@@ -131,6 +131,7 @@
     "zip_unavailable_title": "ZIP-Download nicht verfÃ¼gbar",
     "zip_unavailable_hint": "Dein Browser unterstÃ¼tzt das direkte Schreiben auf die Festplatte nicht. Bitte einzelne Dateien herunterladen oder Chrome bzw. Edge verwenden.",
     "zip_failed": "ZIP-Download fehlgeschlagen. Bitte einzelne Dateien herunterladen.",
+    "fsa_required_for_large": "Diese Datei ist zu groß für den Browser-Puffer. Dein Browser unterstützt das direkte Schreiben auf die Festplatte nicht (oder der Speicherort-Dialog wurde blockiert). Verwende Chrome, Edge oder Vivaldi und erlaube den Speicherort-Dialog.",
     "note_from_sender": "Notiz vom Absender",
     "encrypted_note": "Die Dateien werden im Browser entschlÃ¼sselt. Der Server sieht nur verschlÃ¼sselte Daten.",
     "error_decrypt": "EntschlÃ¼sselung fehlgeschlagen. PrÃ¼fe den Link.",

@@ -10,6 +10,7 @@
     unwrapMasterKey,
   } from '$lib/crypto/index.js';
   import {
+    blobFallbackAllowed,
     decodeManifest,
     downloadV1,
     downloadV2,
@@ -168,18 +169,10 @@
     fileStates[fileIndex] = 'downloading';
     const blobNum = parseInt(file.blobId.replace('blob-', ''), 10);
 
-    // FSA streaming-to-disk path (Chrome/Edge). For v2 this keeps peak
-    // RAM bounded by the manifest's chunk size — a 50 GB file decrypts in
-    // 16 MiB increments and writes plaintext straight to disk, so the
-    // browser never holds the full plaintext in memory. v1 remains a
-    // single AES-GCM op (legacy 500 MB cap), but skipping the Blob save
-    // step still halves peak RAM.
-    //
-    // Fall back to the buffered Blob path when FSA is unavailable, the
-    // permission flow rejects (no user gesture, no transient activation,
-    // SecurityError under automation), or the call throws for any other
-    // reason. The user-cancel case (`null` from pickFileDestination)
-    // intentionally does NOT fall back — the user explicitly said no.
+    // FSA streaming-to-disk path (Chrome/Edge/Vivaldi). For v2 this
+    // keeps peak RAM bounded by the manifest's chunk size — a 50 GB
+    // file decrypts in 16 MiB increments and writes plaintext straight
+    // to disk, so the browser never holds the full plaintext in memory.
     if (fsaSupported) {
       let writable: WritableStream<Uint8Array> | null = null;
       let pickerThrew = false;
@@ -215,13 +208,21 @@
         return;
       }
       // Picker threw (no user gesture / permission denied / unsupported
-      // under automation) — fall through to the buffered Blob path so
-      // the recipient still gets the file.
+      // under automation) — eligible for the buffered Blob fallback ONLY
+      // if the file is small enough that materialising the plaintext in
+      // V8 heap won't OOM the renderer. The size gate is checked below.
     }
 
-    // Fallback: Safari / Firefox without FSA. Buffered Blob path; capped
-    // by browser RAM. Single-file sends >~2 GB will OOM here — surfaced
-    // as the existing decrypt error rather than crashing the tab.
+    // Buffered Blob fallback for browsers without FSA (Safari, Firefox)
+    // or when the picker threw. The size gate is non-negotiable: pulling
+    // a 5+ GB file into a Blob crashes Chromium/Vivaldi well before the
+    // download dialog appears, so we surface a clear "use a different
+    // browser" message instead of detonating the tab.
+    if (!blobFallbackAllowed(manifestVersion, file.size)) {
+      fileStates[fileIndex] = 'idle';
+      errorMsg = $_('download.fsa_required_for_large');
+      return;
+    }
     try {
       if (manifestVersion === 1) {
         const v1file = file as Manifest['files'][number];

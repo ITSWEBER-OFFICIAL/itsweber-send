@@ -45,11 +45,13 @@ export interface ResumableUploadOptions {
   password?: string;
   note?: string;
   /**
-   * Optional address to email when the share is first downloaded. Server
-   * rejects this when the request is anonymous, so callers must only set
-   * it for an authenticated session.
+   * When true, ask the server to send a one-shot "downloaded" email to
+   * the authenticated session's address on the first successful download.
+   * The server ignores this for anonymous uploads (returns 400) and
+   * derives the recipient from `request.user.email` server-side, so the
+   * client never controls the destination.
    */
-  notifyEmail?: string;
+  notifyOnDownload?: boolean;
   /** Called whenever cumulative bytes-uploaded changes. */
   onProgress?: (sentBytes: number, totalBytes: number) => void;
   /** Called when a per-blob ciphertext chunk has been accepted. */
@@ -282,7 +284,7 @@ export function startResumableUpload(
       salt: passwordBundle?.salt ?? null,
       ivWrap: passwordBundle?.ivWrap ?? null,
       wrappedKey: passwordBundle?.wrappedKey ?? null,
-      notifyEmail: options.notifyEmail?.trim() || null,
+      notifyOnDownload: options.notifyOnDownload === true ? true : undefined,
     };
 
     const createRes = await postJson(fetchImpl, '/api/v1/uploads', createBody);
@@ -595,7 +597,12 @@ function resumeWithPersisted(
   };
 
   const driver = (async (): Promise<ResumableUploadResult> => {
-    const masterKey = await importKeyBase64url(keyB64);
+    // Resume needs encrypt for the still-to-go chunks AND decrypt for any
+    // re-read of the manifest. The default `['decrypt']` from the
+    // recipient flow is wrong here — without 'encrypt' the very first
+    // chunk encryption rejects with "key.usages does not permit this
+    // operation".
+    const masterKey = await importKeyBase64url(keyB64, ['encrypt', 'decrypt']);
 
     // Notify the host page that the resume picked up the prior id+key
     // pair so it can re-write the URL fragment (idempotent — the page

@@ -2,22 +2,51 @@
  * Download client supporting manifest v1 (legacy single-blob AES-GCM)
  * and v2 (chunked AES-GCM, default from v1.1).
  *
- * v1: one AES-GCM call per file, IV from `manifest.files[].iv`.
- * v2: stream-decrypt chunk by chunk; each chunk's `cipherSize` worth
- *     of bytes from the blob stream is one AES-GCM ciphertext with the
- *     IV from `manifest.files[].chunks[i].iv`. The decoded plaintext is
- *     concatenated into the final file.
+ * Two delivery paths exist:
+ *   - Buffered Blob (`downloadV1`, `downloadV2`): materialises the full
+ *     plaintext in V8 heap before handing it to a `Blob`. Safe for v1
+ *     (legacy 500 MB cap) and v2 files up to {@link BLOB_FALLBACK_MAX_BYTES}.
+ *   - Streaming-to-disk (`streamV1ToWritable`, `streamV2ToWritable`):
+ *     pipes plaintext chunk by chunk into a `FileSystemWritableFileStream`,
+ *     so peak RAM stays bounded by the manifest's chunk size regardless
+ *     of total file size.
  *
- * For the buffer-and-save path used by the current download UI, the
- * full plaintext lives in memory once before being handed to a Blob.
- * The streaming-to-disk path (File System Access API) is part of Block
- * B (ZIP streaming) in the next iteration; v1.1 first cut uses this
- * buffered path so single-file v2 decryption works end to end.
+ * Callers MUST gate the buffered path with {@link blobFallbackAllowed} —
+ * a v2 file beyond the threshold cannot be decoded into a single Blob
+ * without crashing the renderer on 64-bit Chromium / Vivaldi.
  */
 
 import { decrypt, fromBase64url } from '$lib/crypto/index.js';
 import type { Manifest, ManifestV2 } from '@itsweber-send/shared';
 import { buildV1PlaintextStream, buildV2PlaintextStream } from './zip.js';
+
+/**
+ * Largest single-file plaintext the buffered Blob path will accept.
+ *
+ * Materialising plaintext into a `Blob` requires holding the full
+ * plaintext in V8 heap. Chromium kills the renderer well before 4 GiB
+ * on 64-bit (process limits, address-space fragmentation), and Vivaldi
+ * was observed crashing the tab around 5–6 GB on Windows. The threshold
+ * is set deliberately conservatively at 2 GiB so the failure mode is a
+ * loud, recoverable error message rather than an "Aw, snap!" page.
+ *
+ * Callers MUST gate the buffered Blob path on {@link blobFallbackAllowed}
+ * before invoking {@link downloadV1} or {@link downloadV2}.
+ */
+export const BLOB_FALLBACK_MAX_BYTES = 2 * 1024 * 1024 * 1024;
+
+/**
+ * Returns true when {@link downloadV1}/{@link downloadV2} can safely
+ * deliver the file via the buffered Blob path. v1 is always allowed
+ * (the legacy single-shot upload route caps blobs at 500 MB so the
+ * recipient cannot be handed anything larger). v2 is allowed up to
+ * {@link BLOB_FALLBACK_MAX_BYTES}; beyond that the recipient MUST
+ * stream to disk via {@link streamV2ToWritable}.
+ */
+export function blobFallbackAllowed(manifestVersion: 1 | 2, sizeBytes: number): boolean {
+  if (manifestVersion === 1) return true;
+  return sizeBytes <= BLOB_FALLBACK_MAX_BYTES;
+}
 
 export type DecodedManifest =
   | { version: 1; manifest: Manifest }
@@ -32,7 +61,9 @@ export function decodeManifest(plaintextJson: string): DecodedManifest {
 
 /**
  * v1 single-file fetch + decrypt. Loads the full ciphertext into RAM
- * and runs one AES-GCM call. Throws on auth-tag failure.
+ * and runs one AES-GCM call. v1 blobs are bounded by the legacy 500 MB
+ * single-shot upload cap, so the buffered path is safe — there is no
+ * v1 streaming variant. Throws on auth-tag failure.
  */
 export async function downloadV1(
   shareId: string,
@@ -47,17 +78,16 @@ export async function downloadV1(
 }
 
 /**
- * v2 single-file fetch + decrypt. Streams the blob from the server,
- * reads `chunks[i].cipherSize` bytes per chunk, decrypts each chunk,
- * and assembles the result. Aborts on the first chunk that fails the
- * AES-GCM auth tag check.
+ * v2 single-file fetch + decrypt — buffered Blob variant. Streams the
+ * blob from the server, decrypts chunk by chunk, and concatenates the
+ * plaintexts into a single `Blob`. Peak RAM ≈ 2× file size while the
+ * save dialog is open.
  *
- * Returns a `Blob` so the caller can save it via `URL.createObjectURL`
- * exactly like the v1 path. The Blob's parts are individual chunk
- * plaintexts — the JS engine concatenates them lazily, but a final
- * `URL.createObjectURL` materialises them, so peak RAM is roughly
- * 2 × file size for the duration of the save dialog. Streaming to disk
- * via File System Access API ships in Block B.
+ * MUST be gated on {@link blobFallbackAllowed} — calling this for a v2
+ * file beyond {@link BLOB_FALLBACK_MAX_BYTES} crashes the renderer.
+ * For unrestricted-size v2 delivery use {@link streamV2ToWritable}
+ * (File System Access API), which keeps peak RAM bounded by the
+ * manifest's chunk size regardless of total file size.
  */
 export async function downloadV2(
   shareId: string,

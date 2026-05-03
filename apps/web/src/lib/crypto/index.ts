@@ -69,12 +69,31 @@ export async function exportKeyBase64url(key: CryptoKey): Promise<string> {
   return toBase64url(new Uint8Array(raw));
 }
 
-/** Import a raw base64url key. Set extractable=true only for export on the sender side. */
-export async function importKeyBase64url(b64: string, extractable = false): Promise<CryptoKey> {
+/**
+ * Import a raw base64url AES-256-GCM key.
+ *
+ * `usages` defaults to `['decrypt']` — the recipient flow only needs to
+ * read manifests and ciphertext. Cross-session resume on the sender side
+ * needs `['encrypt', 'decrypt']` because it has to encrypt fresh chunks
+ * AND read back the manifest. Pass usages explicitly there; do NOT
+ * widen the default for the recipient flow.
+ *
+ * `extractable` stays false unless a caller explicitly needs to re-export
+ * the key (e.g. wrapping under a password).
+ */
+export async function importKeyBase64url(
+  b64: string,
+  usages: readonly KeyUsage[] = ['decrypt'],
+  extractable = false,
+): Promise<CryptoKey> {
   const raw = fromBase64url(b64);
-  return crypto.subtle.importKey('raw', raw, { name: 'AES-GCM', length: 256 }, extractable, [
-    'decrypt',
-  ]);
+  return crypto.subtle.importKey(
+    'raw',
+    raw,
+    { name: 'AES-GCM', length: 256 },
+    extractable,
+    usages as KeyUsage[],
+  );
 }
 
 // ---------------------------------------------------------------------------

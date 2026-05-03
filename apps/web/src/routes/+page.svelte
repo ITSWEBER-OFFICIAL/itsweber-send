@@ -58,6 +58,17 @@
   let copiedField = $state<'link' | 'word' | ''>('');
   let qrCanvas: HTMLCanvasElement | undefined = $state();
 
+  // Result-panel snapshot. We capture file metadata into scalars right
+  // before clearing `selectedFiles`, so the result UI can render
+  // "share-by-voice", file count, and total size without keeping any
+  // File references alive. Holding the File array after a multi-GB
+  // upload is what caused Vivaldi to sit at 6+ GB and crash the next
+  // navigation; reading scalars instead lets the renderer reclaim the
+  // blob backing store immediately on finalize.
+  let resultFileCount = $state(0);
+  let resultTotalBytes = $state(0);
+  let resultFirstName = $state('');
+
   $effect(() => {
     if (qrCanvas && shareUrl) {
       void qrToCanvas(qrCanvas, shareUrl, {
@@ -136,7 +147,6 @@
       return { label: ext.toUpperCase() || 'DOC', tone: 'doc' };
     return { label: (ext || 'FILE').slice(0, 4).toUpperCase(), tone: 'def' };
   }
-  const totalSelectedBytes = $derived(selectedFiles.reduce((s, f) => s + f.size, 0));
 
   async function startUpload() {
     if (selectedFiles.length === 0) return;
@@ -151,7 +161,7 @@
       downloadLimit,
       password: usePassword ? password : undefined,
       note: note.trim() || undefined,
-      notifyEmail: useNotify && notifyAvailable ? notifyEmailAddress : undefined,
+      notifyOnDownload: useNotify && notifyAvailable ? true : undefined,
       onUploadIdReady: (uploadId, keyB64) => {
         // Park the id+key in the URL fragment so a tab close + reopen
         // of the *same* URL exposes both halves of the resume contract:
@@ -183,7 +193,27 @@
         : `${window.location.origin}/d/${result.id}#k=${result.key}`;
       wordCode = result.wordcode ?? (await wordCodeFromId(result.id));
       shareExpiresAt = result.expiresAt;
-      filePhases = filePhases.map(() => 'done');
+
+      // Capture display metadata BEFORE we drop the File refs. Once
+      // these scalars are populated the result panel no longer touches
+      // `selectedFiles`, so clearing it is safe — and necessary, since
+      // a 5+ GB MKV otherwise pins the browser's blob backing store
+      // for the lifetime of the result view.
+      resultFileCount = selectedFiles.length;
+      resultTotalBytes = selectedFiles.reduce((s, f) => s + f.size, 0);
+      resultFirstName = selectedFiles[0]?.name ?? '';
+
+      // Drop the File array and the per-file phase array. The renderer
+      // reclaims the blob backing store on the next GC pass; clearing
+      // these scalars makes sure neither the markup nor any latent
+      // closure can pin them by accident.
+      //
+      // We deliberately keep `password` and `note` populated — they're
+      // tiny strings, the result panel reads `password` to render the
+      // voice-share readout, and clearing them would break that flow.
+      selectedFiles = [];
+      filePhases = [];
+
       uploadProgress = 1;
       phase = 'done';
       clearUploadFragment();
@@ -261,6 +291,9 @@
     showPassword = false;
     copiedField = '';
     uploadProgress = 0;
+    resultFileCount = 0;
+    resultTotalBytes = 0;
+    resultFirstName = '';
   }
 
   function downloadQrPng() {
@@ -486,6 +519,7 @@
             </div>
           {/each}
           <input
+            id="resume-file-input"
             type="file"
             multiple
             class="visually-hidden"
@@ -628,9 +662,9 @@
           <div class="result">
             <h3><span class="ico"><ShieldCheck size={20} /></span> {$_('upload.result_ready')}</h3>
             <p class="subtitle">
-              {selectedFiles.length === 1
-                ? selectedFiles[0]!.name
-                : $_('upload.file_count', { values: { count: selectedFiles.length } })}
+              {resultFileCount === 1
+                ? resultFirstName
+                : $_('upload.file_count', { values: { count: resultFileCount } })}
               · {$_('upload.result_expires', { values: { date: formatExpiry(shareExpiresAt) } })}
             </p>
 
@@ -743,8 +777,8 @@
               <span><b>{remainingDownloadsLabel}</b> {$_('upload.downloads_left')}</span>
               <span><b>{formatExpiry(shareExpiresAt)}</b></span>
               <span
-                ><b>{formatBytes(totalSelectedBytes)}</b> · {$_('upload.file_count', {
-                  values: { count: selectedFiles.length },
+                ><b>{formatBytes(resultTotalBytes)}</b> · {$_('upload.file_count', {
+                  values: { count: resultFileCount },
                 })}</span
               >
               <span class="meta-actions">

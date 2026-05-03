@@ -123,14 +123,22 @@ export function createUploadsResumableRoute(storage: StorageAdapter) {
           return reply.status(400).send({ error: `Too many blobs (max ${MAX_BLOBS_PER_UPLOAD})` });
         }
 
-        // Notify-on-download is gated to authenticated users so an open
-        // instance cannot be turned into a free email-relay. We accept
-        // any RFC-valid address (the schema validates) and ignore it on
-        // anonymous uploads with a clear 400 — clients should never set
-        // it without a session in the first place.
-        const notifyEmail = body.notifyEmail?.trim() ?? null;
-        if (notifyEmail !== null && request.user === undefined) {
-          return reply.status(400).send({ error: 'notifyEmail requires an authenticated session' });
+        // Notify-on-download is gated to authenticated users AND the
+        // recipient address is derived server-side from the session.
+        // Clients never get to choose where the email goes — that
+        // prevents an authenticated user from turning the instance into
+        // an unsolicited mailer for arbitrary addresses. Anonymous
+        // uploads are rejected outright when the flag is set so a
+        // misbehaving client cannot half-configure the feature and end
+        // up with a silent no-op.
+        let notifyEmail: string | null = null;
+        if (body.notifyOnDownload === true) {
+          if (!request.user) {
+            return reply
+              .status(400)
+              .send({ error: 'notifyOnDownload requires an authenticated session' });
+          }
+          notifyEmail = request.user.email;
         }
 
         const declaredTotal = body.blobs.reduce((sum, b) => sum + b.cipherSize, 0);
