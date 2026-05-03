@@ -2,6 +2,8 @@ import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { getShare, incrementDownloads } from '../db/sqlite.js';
 import type { StorageAdapter } from '../storage/interface.js';
 import { emitWebhook } from '../plugins/webhooks.js';
+import { isMailerEnabled, sendMail } from '../utils/mailer.js';
+import { config } from '../config.js';
 
 /** Parse a single-range HTTP `Range: bytes=start-end` header. Multi-range
  *  is not supported; we return null and the caller falls back to a full
@@ -140,6 +142,33 @@ export function createDownloadRoute(storage: StorageAdapter) {
             },
             request.log,
           );
+
+          // Notify-on-download: fire only on the *first* successful download
+          // (downloads_used just transitioned 0 → 1). Subsequent downloads
+          // stay silent — the sender wanted to know "did it arrive", not
+          // a per-fetch ping. Send is intentionally fire-and-forget; any
+          // SMTP failure is logged but never blocks the response.
+          if (
+            freshShare &&
+            freshShare.notify_email &&
+            freshShare.downloads_used === 1 &&
+            isMailerEnabled()
+          ) {
+            const recipient = freshShare.notify_email;
+            const shareUrl = `${config.baseUrl.replace(/\/$/, '')}/d/${id}`;
+            const subject = 'Your ITSWEBER Send share was downloaded';
+            const text =
+              `Your share ${id} was just downloaded for the first time.\n\n` +
+              `Share URL: ${shareUrl}\n` +
+              `Time: ${new Date().toISOString()}\n\n` +
+              `If you did not expect this, the link or password may have leaked.`;
+            void sendMail(recipient, subject, text).catch((err: unknown) => {
+              request.log.warn(
+                { err, shareId: id, recipient },
+                'notify-on-download email send failed',
+              );
+            });
+          }
         }
 
         request.log.info(

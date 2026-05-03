@@ -146,6 +146,15 @@ export const ResumableUploadCreateRequestSchema = z.object({
   salt: z.string().nullable(),
   ivWrap: z.string().nullable(),
   wrappedKey: z.string().nullable(),
+  /**
+   * Optional address to email when the share is downloaded for the first
+   * time. The server enforces "must be authenticated" — anonymous senders
+   * cannot set this, so an attacker can't use an open instance as an
+   * email-sender for arbitrary text. Only the share-id and a fixed
+   * subject/body template are sent; the recipient address is the only
+   * caller-controlled field. Nullable; omit or set null to disable.
+   */
+  notifyEmail: z.string().email().max(254).nullable().optional(),
 });
 export type ResumableUploadCreateRequest = z.infer<typeof ResumableUploadCreateRequestSchema>;
 

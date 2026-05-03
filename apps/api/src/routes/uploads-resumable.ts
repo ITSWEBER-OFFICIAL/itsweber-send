@@ -123,6 +123,16 @@ export function createUploadsResumableRoute(storage: StorageAdapter) {
           return reply.status(400).send({ error: `Too many blobs (max ${MAX_BLOBS_PER_UPLOAD})` });
         }
 
+        // Notify-on-download is gated to authenticated users so an open
+        // instance cannot be turned into a free email-relay. We accept
+        // any RFC-valid address (the schema validates) and ignore it on
+        // anonymous uploads with a clear 400 — clients should never set
+        // it without a session in the first place.
+        const notifyEmail = body.notifyEmail?.trim() ?? null;
+        if (notifyEmail !== null && request.user === undefined) {
+          return reply.status(400).send({ error: 'notifyEmail requires an authenticated session' });
+        }
+
         const declaredTotal = body.blobs.reduce((sum, b) => sum + b.cipherSize, 0);
 
         // Reject when expiryHours exceeds the admin-configured cap. The
@@ -201,6 +211,7 @@ export function createUploadsResumableRoute(storage: StorageAdapter) {
           wrapped_key: body.wrappedKey,
           blobs_json: JSON.stringify(blobs),
           finalized: 0,
+          notify_email: notifyEmail,
         });
 
         return reply.status(201).send({
@@ -459,6 +470,7 @@ export function createUploadsResumableRoute(storage: StorageAdapter) {
           wordcode,
           file_count: blobs.length,
           manifest_version: 2,
+          notify_email: record.notify_email,
         });
         markUploadFinalized(request.params.uploadId);
 

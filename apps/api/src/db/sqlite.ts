@@ -17,6 +17,8 @@ export interface ShareRecord {
   file_count: number;
   /** Manifest format version. 1 = legacy single-blob AES-GCM, 2 = chunked AES-GCM (v1.1+). */
   manifest_version: number;
+  /** Recipient address for the "downloaded" notification. NULL = no notification. */
+  notify_email: string | null;
 }
 
 export interface UserRecord {
@@ -82,6 +84,8 @@ export interface UploadInProgressRecord {
   wrapped_key: string | null;
   blobs_json: string;
   finalized: number; // 0 = pending, 1 = committed
+  /** Optional address copied to {@link ShareRecord.notify_email} on finalize. */
+  notify_email: string | null;
 }
 
 /**
@@ -211,6 +215,17 @@ export function initDb(dbPath: string): void {
     // Existing shares are v1; new shares from the resumable path declare 2.
     _db.exec('ALTER TABLE shares ADD COLUMN manifest_version INTEGER NOT NULL DEFAULT 1');
   }
+  if (!sharesCols.includes('notify_email')) {
+    // Optional recipient for the "downloaded" email; NULL = no notification.
+    _db.exec('ALTER TABLE shares ADD COLUMN notify_email TEXT');
+  }
+
+  const uploadsCols = (
+    _db.prepare('PRAGMA table_info(uploads_in_progress)').all() as { name: string }[]
+  ).map((c) => c.name);
+  if (!uploadsCols.includes('notify_email')) {
+    _db.exec('ALTER TABLE uploads_in_progress ADD COLUMN notify_email TEXT');
+  }
 
   const usersCols = (_db.prepare('PRAGMA table_info(users)').all() as { name: string }[]).map(
     (c) => c.name,
@@ -250,19 +265,23 @@ export function closeDb(): void {
 // ---------------------------------------------------------------------------
 
 export function insertShare(
-  share: Omit<ShareRecord, 'total_size_bytes' | 'wordcode' | 'file_count' | 'manifest_version'> & {
+  share: Omit<
+    ShareRecord,
+    'total_size_bytes' | 'wordcode' | 'file_count' | 'manifest_version' | 'notify_email'
+  > & {
     total_size_bytes?: number;
     wordcode?: string | null;
     file_count?: number;
     manifest_version?: number;
+    notify_email?: string | null;
   },
 ): void {
   db()
     .prepare(
       `INSERT INTO shares
-         (id, created_at, expires_at, download_limit, downloads_used, salt, iv_wrap, wrapped_key, user_id, total_size_bytes, wordcode, file_count, manifest_version)
+         (id, created_at, expires_at, download_limit, downloads_used, salt, iv_wrap, wrapped_key, user_id, total_size_bytes, wordcode, file_count, manifest_version, notify_email)
        VALUES
-         (@id, @created_at, @expires_at, @download_limit, @downloads_used, @salt, @iv_wrap, @wrapped_key, @user_id, @total_size_bytes, @wordcode, @file_count, @manifest_version)`,
+         (@id, @created_at, @expires_at, @download_limit, @downloads_used, @salt, @iv_wrap, @wrapped_key, @user_id, @total_size_bytes, @wordcode, @file_count, @manifest_version, @notify_email)`,
     )
     .run({
       ...share,
@@ -271,6 +290,7 @@ export function insertShare(
       wordcode: share.wordcode ?? null,
       file_count: share.file_count ?? 1,
       manifest_version: share.manifest_version ?? 1,
+      notify_email: share.notify_email ?? null,
     });
 }
 
@@ -616,11 +636,13 @@ export function insertUploadInProgress(record: UploadInProgressRecord): void {
       `INSERT INTO uploads_in_progress
          (id, share_id, user_id, created_at, expires_at, chunk_size,
           declared_total_bytes, expiry_hours, download_limit,
-          password_protected, salt, iv_wrap, wrapped_key, blobs_json, finalized)
+          password_protected, salt, iv_wrap, wrapped_key, blobs_json, finalized,
+          notify_email)
        VALUES
          (@id, @share_id, @user_id, @created_at, @expires_at, @chunk_size,
           @declared_total_bytes, @expiry_hours, @download_limit,
-          @password_protected, @salt, @iv_wrap, @wrapped_key, @blobs_json, @finalized)`,
+          @password_protected, @salt, @iv_wrap, @wrapped_key, @blobs_json, @finalized,
+          @notify_email)`,
     )
     .run(record);
 }

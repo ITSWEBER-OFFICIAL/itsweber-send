@@ -115,6 +115,23 @@ docker compose --env-file .env up -d
 | `WEBHOOK_URL`    | _(empty)_ | HTTP(S) endpoint to POST webhook events to. Leave empty to disable.                                                 |
 | `WEBHOOK_SECRET` | _(empty)_ | Optional HMAC-SHA256 signing secret. When set, each request includes an `X-Webhook-Signature: sha256=<hex>` header. |
 
+---
+
+## SMTP (notify on first download)
+
+Authenticated senders can opt-in to receive an email when their share is downloaded for the first time. The mailer is fully optional: leave `SMTP_HOST` unset and the feature is disabled silently — uploads still succeed and the UI surfaces a "log in to enable" hint.
+
+| Variable      | Default                | Description                                                                                            |
+| ------------- | ---------------------- | ------------------------------------------------------------------------------------------------------ |
+| `SMTP_HOST`   | _(empty)_              | Hostname of the SMTP relay. Leave empty to disable the notification feature entirely.                  |
+| `SMTP_PORT`   | `587`                  | TCP port. Use `587` for STARTTLS (default) or `465` together with `SMTP_SECURE=true` for implicit TLS. |
+| `SMTP_SECURE` | `false`                | `true` enables implicit TLS (port 465). Leave `false` for STARTTLS on port 587.                        |
+| `SMTP_USER`   | _(empty)_              | Auth username. Skip together with `SMTP_PASS` when the relay accepts unauthenticated submissions.      |
+| `SMTP_PASS`   | _(empty)_              | Auth password or app token.                                                                            |
+| `SMTP_FROM`   | _(falls back to USER)_ | `From:` header value. A name-and-address form like `ITSWEBER Send <noreply@example.com>` is supported. |
+
+The notification fires exactly once per share, on the first successful (non-Range) read of the last blob. SMTP errors are logged but never block the download response — recipients always get the file even if the email send fails.
+
 Webhook events:
 
 - `upload.created` — fires after a share is stored

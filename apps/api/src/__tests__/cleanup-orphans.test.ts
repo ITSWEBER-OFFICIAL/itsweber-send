@@ -103,6 +103,7 @@ describe('runCleanupOnce orphan reconciliation', () => {
       wrapped_key: null,
       blobs_json: '[]',
       finalized: 0,
+      notify_email: null,
     });
     await storage.appendStream(
       'share-pending',
