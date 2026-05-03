@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
   import { auth } from '$lib/stores/auth.svelte.js';
+  import { _ } from 'svelte-i18n';
   import Trash from '$lib/components/icons/Trash.svelte';
   import Shield from '$lib/components/icons/Shield.svelte';
 
@@ -44,12 +45,13 @@
 
   function formatDate(iso: string | null): string {
     if (!iso) return '-';
-    return new Date(iso).toLocaleDateString('de-DE');
+    return new Date(iso).toLocaleDateString();
   }
 
   function expiryLabel(share: AdminShare): string {
-    if (!share.expiresAt) return 'kein Ablauf';
-    if (share.expired) return `abgelaufen ${formatDate(share.expiresAt)}`;
+    if (!share.expiresAt) return $_('admin.shares.expiry_none');
+    if (share.expired)
+      return $_('admin.shares.expiry_expired', { values: { date: formatDate(share.expiresAt) } });
     return formatDate(share.expiresAt);
   }
 
@@ -95,7 +97,7 @@
     const res = await fetch(`/api/v1/admin/shares/${id}`, { method: 'DELETE' });
     if (!res.ok) {
       const err = (await res.json().catch(() => ({}))) as { message?: string };
-      deleteError = err.message ?? 'Fehler beim Loschen';
+      deleteError = err.message ?? $_('common.delete');
       return;
     }
     shares = shares.filter((s) => s.id !== id);
@@ -130,37 +132,39 @@
 {:else if forbidden}
   <div class="forbidden">
     <h1>403 — Forbidden</h1>
-    <p>Dieses Konto hat keine Admin-Rolle.</p>
+    <p>{$_('admin.access_denied')}</p>
   </div>
 {:else}
-  <div class="crumbs"><a href="/admin">Admin</a> · Shares</div>
+  <div class="crumbs"><a href="/admin">Admin</a> · {$_('admin.shares.breadcrumb')}</div>
   <div class="page-header">
     <div>
-      <h1 class="page-title">Shares</h1>
-      <p class="page-sub">{total} Shares insgesamt</p>
+      <h1 class="page-title">{$_('admin.shares.title')}</h1>
+      <p class="page-sub">{$_('admin.shares.sub', { values: { total } })}</p>
     </div>
   </div>
 
   <section class="panel">
     <div class="panel-h">
-      <h2>Alle Shares</h2>
-      <span class="hint-pill">{shares.length} geladen</span>
+      <h2>{$_('admin.shares.all_shares')}</h2>
+      <span class="hint-pill"
+        >{$_('admin.shares.loaded_count', { values: { count: shares.length } })}</span
+      >
     </div>
     <div class="table-body">
       {#if shares.length === 0}
-        <p class="empty">Keine Shares vorhanden.</p>
+        <p class="empty">{$_('admin.shares.no_shares')}</p>
       {:else}
         <table>
           <thead>
             <tr>
-              <th>Code</th>
-              <th>Ersteller</th>
-              <th>Erstellt</th>
-              <th>Lauft ab</th>
-              <th>Downloads</th>
-              <th>Grosse</th>
+              <th>{$_('admin.shares.col_code')}</th>
+              <th>{$_('admin.shares.col_creator')}</th>
+              <th>{$_('admin.shares.col_created')}</th>
+              <th>{$_('admin.shares.col_expires')}</th>
+              <th>{$_('admin.shares.col_downloads')}</th>
+              <th>{$_('admin.shares.col_size')}</th>
               <th></th>
-              <th>Aktionen</th>
+              <th>{$_('admin.shares.col_actions')}</th>
             </tr>
           </thead>
           <tbody>
@@ -170,7 +174,7 @@
                   <span class="wordcode" title={share.id}>{share.wordcode}</span>
                 </td>
                 <td class="muted">
-                  {share.userEmail ?? 'anonym'}
+                  {share.userEmail ?? $_('admin.shares.anon')}
                 </td>
                 <td class="muted">{formatDate(share.createdAt)}</td>
                 <td>
@@ -182,7 +186,7 @@
                 <td class="mono">{formatBytes(share.totalSizeBytes)}</td>
                 <td>
                   {#if share.passwordProtected}
-                    <span class="pw-icon" title="Passwortgeschutzt">
+                    <span class="pw-icon" title={$_('admin.shares.password_protected_aria')}>
                       <Shield size={14} />
                     </span>
                   {/if}
@@ -194,7 +198,7 @@
                       deletingId = share.id;
                       deleteError = null;
                     }}
-                    title="Share loschen"
+                    title={$_('admin.shares.delete_aria')}
                   >
                     <Trash size={14} />
                   </button>
@@ -207,14 +211,17 @@
                   <td colspan="8">
                     <div class="confirm-bar">
                       <span
-                        >Share <strong class="mono">{share.wordcode}</strong> wirklich loschen?</span
+                        >{$_('admin.shares.confirm_delete', {
+                          values: { wordcode: share.wordcode },
+                        })}</span
                       >
                       <div class="confirm-actions">
                         <button class="btn-ghost" onclick={() => (deletingId = null)}
-                          >Abbrechen</button
+                          >{$_('common.cancel')}</button
                         >
                         <button class="btn-danger" onclick={() => confirmDelete(share.id)}>
-                          <Trash size={14} /> Loschen
+                          <Trash size={14} />
+                          {$_('common.delete')}
                         </button>
                       </div>
                       {#if deleteError}
@@ -233,7 +240,9 @@
     {#if shares.length < total}
       <div class="load-more">
         <button class="btn-ghost" onclick={() => load(false)} disabled={loadingMore}>
-          {#if loadingMore}Laden ...{:else}Mehr laden ({total - shares.length} weitere){/if}
+          {#if loadingMore}{$_('admin.shares.loading_more')}{:else}{$_('admin.shares.load_more', {
+              values: { count: total - shares.length },
+            })}{/if}
         </button>
       </div>
     {/if}

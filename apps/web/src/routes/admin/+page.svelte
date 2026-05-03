@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
   import { auth } from '$lib/stores/auth.svelte.js';
+  import { _ } from 'svelte-i18n';
   import type { AdminStats } from '@itsweber-send/shared';
 
   interface AdminUser {
@@ -30,16 +31,20 @@
   }
 
   function relativeDate(iso: string | null): string {
-    if (!iso) return 'nie';
+    if (!iso) return $_('admin.relative_time.never');
     const d = new Date(iso).getTime();
     const diff = Date.now() - d;
     const minutes = Math.floor(diff / (1000 * 60));
-    if (minutes < 1) return 'gerade eben';
-    if (minutes < 60) return `vor ${minutes} min`;
+    if (minutes < 1) return $_('admin.relative_time.just_now');
+    if (minutes < 60) return $_('admin.relative_time.minutes_ago', { values: { n: minutes } });
     const hours = Math.floor(minutes / 60);
-    if (hours < 24) return `vor ${hours} h`;
+    if (hours < 24) return $_('admin.relative_time.hours_ago', { values: { n: hours } });
     const days = Math.floor(hours / 24);
-    if (days < 30) return `vor ${days} ${days === 1 ? 'Tag' : 'Tagen'}`;
+    if (days < 30) {
+      return days === 1
+        ? $_('admin.relative_time.day_ago', { values: { n: days } })
+        : $_('admin.relative_time.days_ago', { values: { n: days } });
+    }
     return new Date(iso).toLocaleDateString();
   }
 
@@ -100,57 +105,59 @@
 {:else if forbidden}
   <div class="forbidden">
     <h1>403 — Forbidden</h1>
-    <p>Dieses Konto hat keine Admin-Rolle.</p>
+    <p>{$_('admin.access_denied')}</p>
   </div>
 {:else if data}
-  <div class="crumbs"><a href="/admin">Admin</a> · Übersicht</div>
-  <h1 class="hello">Admin-Dashboard</h1>
-  <p class="sub">
-    System-Status, Nutzer und Storage-Auslastung. Die Statistiken werden live vom Server geladen.
-  </p>
+  <div class="crumbs"><a href="/admin">Admin</a> · {$_('admin.dashboard.breadcrumb')}</div>
+  <h1 class="hello">{$_('admin.dashboard.title')}</h1>
+  <p class="sub">{$_('admin.dashboard.sub')}</p>
 
   <!-- Stat Cards -->
   <div class="stats">
     <div class="stat-card">
-      <div class="label">Nutzer</div>
+      <div class="label">{$_('admin.total_users')}</div>
       <div class="value">{data.stats.totalUsers}</div>
-      <div class="delta">registrierte Konten</div>
+      <div class="delta">{$_('admin.dashboard.stat_registered')}</div>
     </div>
     <div class="stat-card">
-      <div class="label">Aktive Shares</div>
+      <div class="label">{$_('admin.active_shares')}</div>
       <div class="value">{data.stats.activeShares}</div>
-      <div class="delta">{expiredCount} bereits abgelaufen</div>
+      <div class="delta">
+        {$_('admin.dashboard.expired_count', { values: { count: expiredCount } })}
+      </div>
     </div>
     <div class="stat-card">
-      <div class="label">Shares gesamt</div>
+      <div class="label">{$_('admin.total_shares')}</div>
       <div class="value">{data.stats.totalShares}</div>
-      <div class="delta">über alle Nutzer</div>
+      <div class="delta">{$_('admin.dashboard.stat_shares_all_users')}</div>
     </div>
     <div class="stat-card">
-      <div class="label">Speicher</div>
+      <div class="label">{$_('admin.total_storage')}</div>
       <div class="value">{formatBytes(data.stats.totalStorageBytes)}</div>
-      <div class="delta">Gesamtbelegung</div>
+      <div class="delta">{$_('admin.dashboard.stat_storage_total')}</div>
     </div>
   </div>
 
   <!-- Users Table -->
   <section class="panel">
     <div class="panel-h">
-      <h2>Nutzer</h2>
-      <span class="hint-pill">{data.users.length} Konten</span>
+      <h2>{$_('admin.dashboard.users_panel')}</h2>
+      <span class="hint-pill"
+        >{$_('admin.dashboard.accounts_count', { values: { count: data.users.length } })}</span
+      >
     </div>
     <div class="panel-body table-body">
       {#if data.users.length === 0}
-        <p class="empty">Keine Nutzer registriert.</p>
+        <p class="empty">{$_('admin.dashboard.no_users')}</p>
       {:else}
         <table>
           <thead>
             <tr>
-              <th>Konto</th>
-              <th>Rolle</th>
-              <th>Quota</th>
-              <th>Erstellt</th>
-              <th>Letzter Login</th>
+              <th>{$_('admin.user_email')}</th>
+              <th>{$_('admin.user_role')}</th>
+              <th>{$_('admin.user_quota')}</th>
+              <th>{$_('admin.user_created')}</th>
+              <th>{$_('admin.user_last_login')}</th>
             </tr>
           </thead>
           <tbody>
@@ -167,9 +174,9 @@
                 </td>
                 <td>
                   {#if user.role === 'admin'}
-                    <span class="badge badge-busy">Admin</span>
+                    <span class="badge badge-busy">{$_('admin.role_admin')}</span>
                   {:else}
-                    <span class="badge badge-queue">Nutzer</span>
+                    <span class="badge badge-queue">{$_('admin.role_user')}</span>
                   {/if}
                 </td>
                 <td class="mono">{formatBytes(user.quotaBytes)}</td>
@@ -186,7 +193,7 @@
   <!-- System placeholder -->
   <section class="panel">
     <div class="panel-h">
-      <h2>System</h2>
+      <h2>{$_('admin.dashboard.system_panel')}</h2>
     </div>
     <div class="panel-body">
       <div class="kv">

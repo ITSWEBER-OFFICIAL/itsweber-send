@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
   import { auth } from '$lib/stores/auth.svelte.js';
+  import { _ } from 'svelte-i18n';
   import RefreshCw from '$lib/components/icons/RefreshCw.svelte';
   import Gauge from '$lib/components/icons/Gauge.svelte';
   import User from '$lib/components/icons/User.svelte';
@@ -66,7 +67,7 @@
         error = `HTTP ${res.status}`;
       }
     } catch (e) {
-      error = e instanceof Error ? e.message : 'Unbekannter Fehler';
+      error = e instanceof Error ? e.message : $_('common.loading');
     } finally {
       loading = false;
       refreshing = false;
@@ -100,18 +101,18 @@
 {:else if forbidden}
   <div class="forbidden">
     <h1>403 — Forbidden</h1>
-    <p>Dieses Konto hat keine Admin-Rolle.</p>
+    <p>{$_('admin.access_denied')}</p>
   </div>
 {:else}
-  <div class="crumbs"><a href="/admin">Admin</a> · Health</div>
+  <div class="crumbs"><a href="/admin">Admin</a> · {$_('admin.health.breadcrumb')}</div>
   <div class="page-header">
     <div>
-      <h1 class="page-title">Health &amp; Stats</h1>
-      <p class="page-sub">Systemstatus und Auslastung</p>
+      <h1 class="page-title">{$_('admin.health.title')}</h1>
+      <p class="page-sub">{$_('admin.health.sub')}</p>
     </div>
     <button class="btn-ghost" onclick={() => load(true)} disabled={refreshing}>
       <RefreshCw size={14} />
-      {refreshing ? 'Aktualisieren ...' : 'Aktualisieren'}
+      {refreshing ? $_('admin.health.refreshing') : $_('admin.health.refresh')}
     </button>
   </div>
 
@@ -125,25 +126,27 @@
       <div class="stat-card">
         <div class="stat-icon"><User size={18} /></div>
         <div class="stat-body">
-          <div class="label">Nutzer</div>
+          <div class="label">{$_('admin.health.users_label')}</div>
           <div class="value">{data.totalUsers}</div>
-          <div class="delta">registrierte Konten</div>
+          <div class="delta">{$_('admin.health.stat_registered')}</div>
         </div>
       </div>
       <div class="stat-card">
         <div class="stat-icon"><Files size={18} /></div>
         <div class="stat-body">
-          <div class="label">Shares aktiv</div>
+          <div class="label">{$_('admin.health.shares_label')}</div>
           <div class="value">{data.activeShares}</div>
-          <div class="delta">{data.totalShares} gesamt</div>
+          <div class="delta">
+            {$_('admin.health.stat_shares_total', { values: { count: data.totalShares } })}
+          </div>
         </div>
       </div>
       <div class="stat-card">
         <div class="stat-icon"><Gauge size={18} /></div>
         <div class="stat-body">
-          <div class="label">Speicher</div>
+          <div class="label">{$_('admin.health.storage_label')}</div>
           <div class="value">{formatBytes(data.totalStorageBytes)}</div>
-          <div class="delta">Gesamtbelegung</div>
+          <div class="delta">{$_('admin.health.stat_storage_total')}</div>
         </div>
       </div>
       <div class="stat-card">
@@ -151,9 +154,9 @@
           <span class="uptime-dot" aria-hidden="true"></span>
         </div>
         <div class="stat-body">
-          <div class="label">Uptime</div>
+          <div class="label">{$_('admin.health.uptime_label')}</div>
           <div class="value">{formatDuration(data.uptime)}</div>
-          <div class="delta">seit letztem Neustart</div>
+          <div class="delta">{$_('admin.health.stat_uptime_since')}</div>
         </div>
       </div>
     </div>
@@ -161,7 +164,7 @@
     <!-- System info -->
     <section class="panel">
       <div class="panel-h">
-        <h2>System-Info</h2>
+        <h2>{$_('admin.health.system_info')}</h2>
       </div>
       <div class="panel-body">
         <div class="kv">
@@ -170,23 +173,23 @@
             <span class="v mono">{data.nodeVersion}</span>
           </div>
           <div>
-            <span class="k">Plattform</span>
+            <span class="k">{$_('admin.health.platform')}</span>
             <span class="v mono">{data.platform}</span>
           </div>
           <div>
-            <span class="k">Speicher (RAM)</span>
+            <span class="k">{$_('admin.health.ram')}</span>
             <span class="v mono">{data.memoryMB.toFixed(1)} MB</span>
           </div>
           <div>
-            <span class="k">Shares gesamt</span>
+            <span class="k">{$_('admin.health.shares_total')}</span>
             <span class="v mono">{data.totalShares}</span>
           </div>
           <div>
-            <span class="k">Shares aktiv</span>
+            <span class="k">{$_('admin.health.shares_active')}</span>
             <span class="v mono">{data.activeShares}</span>
           </div>
           <div>
-            <span class="k">Abgelaufene Shares</span>
+            <span class="k">{$_('admin.health.expired_shares')}</span>
             <span class="v mono">{Math.max(0, data.totalShares - data.activeShares)}</span>
           </div>
         </div>

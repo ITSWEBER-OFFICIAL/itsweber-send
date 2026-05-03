@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
   import { auth } from '$lib/stores/auth.svelte.js';
-  import User from '$lib/components/icons/User.svelte';
+  import { _ } from 'svelte-i18n';
   import Shield from '$lib/components/icons/Shield.svelte';
   import Trash from '$lib/components/icons/Trash.svelte';
   import Check from '$lib/components/icons/Check.svelte';
@@ -65,17 +65,21 @@
   }
 
   function relativeDate(iso: string | null): string {
-    if (!iso) return 'nie';
+    if (!iso) return $_('admin.relative_time.never');
     const d = new Date(iso).getTime();
     const diff = Date.now() - d;
     const minutes = Math.floor(diff / (1000 * 60));
-    if (minutes < 1) return 'gerade eben';
-    if (minutes < 60) return `vor ${minutes} min`;
+    if (minutes < 1) return $_('admin.relative_time.just_now');
+    if (minutes < 60) return $_('admin.relative_time.minutes_ago', { values: { n: minutes } });
     const hours = Math.floor(minutes / 60);
-    if (hours < 24) return `vor ${hours} h`;
+    if (hours < 24) return $_('admin.relative_time.hours_ago', { values: { n: hours } });
     const days = Math.floor(hours / 24);
-    if (days < 30) return `vor ${days} ${days === 1 ? 'Tag' : 'Tagen'}`;
-    return new Date(iso).toLocaleDateString('de-DE');
+    if (days < 30) {
+      return days === 1
+        ? $_('admin.relative_time.day_ago', { values: { n: days } })
+        : $_('admin.relative_time.days_ago', { values: { n: days } });
+    }
+    return new Date(iso).toLocaleDateString();
   }
 
   async function load(reset = false) {
@@ -136,7 +140,7 @@
       });
       if (!res.ok) {
         const err = (await res.json().catch(() => ({}))) as { message?: string };
-        saveError = err.message ?? 'Fehler beim Speichern';
+        saveError = err.message ?? $_('admin.users.error_save');
         return;
       }
       const updated = (await res.json()) as AdminUser;
@@ -152,7 +156,7 @@
     const res = await fetch(`/api/v1/admin/users/${id}`, { method: 'DELETE' });
     if (!res.ok) {
       const err = (await res.json().catch(() => ({}))) as { message?: string };
-      deleteError = err.message ?? 'Fehler beim Loschen';
+      deleteError = err.message ?? $_('admin.users.error_delete');
       return;
     }
     users = users.filter((u) => u.id !== id);
@@ -187,14 +191,14 @@
 {:else if forbidden}
   <div class="forbidden">
     <h1>403 — Forbidden</h1>
-    <p>Dieses Konto hat keine Admin-Rolle.</p>
+    <p>{$_('admin.access_denied')}</p>
   </div>
 {:else}
-  <div class="crumbs"><a href="/admin">Admin</a> · Nutzer</div>
+  <div class="crumbs"><a href="/admin">Admin</a> · {$_('admin.users.breadcrumb')}</div>
   <div class="page-header">
     <div>
-      <h1 class="page-title">Nutzer</h1>
-      <p class="page-sub">{total} registrierte Konten</p>
+      <h1 class="page-title">{$_('admin.users.title')}</h1>
+      <p class="page-sub">{$_('admin.users.sub', { values: { total } })}</p>
     </div>
   </div>
 
@@ -203,13 +207,17 @@
     <input
       class="search-input"
       type="search"
-      placeholder="E-Mail oder Name suchen ..."
+      placeholder={$_('admin.users.search_placeholder')}
       bind:value={search}
     />
-    <div class="role-tabs" role="group" aria-label="Rolle filtern">
+    <div class="role-tabs" role="group" aria-label={$_('admin.users.filter_group_aria')}>
       {#each ['all', 'admin', 'user'] as const as r}
         <button class="role-tab" class:active={roleFilter === r} onclick={() => (roleFilter = r)}>
-          {r === 'all' ? 'Alle' : r === 'admin' ? 'Admin' : 'Nutzer'}
+          {r === 'all'
+            ? $_('admin.users.filter_all')
+            : r === 'admin'
+              ? $_('admin.role_admin')
+              : $_('admin.role_user')}
         </button>
       {/each}
     </div>
@@ -217,23 +225,25 @@
 
   <section class="panel">
     <div class="panel-h">
-      <h2>Konten</h2>
-      <span class="hint-pill">{filtered.length} angezeigt</span>
+      <h2>{$_('admin.users.panel_accounts')}</h2>
+      <span class="hint-pill"
+        >{$_('admin.users.displayed_count', { values: { count: filtered.length } })}</span
+      >
     </div>
     <div class="table-body">
       {#if filtered.length === 0}
-        <p class="empty">Keine Nutzer gefunden.</p>
+        <p class="empty">{$_('admin.users.no_users')}</p>
       {:else}
         <table>
           <thead>
             <tr>
-              <th>Konto</th>
-              <th>Rolle</th>
-              <th>Erstellt</th>
-              <th>Letzter Login</th>
-              <th>Quota</th>
-              <th>2FA</th>
-              <th>Aktionen</th>
+              <th>{$_('admin.users.col_account')}</th>
+              <th>{$_('admin.users.col_role')}</th>
+              <th>{$_('admin.users.col_created')}</th>
+              <th>{$_('admin.users.col_last_login')}</th>
+              <th>{$_('admin.users.col_quota')}</th>
+              <th>{$_('admin.users.col_2fa')}</th>
+              <th>{$_('admin.users.col_actions')}</th>
             </tr>
           </thead>
           <tbody>
@@ -250,28 +260,28 @@
                 </td>
                 <td>
                   {#if user.role === 'admin'}
-                    <span class="badge badge-admin">Admin</span>
+                    <span class="badge badge-admin">{$_('admin.role_admin')}</span>
                   {:else}
-                    <span class="badge badge-user">Nutzer</span>
+                    <span class="badge badge-user">{$_('admin.role_user')}</span>
                   {/if}
                 </td>
-                <td class="muted">{new Date(user.createdAt).toLocaleDateString('de-DE')}</td>
+                <td class="muted">{new Date(user.createdAt).toLocaleDateString()}</td>
                 <td class="muted">{relativeDate(user.lastLoginAt)}</td>
                 <td class="mono">{formatBytes(user.quotaBytes)}</td>
                 <td>
                   {#if user.totpEnabled}
-                    <span class="totp-on" title="TOTP aktiv">
+                    <span class="totp-on" title={$_('admin.users.2fa_active_aria')}>
                       <Shield size={14} />
                     </span>
                   {:else}
-                    <span class="totp-off" title="Kein TOTP">-</span>
+                    <span class="totp-off">{$_('admin.users.2fa_none')}</span>
                   {/if}
                 </td>
                 <td>
                   <div class="row-actions">
                     {#if editingId !== user.id}
                       <button class="btn-ghost" onclick={() => startEdit(user)}>
-                        Bearbeiten
+                        {$_('admin.users.edit')}
                       </button>
                       <button
                         class="btn-danger-ghost"
@@ -279,12 +289,14 @@
                           deletingId = user.id;
                           deleteError = null;
                         }}
-                        title="Nutzer loschen"
+                        title={$_('admin.users.delete_aria')}
                       >
                         <Trash size={14} />
                       </button>
                     {:else}
-                      <button class="btn-ghost muted-btn" onclick={cancelEdit}>Abbrechen</button>
+                      <button class="btn-ghost muted-btn" onclick={cancelEdit}
+                        >{$_('admin.users.cancel')}</button
+                      >
                     {/if}
                   </div>
                 </td>
@@ -296,14 +308,14 @@
                   <td colspan="7">
                     <div class="edit-form">
                       <div class="edit-field">
-                        <label for="role-{user.id}">Rolle</label>
+                        <label for="role-{user.id}">{$_('admin.users.edit_field_role')}</label>
                         <select id="role-{user.id}" bind:value={editRole}>
-                          <option value="user">Nutzer</option>
-                          <option value="admin">Admin</option>
+                          <option value="user">{$_('admin.role_user')}</option>
+                          <option value="admin">{$_('admin.role_admin')}</option>
                         </select>
                       </div>
                       <div class="edit-field">
-                        <label for="quota-{user.id}">Quota (GB)</label>
+                        <label for="quota-{user.id}">{$_('admin.users.edit_field_quota')}</label>
                         <input
                           id="quota-{user.id}"
                           type="number"
@@ -314,9 +326,10 @@
                       </div>
                       <button class="btn-primary" onclick={() => saveEdit(user)} disabled={saving}>
                         {#if saving}
-                          <span class="spinner-sm" aria-hidden="true"></span> Speichern ...
+                          <span class="spinner-sm" aria-hidden="true"></span>
+                          {$_('admin.users.saving')}
                         {:else}
-                          <Check size={14} /> Speichern
+                          <Check size={14} /> {$_('admin.users.save')}
                         {/if}
                       </button>
                       {#if saveError}
@@ -333,15 +346,15 @@
                   <td colspan="7">
                     <div class="confirm-bar">
                       <span
-                        >Nutzer <strong>{user.email}</strong> wirklich loschen? Dies kann nicht ruckgangig
-                        gemacht werden.</span
+                        >{$_('admin.users.confirm_delete', { values: { email: user.email } })}</span
                       >
                       <div class="confirm-actions">
                         <button class="btn-ghost" onclick={() => (deletingId = null)}
-                          >Abbrechen</button
+                          >{$_('common.cancel')}</button
                         >
                         <button class="btn-danger" onclick={() => confirmDelete(user.id)}>
-                          <Trash size={14} /> Loschen
+                          <Trash size={14} />
+                          {$_('common.delete')}
                         </button>
                       </div>
                       {#if deleteError}
@@ -360,7 +373,9 @@
     {#if users.length < total}
       <div class="load-more">
         <button class="btn-ghost" onclick={() => load(false)} disabled={loadingMore}>
-          {#if loadingMore}Laden ...{:else}Mehr laden ({total - users.length} weitere){/if}
+          {#if loadingMore}{$_('admin.users.loading_more')}{:else}{$_('admin.users.load_more', {
+              values: { count: total - users.length },
+            })}{/if}
         </button>
       </div>
     {/if}
@@ -675,9 +690,6 @@
     gap: 16px;
     flex-wrap: wrap;
     font-size: 14px;
-  }
-  .confirm-bar strong {
-    color: var(--text);
   }
   .confirm-actions {
     display: flex;

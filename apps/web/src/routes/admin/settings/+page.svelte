@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
   import { auth } from '$lib/stores/auth.svelte.js';
+  import { _ } from 'svelte-i18n';
   import Check from '$lib/components/icons/Check.svelte';
 
   interface RawSettings {
@@ -71,12 +72,13 @@
       });
       if (!res.ok) {
         const err = (await res.json().catch(() => ({}))) as { message?: string };
-        errorMsg = err.message ?? `Fehler (HTTP ${res.status})`;
+        errorMsg =
+          err.message ?? $_('admin.settings.error_save', { values: { status: res.status } });
         return;
       }
       const updated = (await res.json()) as RawSettings;
       applySettings(updated);
-      successMsg = 'Einstellungen gespeichert.';
+      successMsg = $_('admin.settings.saved');
       setTimeout(() => {
         successMsg = null;
       }, 3500);
@@ -112,34 +114,36 @@
 {:else if forbidden}
   <div class="forbidden">
     <h1>403 — Forbidden</h1>
-    <p>Dieses Konto hat keine Admin-Rolle.</p>
+    <p>{$_('admin.access_denied')}</p>
   </div>
 {:else}
-  <div class="crumbs"><a href="/admin">Admin</a> · Einstellungen</div>
+  <div class="crumbs"><a href="/admin">Admin</a> · {$_('admin.settings.breadcrumb')}</div>
   <div class="page-header">
     <div>
-      <h1 class="page-title">Einstellungen</h1>
-      <p class="page-sub">Systemweite Konfiguration</p>
+      <h1 class="page-title">{$_('admin.settings.title')}</h1>
+      <p class="page-sub">{$_('admin.settings.sub')}</p>
     </div>
   </div>
 
   <section class="panel">
     <div class="panel-h">
-      <h2>Allgemein</h2>
+      <h2>{$_('admin.settings.panel_general')}</h2>
     </div>
     <div class="panel-body">
       <div class="form">
         <!-- Registration toggle -->
         <div class="field">
           <div class="field-label-group">
-            <label for="reg-toggle" class="field-label">Registrierung erlaubt</label>
-            <span class="field-hint">Neue Nutzer konnen sich registrieren, wenn aktiv.</span>
+            <label for="reg-toggle" class="field-label"
+              >{$_('admin.settings.field_registration')}</label
+            >
+            <span class="field-hint">{$_('admin.settings.field_registration_hint')}</span>
           </div>
           <button
             id="reg-toggle"
             role="switch"
             aria-checked={registrationEnabled}
-            aria-label="Registrierung erlaubt"
+            aria-label={$_('admin.settings.field_registration')}
             class="toggle"
             class:toggle-on={registrationEnabled}
             onclick={() => (registrationEnabled = !registrationEnabled)}
@@ -153,8 +157,10 @@
         <!-- Default quota -->
         <div class="field">
           <div class="field-label-group">
-            <label for="default-quota" class="field-label">Standard-Quota (GB)</label>
-            <span class="field-hint">Quota fur neu registrierte Nutzer.</span>
+            <label for="default-quota" class="field-label"
+              >{$_('admin.settings.field_default_quota')}</label
+            >
+            <span class="field-hint">{$_('admin.settings.field_default_quota_hint')}</span>
           </div>
           <div class="input-wrap">
             <input id="default-quota" type="number" min="0" step="1" bind:value={defaultQuotaGb} />
@@ -167,8 +173,10 @@
         <!-- Max upload size -->
         <div class="field">
           <div class="field-label-group">
-            <label for="max-upload" class="field-label">Max. Upload-Grosse (GB)</label>
-            <span class="field-hint">Maximale Grosse einer einzelnen Upload-Session.</span>
+            <label for="max-upload" class="field-label"
+              >{$_('admin.settings.field_max_upload')}</label
+            >
+            <span class="field-hint">{$_('admin.settings.field_max_upload_hint')}</span>
           </div>
           <div class="input-wrap">
             <input id="max-upload" type="number" min="0" step="1" bind:value={maxUploadGb} />
@@ -181,8 +189,10 @@
         <!-- Max expiry hours -->
         <div class="field">
           <div class="field-label-group">
-            <label for="max-expiry" class="field-label">Max. Ablaufzeit (Stunden)</label>
-            <span class="field-hint">Maximale Gultigkeitsdauer eines Share-Links.</span>
+            <label for="max-expiry" class="field-label"
+              >{$_('admin.settings.field_max_expiry')}</label
+            >
+            <span class="field-hint">{$_('admin.settings.field_max_expiry_hint')}</span>
           </div>
           <div class="input-wrap">
             <input id="max-expiry" type="number" min="1" step="1" bind:value={maxExpiryHours} />
@@ -196,9 +206,9 @@
         <div class="actions">
           <button class="btn-primary" onclick={save} disabled={saving}>
             {#if saving}
-              <span class="spinner-sm" aria-hidden="true"></span> Speichern ...
+              <span class="spinner-sm" aria-hidden="true"></span> {$_('admin.settings.saving')}
             {:else}
-              <Check size={14} /> Speichern
+              <Check size={14} /> {$_('common.save')}
             {/if}
           </button>
 

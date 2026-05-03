@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
   import { auth } from '$lib/stores/auth.svelte.js';
+  import { _ } from 'svelte-i18n';
 
   interface AuditEntry {
     id: string;
@@ -17,27 +18,29 @@
     entries: AuditEntry[];
   }
 
-  const ACTION_LABELS: Record<string, string> = {
-    'user.registered': 'Registrierung',
-    'user.login': 'Anmeldung',
-    'user.logout': 'Abmeldung',
-    'user.login.failed': 'Anmeldung fehlgeschlagen',
-    'user.password.changed': 'Passwort geandert',
-    'user.email.changed': 'E-Mail geandert',
-    'user.totp.enabled': '2FA aktiviert',
-    'user.totp.disabled': '2FA deaktiviert',
-    'share.created': 'Share erstellt',
-    'share.deleted': 'Share geloscht',
-    'share.downloaded': 'Share heruntergeladen',
-    'share.expired': 'Share abgelaufen',
-    'admin.user.updated': 'Nutzer aktualisiert',
-    'admin.user.deleted': 'Nutzer geloscht',
-    'admin.share.deleted': 'Share geloscht (Admin)',
-    'admin.settings.updated': 'Einstellungen geandert',
+  const ACTION_LABEL_KEYS: Record<string, string> = {
+    'user.registered': 'admin.audit.action.user_registered',
+    'user.login': 'admin.audit.action.user_login',
+    'user.logout': 'admin.audit.action.user_logout',
+    'user.login.failed': 'admin.audit.action.user_login_failed',
+    'user.password.changed': 'admin.audit.action.user_password_changed',
+    'user.email.changed': 'admin.audit.action.user_email_changed',
+    'user.totp.enabled': 'admin.audit.action.user_totp_enabled',
+    'user.totp.disabled': 'admin.audit.action.user_totp_disabled',
+    'share.created': 'admin.audit.action.share_created',
+    'share.deleted': 'admin.audit.action.share_deleted',
+    'share.downloaded': 'admin.audit.action.share_downloaded',
+    'share.expired': 'admin.audit.action.share_expired',
+    'admin.user.updated': 'admin.audit.action.admin_user_updated',
+    'admin.user.deleted': 'admin.audit.action.admin_user_deleted',
+    'admin.share.deleted': 'admin.audit.action.admin_share_deleted',
+    'admin.settings.updated': 'admin.audit.action.admin_settings_updated',
   };
 
   function actionLabel(action: string): string {
-    return ACTION_LABELS[action] ?? action;
+    const key = ACTION_LABEL_KEYS[action];
+    if (key) return $_(key);
+    return $_('admin.audit.action.unknown', { values: { action } });
   }
 
   let total = $state(0);
@@ -51,14 +54,14 @@
   function formatDateTime(iso: string): string {
     const d = new Date(iso);
     return (
-      d.toLocaleDateString('de-DE') +
+      d.toLocaleDateString() +
       ' ' +
-      d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })
+      d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
     );
   }
 
   function truncateId(id: string | null): string {
-    if (!id) return 'anonym';
+    if (!id) return $_('admin.audit.anon');
     return id.length > 12 ? id.slice(0, 12) + '...' : id;
   }
 
@@ -123,34 +126,36 @@
 {:else if forbidden}
   <div class="forbidden">
     <h1>403 — Forbidden</h1>
-    <p>Dieses Konto hat keine Admin-Rolle.</p>
+    <p>{$_('admin.access_denied')}</p>
   </div>
 {:else}
-  <div class="crumbs"><a href="/admin">Admin</a> · Audit-Log</div>
+  <div class="crumbs"><a href="/admin">Admin</a> · {$_('admin.audit.breadcrumb')}</div>
   <div class="page-header">
     <div>
-      <h1 class="page-title">Audit-Log</h1>
-      <p class="page-sub">{total} Eintrager gesamt</p>
+      <h1 class="page-title">{$_('admin.audit.title')}</h1>
+      <p class="page-sub">{$_('admin.audit.entries_total', { values: { total } })}</p>
     </div>
   </div>
 
   <section class="panel">
     <div class="panel-h">
-      <h2>Aktivitaten</h2>
-      <span class="hint-pill">{entries.length} geladen</span>
+      <h2>{$_('admin.audit.activities')}</h2>
+      <span class="hint-pill"
+        >{$_('admin.audit.entries_loaded', { values: { count: entries.length } })}</span
+      >
     </div>
     <div class="table-body">
       {#if entries.length === 0}
-        <p class="empty">Keine Audit-Eintrager vorhanden.</p>
+        <p class="empty">{$_('admin.audit.no_entries')}</p>
       {:else}
         <table>
           <thead>
             <tr>
-              <th>Zeitstempel</th>
-              <th>Nutzer</th>
-              <th>Aktion</th>
-              <th>Ressource</th>
-              <th>IP</th>
+              <th>{$_('admin.audit.col_timestamp')}</th>
+              <th>{$_('admin.audit.col_user')}</th>
+              <th>{$_('admin.audit.col_action')}</th>
+              <th>{$_('admin.audit.col_resource')}</th>
+              <th>{$_('admin.audit.col_ip')}</th>
             </tr>
           </thead>
           <tbody>
@@ -181,7 +186,9 @@
     {#if entries.length < total}
       <div class="load-more">
         <button class="btn-ghost" onclick={() => load(false)} disabled={loadingMore}>
-          {#if loadingMore}Laden ...{:else}Mehr laden ({total - entries.length} weitere){/if}
+          {#if loadingMore}{$_('admin.audit.loading_more')}{:else}{$_('admin.audit.load_more', {
+              values: { count: total - entries.length },
+            })}{/if}
         </button>
       </div>
     {/if}
