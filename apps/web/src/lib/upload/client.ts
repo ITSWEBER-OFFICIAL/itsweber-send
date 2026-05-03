@@ -8,6 +8,22 @@ import {
   toBase64url,
 } from '$lib/crypto/index.js';
 
+export type UploadErrorCode = 'http_error' | 'network_error' | 'no_files' | 'invalid_response';
+
+/** Typed upload error — callers inspect `.code` and translate via i18n. */
+export class UploadError extends Error {
+  readonly code: UploadErrorCode;
+  /** HTTP status for `http_error`, otherwise undefined. */
+  readonly status?: number;
+
+  constructor(code: UploadErrorCode, options?: { status?: number }) {
+    super(code);
+    this.name = 'UploadError';
+    this.code = code;
+    this.status = options?.status;
+  }
+}
+
 export interface UploadOptions {
   expiryHours: number;
   downloadLimit: number;
@@ -37,27 +53,30 @@ function xhrUpload(
         try {
           resolve(JSON.parse(xhr.responseText) as { id: string; expiresAt: string });
         } catch {
-          reject(new Error('Invalid server response'));
+          reject(new UploadError('invalid_response'));
         }
       } else {
-        let msg = `Upload fehlgeschlagen (${xhr.status})`;
+        // Prefer a server-provided error message when available; fall back to typed error.
         try {
           const body = JSON.parse(xhr.responseText) as { error?: string };
-          if (body.error) msg = body.error;
+          if (body.error) {
+            reject(new Error(body.error));
+            return;
+          }
         } catch {
-          /* ignore */
+          /* ignore parse errors */
         }
-        reject(new Error(msg));
+        reject(new UploadError('http_error', { status: xhr.status }));
       }
     });
-    xhr.addEventListener('error', () => reject(new Error('Netzwerkfehler beim Upload')));
+    xhr.addEventListener('error', () => reject(new UploadError('network_error')));
     xhr.open('POST', '/api/v1/upload');
     xhr.send(form);
   });
 }
 
 export async function uploadFiles(files: File[], options: UploadOptions): Promise<UploadResult> {
-  if (files.length === 0) throw new Error('Keine Dateien ausgewählt');
+  if (files.length === 0) throw new UploadError('no_files');
 
   const masterKey = await generateKey();
   const keyB64 = await exportKeyBase64url(masterKey);

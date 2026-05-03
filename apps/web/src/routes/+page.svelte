@@ -15,6 +15,7 @@
   import Check from '$lib/components/icons/Check.svelte';
   import { startResumableUpload, type ResumableUploadHandle } from '$lib/upload/resumable.js';
   import { wordCodeFromId } from '$lib/share/wordcode.js';
+  import { UploadError } from '$lib/upload/client.js';
 
   type FilePhase = 'queued' | 'encrypting' | 'encrypted' | 'uploading' | 'paused' | 'done';
   type Phase = 'idle' | 'encrypting' | 'uploading' | 'paused' | 'done' | 'error';
@@ -169,7 +170,19 @@
       uploadProgress = 1;
       phase = 'done';
     } catch (e) {
-      errorMsg = e instanceof Error ? e.message : $_('upload.unknown_error');
+      if (e instanceof UploadError) {
+        if (e.code === 'http_error') {
+          errorMsg = $_('upload.error_http', { values: { status: e.status ?? 0 } });
+        } else if (e.code === 'network_error') {
+          errorMsg = $_('upload.error_network');
+        } else if (e.code === 'no_files') {
+          errorMsg = $_('upload.error_no_files');
+        } else {
+          errorMsg = $_('upload.error_invalid_response');
+        }
+      } else {
+        errorMsg = e instanceof Error ? e.message : $_('upload.unknown_error');
+      }
       phase = 'error';
     } finally {
       uploadHandle = null;
@@ -239,10 +252,8 @@
     link.click();
   }
   function emailShare() {
-    const subject = encodeURIComponent('Datei für dich');
-    const body = encodeURIComponent(
-      `Hi,\n\nhier ist dein verschlüsselter Share-Link:\n${shareUrl}\n\nDer Link verfällt automatisch.\n`,
-    );
+    const subject = encodeURIComponent($_('upload.email_subject'));
+    const body = encodeURIComponent($_('upload.email_body', { values: { url: shareUrl } }));
     window.location.href = `mailto:?subject=${subject}&body=${body}`;
   }
 
@@ -271,9 +282,9 @@
     <h1>{$_('home.title')}</h1>
     <p class="lede">{$_('home.lede')}</p>
     <div class="pill-row">
-      <span class="pill"><span class="dot"></span>AES-256-GCM im Browser</span>
-      <span class="pill">Bis 5 GB pro Datei</span>
-      <span class="pill">Keine Registrierung nötig</span>
+      <span class="pill"><span class="dot"></span>{$_('upload.pill_aes')}</span>
+      <span class="pill">{$_('upload.pill_size')}</span>
+      <span class="pill">{$_('upload.pill_no_account')}</span>
     </div>
   </section>
 
@@ -281,8 +292,8 @@
     <!-- LEFT: Upload Panel -->
     <section class="panel">
       <div class="panel-h">
-        <h2>Upload</h2>
-        <span class="enc-pill"><Lock size={14} /> wird im Browser verschlüsselt</span>
+        <h2>{$_('upload.panel_header')}</h2>
+        <span class="enc-pill"><Lock size={14} /> {$_('upload.enc_pill')}</span>
       </div>
       <div class="panel-body">
         {#if phase === 'idle' || phase === 'error'}
@@ -298,12 +309,12 @@
             onclick={openPicker}
             onkeydown={(e) => e.key === 'Enter' && openPicker()}
             tabindex="0"
-            aria-label="Dateien hochladen"
+            aria-label={$_('upload.dropzone_aria')}
           >
             <Upload size={44} />
-            <div class="title">Dateien hierher ziehen</div>
-            <div class="sub">oder Ordner — Multi-Upload wird automatisch als ZIP gepackt</div>
-            <div class="or">oder</div>
+            <div class="title">{$_('upload.dropzone_title')}</div>
+            <div class="sub">{$_('upload.dropzone_sub')}</div>
+            <div class="or">{$_('upload.dropzone_or')}</div>
             <button
               type="button"
               class="btn btn-primary"
@@ -313,7 +324,7 @@
               }}
             >
               <Folder size={16} />
-              Dateien auswählen
+              {$_('upload.select_files')}
             </button>
           </div>
         {/if}
@@ -347,15 +358,23 @@
                   <div class="file-sub">
                     <span>{formatBytes(file.size)}</span>
                     {#if fp === 'queued'}
-                      <span class="badge badge-queue">Warteschlange</span>
+                      <span class="badge badge-queue">{$_('upload.badge_queued')}</span>
                     {:else if fp === 'encrypting'}
-                      <span class="badge badge-busy">Verschlüsselt</span>
+                      <span class="badge badge-busy">{$_('upload.badge_encrypting')}</span>
                     {:else if fp === 'encrypted'}
-                      <span class="badge badge-ok"><Check size={10} /> Verschlüsselt</span>
+                      <span class="badge badge-ok"
+                        ><Check size={10} /> {$_('upload.badge_encrypting')}</span
+                      >
                     {:else if fp === 'uploading'}
-                      <span class="badge badge-busy">Lädt {Math.round(uploadProgress * 100)}%</span>
+                      <span class="badge badge-busy"
+                        >{$_('upload.badge_uploading', {
+                          values: { pct: Math.round(uploadProgress * 100) },
+                        })}</span
+                      >
                     {:else if fp === 'done'}
-                      <span class="badge badge-ok"><Check size={10} /> Übertragen</span>
+                      <span class="badge badge-ok"
+                        ><Check size={10} /> {$_('upload.badge_done')}</span
+                      >
                     {/if}
                   </div>
                   {#if fp === 'uploading'}
@@ -368,8 +387,8 @@
                   {#if phase === 'idle' || phase === 'error'}
                     <button
                       type="button"
-                      title="Entfernen"
-                      aria-label="Entfernen"
+                      title={$_('upload.remove_file')}
+                      aria-label={$_('upload.remove_file')}
                       onclick={() => removeFile(i)}
                     >
                       <X size={14} />
@@ -400,7 +419,8 @@
 
           {#if phase === 'idle' || phase === 'error'}
             <button class="btn-add" type="button" onclick={openPicker}>
-              <Plus size={14} /> Weitere Dateien
+              <Plus size={14} />
+              {$_('upload.add_files')}
             </button>
           {/if}
         {/if}
@@ -408,26 +428,24 @@
         <!-- Result card after success -->
         {#if phase === 'done'}
           <div class="result">
-            <h3><span class="ico"><ShieldCheck size={20} /></span> Bereit zum Teilen</h3>
+            <h3><span class="ico"><ShieldCheck size={20} /></span> {$_('upload.result_ready')}</h3>
             <p class="subtitle">
               {selectedFiles.length === 1
                 ? selectedFiles[0]!.name
-                : `${selectedFiles.length} Dateien`}
-              · läuft ab am {formatExpiry(shareExpiresAt)}
+                : $_('upload.file_count', { values: { count: selectedFiles.length } })}
+              · {$_('upload.result_expires', { values: { date: formatExpiry(shareExpiresAt) } })}
             </p>
 
             {#if voiceShareReady}
               <div class="voice-share">
                 <div class="voice-head">
-                  <span class="voice-badge">Per Sprache teilen</span>
-                  <span class="voice-hint"
-                    >Code + Passwort reichen — vollständig per Telefon diktierbar.</span
-                  >
+                  <span class="voice-badge">{$_('upload.voice_badge')}</span>
+                  <span class="voice-hint">{$_('upload.voice_hint')}</span>
                 </div>
                 <div class="voice-grid">
                   <div class="field accent">
                     <div class="field-stack">
-                      <div class="label">4-Wort-Code</div>
+                      <div class="label">{$_('upload.label_wordcode')}</div>
                       <div class="val val-lg">{wordCode}</div>
                     </div>
                     <button
@@ -435,12 +453,12 @@
                       type="button"
                       onclick={() => copyToClipboard(wordCode, 'word')}
                     >
-                      {copiedField === 'word' ? 'Kopiert' : 'Kopieren'}
+                      {copiedField === 'word' ? $_('upload.copied') : $_('common.copy')}
                     </button>
                   </div>
                   <div class="field accent">
                     <div class="field-stack">
-                      <div class="label">Passwort</div>
+                      <div class="label">{$_('upload.label_password')}</div>
                       <div class="val val-lg">
                         {showPassword ? password : '•'.repeat(Math.min(password.length, 12))}
                       </div>
@@ -450,7 +468,7 @@
                       type="button"
                       onclick={() => (showPassword = !showPassword)}
                     >
-                      {showPassword ? 'Verbergen' : 'Anzeigen'}
+                      {showPassword ? $_('upload.hide') : $_('upload.show')}
                     </button>
                   </div>
                 </div>
@@ -459,12 +477,21 @@
 
             <div class="share-grid">
               <div class="qr">
-                <canvas bind:this={qrCanvas} width="160" height="160" aria-label="QR-Code"></canvas>
+                <canvas
+                  bind:this={qrCanvas}
+                  width="160"
+                  height="160"
+                  aria-label={$_('upload.qr_label')}
+                ></canvas>
               </div>
               <div class="share-fields">
                 <div class="field">
                   <div class="field-stack">
-                    <div class="label">Sharing-Link {voiceShareReady ? '(Alternative)' : ''}</div>
+                    <div class="label">
+                      {voiceShareReady
+                        ? $_('upload.label_sharing_link_alt')
+                        : $_('upload.label_sharing_link')}
+                    </div>
                     <div class="val" title={shareUrl}>{shareUrl}</div>
                   </div>
                   <button
@@ -472,14 +499,15 @@
                     type="button"
                     onclick={() => copyToClipboard(shareUrl, 'link')}
                   >
-                    {copiedField === 'link' ? 'Kopiert' : 'Kopieren'}
+                    {copiedField === 'link' ? $_('upload.copied') : $_('common.copy')}
                   </button>
                 </div>
                 {#if useWordcode && !voiceShareReady}
                   <div class="field">
                     <div class="field-stack">
                       <div class="label">
-                        4-Wort-Code <span class="lookup-tag">nur Lookup</span>
+                        {$_('upload.label_wordcode')}
+                        <span class="lookup-tag">{$_('upload.lookup_only')}</span>
                       </div>
                       <div class="val">{wordCode}</div>
                     </div>
@@ -488,19 +516,15 @@
                       type="button"
                       onclick={() => copyToClipboard(wordCode, 'word')}
                     >
-                      {copiedField === 'word' ? 'Kopiert' : 'Kopieren'}
+                      {copiedField === 'word' ? $_('upload.copied') : $_('common.copy')}
                     </button>
                   </div>
-                  <p class="lookup-warn">
-                    Der Code findet diesen Share, kann ihn aber nicht entschlüsseln. Sende dem
-                    Empfänger zusätzlich die volle URL oder setze ein Passwort, um nur Code +
-                    Passwort weiterzugeben.
-                  </p>
+                  <p class="lookup-warn">{$_('upload.lookup_warn')}</p>
                 {/if}
                 {#if usePassword && password && !voiceShareReady}
                   <div class="field">
                     <div class="field-stack">
-                      <div class="label">Passwort</div>
+                      <div class="label">{$_('upload.label_password')}</div>
                       <div class="val">
                         {showPassword ? password : '•'.repeat(Math.min(password.length, 12))}
                       </div>
@@ -510,7 +534,7 @@
                       type="button"
                       onclick={() => (showPassword = !showPassword)}
                     >
-                      {showPassword ? 'Verbergen' : 'Anzeigen'}
+                      {showPassword ? $_('upload.hide') : $_('upload.show')}
                     </button>
                   </div>
                 {/if}
@@ -518,23 +542,28 @@
             </div>
 
             <div class="meta-row">
-              <span><b>{remainingDownloadsLabel}</b> Downloads übrig</span>
-              <span>Ablauf: <b>{formatExpiry(shareExpiresAt)}</b></span>
+              <span><b>{remainingDownloadsLabel}</b> {$_('upload.downloads_left')}</span>
+              <span><b>{formatExpiry(shareExpiresAt)}</b></span>
               <span
-                ><b>{formatBytes(totalSelectedBytes)}</b> · {selectedFiles.length}
-                {selectedFiles.length === 1 ? 'Datei' : 'Dateien'}</span
+                ><b>{formatBytes(totalSelectedBytes)}</b> · {$_('upload.file_count', {
+                  values: { count: selectedFiles.length },
+                })}</span
               >
               <span class="meta-actions">
                 <button type="button" class="btn btn-ghost btn-sm" onclick={downloadQrPng}>
-                  <QrCode size={14} /> QR speichern
+                  <QrCode size={14} />
+                  {$_('upload.save_qr')}
                 </button>
                 <button type="button" class="btn btn-ghost btn-sm" onclick={emailShare}>
-                  <Mail size={14} /> Als E-Mail
+                  <Mail size={14} />
+                  {$_('upload.share_email')}
                 </button>
               </span>
             </div>
 
-            <button type="button" class="new-upload" onclick={newUpload}>Neuer Upload</button>
+            <button type="button" class="new-upload" onclick={newUpload}
+              >{$_('upload.new_upload_btn')}</button
+            >
           </div>
         {/if}
 
@@ -545,7 +574,8 @@
             disabled={selectedFiles.length === 0}
             onclick={startUpload}
           >
-            <Lock size={16} /> Verschlüsseln &amp; hochladen
+            <Lock size={16} />
+            {$_('upload.button')}
           </button>
         {/if}
       </div>
@@ -554,14 +584,14 @@
     <!-- RIGHT: Settings Panel -->
     <aside class="panel">
       <div class="panel-h">
-        <h2>Einstellungen</h2>
-        <span class="hint-pill">gilt für diesen Upload</span>
+        <h2>{$_('upload.settings')}</h2>
+        <span class="hint-pill">{$_('upload.settings_hint')}</span>
       </div>
       <div class="panel-body settings-body">
         <div class="opt">
           <div class="opt-label">
-            <span>Ablaufzeit</span>
-            <span class="hint">max. 30 Tage</span>
+            <span>{$_('upload.expiry_opt')}</span>
+            <span class="hint">{$_('upload.expiry_max')}</span>
           </div>
           <div class="opt-control">
             {#each expiryChips as chip}
@@ -579,8 +609,8 @@
 
         <div class="opt">
           <div class="opt-label">
-            <span>Download-Limit</span>
-            <span class="hint">Self-destruct nach Downloads</span>
+            <span>{$_('upload.dl_opt')}</span>
+            <span class="hint">{$_('upload.dl_self_destruct')}</span>
           </div>
           <div class="opt-control">
             {#each dlChips as chip}
@@ -598,14 +628,14 @@
 
         <div class="opt">
           <div class="opt-label">
-            <span>Passwortschutz</span>
+            <span>{$_('upload.password_label')}</span>
             <button
               type="button"
               class="switch"
               class:on={usePassword}
               role="switch"
               aria-checked={usePassword}
-              aria-label="Passwortschutz aktivieren"
+              aria-label={$_('upload.pw_toggle_aria')}
               onclick={() => (usePassword = !usePassword)}
             >
               <span class="switch-track"></span>
@@ -616,7 +646,7 @@
               <input
                 type={showPassword ? 'text' : 'password'}
                 class="input"
-                placeholder="Passwort eingeben"
+                placeholder={$_('upload.password_placeholder')}
                 bind:value={password}
                 autocomplete="new-password"
               />
@@ -624,55 +654,49 @@
                 type="button"
                 class="ico-btn"
                 onclick={() => (showPassword = !showPassword)}
-                aria-label={showPassword ? 'Verbergen' : 'Anzeigen'}
-                title={showPassword ? 'Verbergen' : 'Anzeigen'}
+                aria-label={showPassword ? $_('upload.hide') : $_('upload.show')}
+                title={showPassword ? $_('upload.hide') : $_('upload.show')}
               >
                 {#if showPassword}<EyeOff size={16} />{:else}<Eye size={16} />{/if}
               </button>
             </div>
-            <span class="hint-line">Wird zusätzlich zur URL-Verschlüsselung genutzt</span>
+            <span class="hint-line">{$_('upload.pw_hint')}</span>
           {/if}
         </div>
 
         <div class="opt">
           <div class="opt-label">
-            <span>4-Wort-Code generieren</span>
+            <span>{$_('upload.wordcode_label')}</span>
             <button
               type="button"
               class="switch"
               class:on={useWordcode}
               role="switch"
               aria-checked={useWordcode}
-              aria-label="4-Wort-Code generieren"
+              aria-label={$_('upload.wordcode_toggle_aria')}
               onclick={() => (useWordcode = !useWordcode)}
             >
               <span class="switch-track"></span>
             </button>
           </div>
           {#if voiceShareReady}
-            <span class="hint-line ok"
-              >Per Sprache übertragbar: Code + Passwort entschlüsseln den Share vollständig.</span
-            >
+            <span class="hint-line ok">{$_('upload.hint_voice_ok')}</span>
           {:else if wordcodeNeedsPassword}
-            <span class="hint-line warn">
-              Ohne Passwort dient der Code nur als Kurzlink — der Empfänger braucht zusätzlich die
-              volle URL mit Schlüssel. Empfehlung: Passwortschutz aktivieren, um den Share allein
-              per Stimme weiterzugeben.
-            </span>
+            <span class="hint-line warn">{$_('upload.hint_wordcode_warn')}</span>
           {:else}
-            <span class="hint-line">Alternative zum langen Link, leichter zu diktieren.</span>
+            <span class="hint-line">{$_('upload.hint_wordcode_default')}</span>
           {/if}
         </div>
 
         <div class="opt">
           <div class="opt-label">
-            <span>Notiz an Empfänger</span>
-            <span class="hint">verschlüsselt mit</span>
+            <span>{$_('upload.note_opt')}</span>
+            <span class="hint">{$_('upload.note_encrypted_hint')}</span>
           </div>
           <textarea
             class="input"
             rows="3"
-            placeholder="Optional: Markdown-Text …"
+            placeholder={$_('upload.note_placeholder_md')}
             bind:value={note}
             maxlength="500"
           ></textarea>
@@ -680,30 +704,28 @@
 
         <div class="opt">
           <div class="opt-label">
-            <span>Empfänger-Notification</span>
+            <span>{$_('upload.notify_opt')}</span>
             <button
               type="button"
               class="switch"
               class:on={useNotify}
               role="switch"
               aria-checked={useNotify}
-              aria-label="Empfänger benachrichtigen"
+              aria-label={$_('upload.notify_toggle_aria')}
               onclick={() => (useNotify = !useNotify)}
               disabled
             >
               <span class="switch-track"></span>
             </button>
           </div>
-          <span class="hint-line"
-            >Per E-Mail benachrichtigen, wenn heruntergeladen wurde (nur mit Account)</span
-          >
+          <span class="hint-line">{$_('upload.notify_hint')}</span>
         </div>
       </div>
     </aside>
   </div>
 
   <p class="footnote">
-    ITSWEBER Send läuft in deinem Browser · keine Telemetrie · Open-Source unter
+    {$_('upload.footnote')}
     <a href="https://github.com/itsweber/itsweber-send" target="_blank" rel="noopener noreferrer"
       >github.com/itsweber/itsweber-send</a
     >
