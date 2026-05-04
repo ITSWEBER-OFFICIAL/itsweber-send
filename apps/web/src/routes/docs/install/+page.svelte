@@ -84,7 +84,7 @@ curl -O https://raw.githubusercontent.com/itsweber/itsweber-send/main/docker/Cad
     <div class="panel-h"><h2>Aus dem Quellcode bauen</h2></div>
     <div class="panel-body prose">
       <pre><code
-          >git clone https://github.com/itsweber/itsweber-send
+          >git clone https://github.com/ITSWEBER-OFFICIAL/itsweber-send
 cd itsweber-send
 
 # Abhängigkeiten installieren

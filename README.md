@@ -14,6 +14,12 @@
 </p>
 
 <p align="center">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-AGPL--3.0-3ba7a7.svg" alt="License: AGPL-3.0"></a>
+  <a href="#quickstart"><img src="https://img.shields.io/badge/Docker-ready-2ea3f2.svg" alt="Docker ready"></a>
+  <a href="https://itsweber.de"><img src="https://img.shields.io/badge/by-itsweber.de-2ea3f2.svg" alt="Made by ITSWEBER"></a>
+</p>
+
+<p align="center">
   <a href="#features">Features</a> ·
   <a href="#quickstart">Quickstart</a> ·
   <a href="#configuration">Configuration</a> ·
@@ -22,9 +28,60 @@
   <a href="LICENSE">License</a>
 </p>
 
+<p align="center">
+  🇩🇪 <strong>Auf Deutsch lesen</strong> → <a href="README.de.md">README.de.md</a>
+</p>
+
 ---
 
-> **Status:** v1.1.0 — adds resumable, chunked uploads for files of arbitrary size (well past the previous 500 MB ceiling), 2FA recovery codes, range-aware streaming downloads, and manifest format v2. v1.0 shares stay decryptable. GitHub push pending final sign-off.
+> **Status:** v1.2.0 — resumable chunked uploads for files of any size, 2FA recovery codes, FSA streaming downloads, SMTP notifications, and an all-in-one container with embedded Caddy. All v1.0 shares stay decryptable.
+
+---
+
+## Screenshots
+
+<details open>
+<summary><strong>Upload</strong></summary>
+
+![Upload page — dark theme with files queued and share settings](docs/previews/screenshots/01-upload-dark.png)
+*Drag & drop multi-file upload with expiry, download limit, password protection, 4-word code and notification settings.*
+
+![Upload page — password and settings configured](docs/previews/screenshots/02-upload-configured.png)
+*All share options filled in: password, Markdown note for the recipient, notification on first download.*
+
+</details>
+
+<details>
+<summary><strong>Share created</strong></summary>
+
+![Share created — QR code, 4-word code, and share link](docs/previews/screenshots/03-share-created.png)
+*Ready to share: voice-readable 4-word code, scannable QR code, and the full encrypted link — all generated client-side.*
+
+</details>
+
+<details>
+<summary><strong>Receive & Download</strong></summary>
+
+![Receive page — enter a share link or 4-word code](docs/previews/screenshots/04-receive.png)
+*Recipients enter the share link, 24-character ID, or the 4-word handoff code to look up a share.*
+
+![Download page — file list with per-file download buttons](docs/previews/screenshots/05-download.png)
+*Files are listed with type and size. Download individually or grab all as a streaming ZIP. The server only ever sees ciphertext.*
+
+</details>
+
+<details>
+<summary><strong>Admin panel</strong></summary>
+
+![Admin dashboard — users, shares, and storage overview](docs/previews/screenshots/06-admin-overview.png)
+*System overview: registered users, active and total shares, storage used. Links to health, readiness and OpenAPI endpoints.*
+
+![Admin panel — SMTP mail template editor](docs/previews/screenshots/07-admin-mail-templates.png)
+*Customise the on-first-download notification email with full HTML template editing and a live preview.*
+
+</details>
+
+---
 
 ## What it is
 
@@ -36,7 +93,7 @@ Inspired by the original Firefox Send and the [timvisee/send](https://github.com
 
 ### Sharing
 
-- Drag-and-drop multi-file upload with resumable, chunked uploads — files of arbitrary size are streamed in 16 MiB ciphertext chunks, with pause / resume from the UI (v1.1)
+- Drag-and-drop multi-file upload with resumable, chunked uploads — files of arbitrary size are streamed in 16 MiB ciphertext chunks, with pause / resume from the UI
 - Per-share password (layered on top of the URL key — when set, the share is decrypted via password only, no master key in the link)
 - Configurable expiry (1 h / 24 h / 7 d / 30 d) and download limit (1× to unlimited; counts per recipient share-download, not per blob)
 - QR code generated client-side for the share link
@@ -66,13 +123,7 @@ Inspired by the original Firefox Send and the [timvisee/send](https://github.com
 - Health and readiness endpoints for container orchestrators
 - Webhooks for upload and download events
 - S3 / MinIO storage backend
-
----
-
-## Screenshots
-
-<!-- Screenshots will be added before the public GitHub release. -->
-<!-- Brand assets and screenshots live in brand/screenshots/ -->
+- SMTP notifications on first download
 
 ---
 
@@ -82,8 +133,8 @@ Inspired by the original Firefox Send and the [timvisee/send](https://github.com
 
 ```bash
 # Download the Compose file and Caddyfile
-curl -O https://raw.githubusercontent.com/itsweber/itsweber-send/main/docker/docker-compose.yml
-curl -O https://raw.githubusercontent.com/itsweber/itsweber-send/main/docker/Caddyfile.example
+curl -O https://raw.githubusercontent.com/ITSWEBER-OFFICIAL/itsweber-send/main/docker/docker-compose.yml
+curl -O https://raw.githubusercontent.com/ITSWEBER-OFFICIAL/itsweber-send/main/docker/Caddyfile.example
 
 # Set your hostname and start
 BASE_URL=https://send.example.com docker compose up -d
@@ -100,7 +151,7 @@ docker run -d \
   -v send-data:/data \
   -e NODE_ENV=production \
   -e BASE_URL=http://localhost:3000 \
-  ghcr.io/itsweber/itsweber-send:latest
+  ghcr.io/itsweber-official/itsweber-send:latest
 ```
 
 Open `http://localhost:3000` in your browser.
@@ -110,7 +161,7 @@ Open `http://localhost:3000` in your browser.
 ### Run from source
 
 ```bash
-git clone https://github.com/itsweber/itsweber-send
+git clone https://github.com/ITSWEBER-OFFICIAL/itsweber-send
 cd itsweber-send
 pnpm install
 pnpm dev
@@ -148,9 +199,6 @@ All configuration is done via environment variables. Full reference: [docs/CONFI
 | [docs/SECURITY.md](docs/SECURITY.md)                             | Security architecture and threat model               |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)                     | System design and component overview                 |
 | [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)               | Known issues and build/runtime pitfalls              |
-| [docs/MOBILE_UX_AUDIT.md](docs/MOBILE_UX_AUDIT.md)               | Mobile UX audit (touch targets, viewport, safe-area) |
-| [docs/V1.1_DECISIONS.md](docs/V1.1_DECISIONS.md)                 | v1.1 architecture decisions                          |
-| [docs/LARGE_FILES.md](docs/LARGE_FILES.md)                       | Per-layer ceilings for >5 GB uploads                 |
 | [packages/crypto-spec/README.md](packages/crypto-spec/README.md) | Cryptographic format specification                   |
 | [CHANGELOG.md](CHANGELOG.md)                                     | Release history                                      |
 

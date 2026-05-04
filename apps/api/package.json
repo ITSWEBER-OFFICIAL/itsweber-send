@@ -1,6 +1,6 @@
 {
   "name": "@itsweber-send/api",
-  "version": "1.2.0-rc2",
+  "version": "1.2.0",
   "private": true,
   "description": "Fastify backend for ITSWEBER Send.",
   "license": "AGPL-3.0-only",

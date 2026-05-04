@@ -73,7 +73,7 @@ See `docker/Caddyfile.lan` for the configuration details.
 ## Building from source
 
 ```bash
-git clone https://github.com/itsweber/itsweber-send
+git clone https://github.com/ITSWEBER-OFFICIAL/itsweber-send
 cd itsweber-send
 
 # Install dependencies

@@ -1,22 +1,28 @@
 name: Release
 
-# Triggers:
-#   - any tag matching v*.*.* (e.g. v1.0.0)
-#   - manual workflow_dispatch from the Actions tab
 on:
   push:
-    tags:
-      - 'v*.*.*'
+    tags: ["v*.*.*", "v*.*.*-*"]
   workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to publish (e.g. v1.2.1-rc.1). Image is tagged exactly with this value."
+        required: true
 
 permissions:
   contents: write
   packages: write
 
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: itsweber-official/itsweber-send
+
 jobs:
   release:
     name: Build and publish multi-arch image
     runs-on: ubuntu-latest
+    timeout-minutes: 45
+
     steps:
       - uses: actions/checkout@v4
 
@@ -26,12 +32,30 @@ jobs:
       - name: Validate release artifact against allowlist
         run: node scripts/prepare-release.mjs --check
 
-      - name: Login to GHCR
+      - name: Log in to GHCR
         uses: docker/login-action@v3
         with:
-          registry: ghcr.io
+          registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Resolve image tags
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          # `flavor: latest=false` prevents metadata-action from auto-attaching :latest.
+          # :latest is added back only for stable semver tags (no pre-release suffix).
+          flavor: |
+            latest=false
+          # Stable tag v1.2.0 produces: v1.2.0, 1.2.0, 1.2, latest
+          # Pre-release tag v1.2.0-rc1 produces: v1.2.0-rc1 only (no :latest)
+          tags: |
+            type=ref,event=tag
+            type=semver,pattern={{version}},enable=${{ !contains(github.ref, '-') }}
+            type=semver,pattern={{major}}.{{minor}},enable=${{ !contains(github.ref, '-') }}
+            type=raw,value=latest,enable=${{ github.ref_type == 'tag' && !contains(github.ref, '-') }}
+            type=raw,value=${{ inputs.tag }},enable=${{ github.event_name == 'workflow_dispatch' }}
 
       - name: Build and push
         uses: docker/build-push-action@v6
@@ -40,9 +64,11 @@ jobs:
           file: docker/Dockerfile
           push: true
           platforms: linux/amd64,linux/arm64
-          tags: |
-            ghcr.io/itsweber/itsweber-send:${{ github.ref_name }}
-            ghcr.io/itsweber/itsweber-send:latest
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          provenance: false
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
@@ -52,3 +78,11 @@ jobs:
             docker/docker-compose.yml
             docker/Caddyfile.example
             CHANGELOG.md
+
+      - name: Summary
+        run: |
+          echo "### Published image tags" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "${{ steps.meta.outputs.tags }}" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY

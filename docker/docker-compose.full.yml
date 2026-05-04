@@ -10,7 +10,7 @@
 
 services:
   send:
-    image: ghcr.io/itsweber/itsweber-send:latest
+    image: ghcr.io/itsweber-official/itsweber-send:latest
     container_name: itsweber-send
     restart: unless-stopped
     read_only: true

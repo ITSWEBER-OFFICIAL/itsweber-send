@@ -107,7 +107,7 @@ For S3 storage, only `shares.db` is in the volume — blobs live in the bucket a
 ## Building from source
 
 ```bash
-git clone https://github.com/itsweber/itsweber-send
+git clone https://github.com/ITSWEBER-OFFICIAL/itsweber-send
 cd itsweber-send
 pnpm install
 docker build -f docker/Dockerfile -t itsweber-send:dev .

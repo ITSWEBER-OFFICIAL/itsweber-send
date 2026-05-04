@@ -4,6 +4,28 @@ All notable changes to ITSWEBER Send are documented here.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-05-04
+
+### Added
+
+- All-in-one Docker image with embedded Caddy: a single `docker run` with `BASE_URL=https://…` now handles TLS termination, security headers and reverse-proxying internally — no separate Caddy container or Caddyfile required. The existing `docker-compose.yml` + external Caddy setup remains fully supported.
+- SMTP mailer for optional on-first-download notification: when a share is created with the notification toggle enabled, the API sends an email to the uploader's address the first time a recipient downloads the share. SMTP is configured via `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASS` environment variables and can be tested via the new admin button.
+- SMTP runtime settings and test-mail button in the admin panel: SMTP credentials can be updated without a container restart and verified immediately with a test delivery to the admin's address.
+- FSA streaming for single-file downloads: browsers with the File System Access API now stream single files directly to disk in the same way multi-file ZIP streaming works, bypassing the in-memory buffer entirely.
+- Per-file progress bar during FSA streaming: each file in a multi-file ZIP download shows its own progress indicator during the streaming decryption pass.
+- Cross-session upload resume: a resumable upload started in one browser session (or on one device) can be continued from another by entering the original share link or the four-word code. The upload driver re-derives the encryption key from the URL fragment and resumes from the last committed chunk.
+- Visible build version in the app footer and in the page title meta tag.
+- Playwright E2E test step wired into the CI workflow; the test report is uploaded as an artifact on each run.
+
+### Fixed
+
+- 5+ GB upload and download path: an off-by-one in the chunk-range calculation caused the last chunk of a >5 GB upload to be written twice, corrupting the ciphertext and making the download fail with an auth-tag error. Fixed by clamping the byte-range to the actual file size.
+- Doubly-encoded UTF-8 in German and English locale JSON files: a prior save through a non-UTF-8-aware editor introduced `\uXXXX` sequences for characters that are valid UTF-8 literals (`ä`, `ö`, `ü`, `–`, `…`). All locale files are now stored as plain UTF-8.
+
+### Tests
+
+- Regression suite for the v1.2 release-blocker fixes: covers the >5 GB chunk-boundary edge case (synthetic 5 GiB + 1 byte upload via mocked `appendStream`), the cross-session resume handshake, and the locale round-trip (JSON parse → i18n → rendered text).
+
 ## [1.1.0] - 2026-05-03
 
 ### Tests
@@ -146,4 +168,6 @@ The S3 backend now supports resumable chunked uploads via S3 multipart and is te
 - Synchronous i18n bundle loading resolves a first-render flash where the locale was not yet resolved.
 - `default_sni` set in `Caddyfile.lan` so IP-literal HTTPS connections succeed during LAN testing.
 
-[1.0.0]: https://github.com/itsweber/itsweber-send/releases/tag/v1.0.0
+[1.2.0]: https://github.com/ITSWEBER-OFFICIAL/itsweber-send/releases/tag/v1.2.0
+[1.1.0]: https://github.com/ITSWEBER-OFFICIAL/itsweber-send/releases/tag/v1.1.0
+[1.0.0]: https://github.com/ITSWEBER-OFFICIAL/itsweber-send/releases/tag/v1.0.0

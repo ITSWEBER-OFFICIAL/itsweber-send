@@ -40,3 +40,7 @@ coverage/
 # Temp
 tmp/
 temp/
+
+
+# Wiki build artifacts
+docs/wiki/*.zip

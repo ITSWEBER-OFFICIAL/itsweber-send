@@ -107,7 +107,7 @@ Bei S3-Storage liegt nur `shares.db` im Volume — die Blobs leben im Bucket und
 ## Aus dem Quellcode bauen
 
 ```bash
-git clone https://github.com/itsweber/itsweber-send
+git clone https://github.com/ITSWEBER-OFFICIAL/itsweber-send
 cd itsweber-send
 pnpm install
 docker build -f docker/Dockerfile -t itsweber-send:dev .

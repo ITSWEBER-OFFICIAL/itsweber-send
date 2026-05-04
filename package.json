@@ -1,7 +1,7 @@
 {
   "name": "itsweber-send",
   "private": true,
-  "version": "1.2.0-rc2",
+  "version": "1.2.0",
   "description": "Self-hosted, end-to-end encrypted file sharing in a single Docker container.",
   "license": "AGPL-3.0-only",
   "type": "module",
