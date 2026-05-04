@@ -25,10 +25,9 @@ services:
       PORT: 3000
       ORIGIN: ${ORIGIN:-https://localhost:8443}
       BASE_URL: ${ORIGIN:-https://localhost:8443}
-      # Caddy embeds the LAN IP into its self-signed cert. Override
-      # SEND_HOST when running on a host other than 192.168.0.10 so the
-      # cert covers your hostname / IP.
-      SEND_HOST: ${SEND_HOST:-192.168.0.10}
+      # Caddy embeds the LAN IP into its self-signed cert.
+      # Set SEND_HOST to the IP or hostname of your server.
+      SEND_HOST: ${SEND_HOST:-192.168.1.100}
       LOG_LEVEL: info
       STORAGE_PATH: /data/uploads
       DB_PATH: /data/shares.db
