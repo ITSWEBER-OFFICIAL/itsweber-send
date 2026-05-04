@@ -969,8 +969,10 @@
 
   <p class="footnote">
     {$_('upload.footnote')}
-    <a href="https://github.com/ITSWEBER-OFFICIAL/itsweber-send" target="_blank" rel="noopener noreferrer"
-      >github.com/ITSWEBER-OFFICIAL/itsweber-send</a
+    <a
+      href="https://github.com/ITSWEBER-OFFICIAL/itsweber-send"
+      target="_blank"
+      rel="noopener noreferrer">github.com/ITSWEBER-OFFICIAL/itsweber-send</a
     >
     · <span class="footnote-version" title="Build version">v{APP_VERSION}</span>
   </p>

@@ -39,6 +39,7 @@ const ALLOWED_ROOT_FILES = new Set([
   'CODE_OF_CONDUCT.md',
   'CONTRIBUTING.md',
   'LICENSE',
+  'README.de.md',
   'README.md',
   'commitlint.config.js',
   'package.json',
