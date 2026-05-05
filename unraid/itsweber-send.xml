@@ -46,7 +46,7 @@ FIRST-TIME SETUP (read this before clicking Apply)
 
 LICENSE: AGPL-3.0-only. DOCS: https://github.com/ITSWEBER-OFFICIAL/itsweber-send#readme
   </Overview>
-  <Category>Network:Web Productivity:</Category>
+  <Category>Network-Web Productivity Cloud Security</Category>
   <WebUI>http://[IP]:[PORT:3000]/</WebUI>
   <ExtraParams>--read-only --tmpfs /tmp:size=64m,mode=1777 --cap-drop=ALL --security-opt no-new-privileges:true</ExtraParams>
   <PostArgs/>
