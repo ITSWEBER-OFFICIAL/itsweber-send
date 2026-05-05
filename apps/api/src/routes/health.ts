@@ -1,7 +1,11 @@
+import { createRequire } from 'node:module';
 import type { FastifyInstance } from 'fastify';
 import { getShare } from '../db/sqlite.js';
 
 const startedAt = Date.now();
+
+const pkg = createRequire(import.meta.url)('../../package.json') as { version: string };
+const VERSION = pkg.version;
 
 export async function healthRoutes(app: FastifyInstance): Promise<void> {
   // Health and readiness probes opt out of the global rate limit so that
@@ -12,7 +16,7 @@ export async function healthRoutes(app: FastifyInstance): Promise<void> {
     return {
       status: 'ok',
       uptimeMs: Date.now() - startedAt,
-      version: '1.2.0-rc2',
+      version: VERSION,
     };
   });
 

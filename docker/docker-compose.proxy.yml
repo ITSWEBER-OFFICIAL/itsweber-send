@@ -1,0 +1,56 @@
+# Reverse-proxy setup: a single ITSWEBER Send container, intended to sit
+# behind an existing reverse proxy (Nginx Proxy Manager, Traefik, an
+# external Caddy, an Ingress controller, …) that already terminates HTTPS
+# with a publicly-trusted certificate.
+#
+# The embedded Caddy is disabled (REVERSE_PROXY_MODE=true) so there is no
+# double TLS termination and no self-signed-cert dance for the upstream
+# proxy. Node listens on 0.0.0.0:3000 directly.
+#
+# Bring it up:   docker compose -f docker/docker-compose.proxy.yml up -d
+# Logs:          docker compose -f docker/docker-compose.proxy.yml logs -f
+# Tear down:     docker compose -f docker/docker-compose.proxy.yml down
+#
+# In your reverse proxy: forward the public hostname to send:3000 over
+# plain HTTP. Set ORIGIN below to the public URL the user types in their
+# browser — it is used to build share links and CSRF / cookie scopes.
+#
+# Example NPM proxy host:
+#   Scheme:        http
+#   Forward IP:    <docker host or IP of the send container>
+#   Forward Port:  3000
+#   Websockets Support: on
+#
+# See docs/REVERSE_PROXY.md for full snippets (NPM, Traefik, Caddy, Nginx).
+
+services:
+  send:
+    image: ghcr.io/itsweber-official/itsweber-send:latest
+    container_name: itsweber-send
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      NODE_ENV: production
+      REVERSE_PROXY_MODE: 'true'
+      # Set ORIGIN to the public URL your reverse proxy serves for this
+      # service. It governs the host of generated share links.
+      ORIGIN: ${ORIGIN:-https://send.example.com}
+      BASE_URL: ${ORIGIN:-https://send.example.com}
+      LOG_LEVEL: info
+      RATE_LIMIT_PER_MIN: 60
+      ENABLE_ACCOUNTS: 'true'
+      STORAGE_BACKEND: filesystem
+      STORAGE_PATH: /data/uploads
+    volumes:
+      - send-data:/data
+    ports:
+      - '3000:3000'
+
+volumes:
+  send-data:

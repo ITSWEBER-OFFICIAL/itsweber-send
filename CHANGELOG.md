@@ -4,6 +4,21 @@ All notable changes to ITSWEBER Send are documented here.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2026-05-05
+
+### Added
+
+- `REVERSE_PROXY_MODE=true` environment variable: skips the embedded Caddy and binds Node directly on `0.0.0.0:3000` so the container can sit behind an existing reverse proxy (NPM, Traefik, external Caddy, Nginx, an Ingress controller, …) without a second TLS layer in the way.
+- `docker/docker-compose.proxy.yml`: ready-made single-container compose file for "I already run a reverse proxy" deployments.
+- `docs/REVERSE_PROXY.md`: complete reverse-proxy configuration guide with copy-paste snippets for Nginx Proxy Manager, Traefik, external Caddy and vanilla Nginx.
+- README quickstart now presents three deployment modes side by side (LAN direct, behind reverse proxy, public with bundled Caddy + Let's Encrypt).
+- Container `EXPOSE` now lists both `8443` (all-in-one mode) and `3000` (reverse-proxy mode).
+
+### Fixed
+
+- `docker/docker-compose.yml` was unreachable in v1.2.0: the `send` service exposed port 3000 but Node listened only on `127.0.0.1:3000` because the embedded Caddy expected to be the only reverse proxy. The compose now sets `REVERSE_PROXY_MODE=true` so the upstream Caddy container can actually reach the send container on the shared network.
+- `/health` endpoint reported a stale hardcoded version (`1.2.0-rc2`) regardless of the actual build. The version is now read from `apps/api/package.json` at runtime so it always tracks the deployed code.
+
 ## [1.2.0] - 2026-05-04
 
 ### Added
@@ -168,6 +183,7 @@ The S3 backend now supports resumable chunked uploads via S3 multipart and is te
 - Synchronous i18n bundle loading resolves a first-render flash where the locale was not yet resolved.
 - `default_sni` set in `Caddyfile.lan` so IP-literal HTTPS connections succeed during LAN testing.
 
+[1.3.0]: https://github.com/ITSWEBER-OFFICIAL/itsweber-send/releases/tag/v1.3.0
 [1.2.0]: https://github.com/ITSWEBER-OFFICIAL/itsweber-send/releases/tag/v1.2.0
 [1.1.0]: https://github.com/ITSWEBER-OFFICIAL/itsweber-send/releases/tag/v1.1.0
 [1.0.0]: https://github.com/ITSWEBER-OFFICIAL/itsweber-send/releases/tag/v1.0.0

@@ -2,11 +2,11 @@ name: Release
 
 on:
   push:
-    tags: ["v*.*.*", "v*.*.*-*"]
+    tags: ['v*.*.*', 'v*.*.*-*']
   workflow_dispatch:
     inputs:
       tag:
-        description: "Tag to publish (e.g. v1.2.1-rc.1). Image is tagged exactly with this value."
+        description: 'Tag to publish (e.g. v1.2.1-rc.1). Image is tagged exactly with this value.'
         required: true
 
 permissions:

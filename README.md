@@ -34,7 +34,7 @@
 
 ---
 
-> **Status:** v1.2.0 — resumable chunked uploads for files of any size, 2FA recovery codes, FSA streaming downloads, SMTP notifications, and an all-in-one container with embedded Caddy. All v1.0 shares stay decryptable.
+> **Status:** v1.3.0 — three deployment modes (LAN direct with self-signed TLS, behind an existing reverse proxy, public with bundled Caddy + Let's Encrypt), resumable chunked uploads for files of any size, 2FA recovery codes, FSA streaming downloads, SMTP notifications. All v1.0+ shares stay decryptable.
 
 ---
 
@@ -44,10 +44,10 @@
 <summary><strong>Upload</strong></summary>
 
 ![Upload page — dark theme with files queued and share settings](docs/previews/screenshots/01-upload-dark.png)
-*Drag & drop multi-file upload with expiry, download limit, password protection, 4-word code and notification settings.*
+_Drag & drop multi-file upload with expiry, download limit, password protection, 4-word code and notification settings._
 
 ![Upload page — password and settings configured](docs/previews/screenshots/02-upload-configured.png)
-*All share options filled in: password, Markdown note for the recipient, notification on first download.*
+_All share options filled in: password, Markdown note for the recipient, notification on first download._
 
 </details>
 
@@ -55,7 +55,7 @@
 <summary><strong>Share created</strong></summary>
 
 ![Share created — QR code, 4-word code, and share link](docs/previews/screenshots/03-share-created.png)
-*Ready to share: voice-readable 4-word code, scannable QR code, and the full encrypted link — all generated client-side.*
+_Ready to share: voice-readable 4-word code, scannable QR code, and the full encrypted link — all generated client-side._
 
 </details>
 
@@ -63,10 +63,10 @@
 <summary><strong>Receive & Download</strong></summary>
 
 ![Receive page — enter a share link or 4-word code](docs/previews/screenshots/04-receive.png)
-*Recipients enter the share link, 24-character ID, or the 4-word handoff code to look up a share.*
+_Recipients enter the share link, 24-character ID, or the 4-word handoff code to look up a share._
 
 ![Download page — file list with per-file download buttons](docs/previews/screenshots/05-download.png)
-*Files are listed with type and size. Download individually or grab all as a streaming ZIP. The server only ever sees ciphertext.*
+_Files are listed with type and size. Download individually or grab all as a streaming ZIP. The server only ever sees ciphertext._
 
 </details>
 
@@ -74,10 +74,10 @@
 <summary><strong>Admin panel</strong></summary>
 
 ![Admin dashboard — users, shares, and storage overview](docs/previews/screenshots/06-admin-overview.png)
-*System overview: registered users, active and total shares, storage used. Links to health, readiness and OpenAPI endpoints.*
+_System overview: registered users, active and total shares, storage used. Links to health, readiness and OpenAPI endpoints._
 
 ![Admin panel — SMTP mail template editor](docs/previews/screenshots/07-admin-mail-templates.png)
-*Customise the on-first-download notification email with full HTML template editing and a live preview.*
+_Customise the on-first-download notification email with full HTML template editing and a live preview._
 
 </details>
 
@@ -129,34 +129,62 @@ Inspired by the original Firefox Send and the [timvisee/send](https://github.com
 
 ## Quickstart
 
-### Run with Docker Compose (production)
+The image ships in three deployment modes. Pick the one that matches your environment.
+
+### Mode 1 — LAN direct (embedded Caddy, self-signed TLS)
+
+For a home lab on a static LAN IP, with no public domain. The bundled Caddy
+terminates HTTPS on port 8443 with a self-signed certificate so Web Crypto
+works over the LAN.
 
 ```bash
-# Download the Compose file and Caddyfile
-curl -O https://raw.githubusercontent.com/ITSWEBER-OFFICIAL/itsweber-send/main/docker/docker-compose.yml
-curl -O https://raw.githubusercontent.com/ITSWEBER-OFFICIAL/itsweber-send/main/docker/Caddyfile.example
-
-# Set your hostname and start
-BASE_URL=https://send.example.com docker compose up -d
+docker run -d \
+  --name itsweber-send \
+  -p 8443:8443 \
+  -v send-data:/data \
+  -e SEND_HOST=192.168.1.100 \
+  -e ORIGIN=https://192.168.1.100:8443 \
+  -e BASE_URL=https://192.168.1.100:8443 \
+  ghcr.io/itsweber-official/itsweber-send:latest
 ```
 
-Edit `Caddyfile.example` to replace `send.example.com` with your domain. Caddy obtains a Let's Encrypt certificate automatically.
+Open `https://192.168.1.100:8443` and accept the self-signed certificate
+once. Compose alternative: [`docker/docker-compose.lan.yml`](docker/docker-compose.lan.yml).
 
-### Run without a reverse proxy (local / quick test)
+### Mode 2 — Behind your existing reverse proxy
+
+For setups where Nginx Proxy Manager, Traefik, an Ingress controller or
+another upstream proxy already terminates HTTPS with a real certificate.
+The embedded Caddy is disabled so there is no double TLS termination.
 
 ```bash
 docker run -d \
   --name itsweber-send \
   -p 3000:3000 \
   -v send-data:/data \
-  -e NODE_ENV=production \
-  -e BASE_URL=http://localhost:3000 \
+  -e REVERSE_PROXY_MODE=true \
+  -e ORIGIN=https://send.example.com \
+  -e BASE_URL=https://send.example.com \
   ghcr.io/itsweber-official/itsweber-send:latest
 ```
 
-Open `http://localhost:3000` in your browser.
+Forward your public hostname to port `3000` over plain HTTP. Compose
+alternative: [`docker/docker-compose.proxy.yml`](docker/docker-compose.proxy.yml).
+Detailed snippets for NPM, Traefik, Caddy and Nginx: [docs/REVERSE_PROXY.md](docs/REVERSE_PROXY.md).
 
-> Note: upload and download require a secure context. For local testing over HTTP, Web Crypto works in `localhost` specifically but not on an IP or arbitrary hostname. See [docs/INSTALL.md](docs/INSTALL.md) for the LAN setup with self-signed TLS.
+### Mode 3 — Public with bundled Caddy and Let's Encrypt
+
+For single-server deployments with ports 80/443 free and no other proxy
+in front. A separate Caddy container fetches a Let's Encrypt certificate
+and proxies to the send container.
+
+```bash
+curl -O https://raw.githubusercontent.com/ITSWEBER-OFFICIAL/itsweber-send/main/docker/docker-compose.yml
+curl -O https://raw.githubusercontent.com/ITSWEBER-OFFICIAL/itsweber-send/main/docker/Caddyfile.example
+
+# Replace send.example.com with your domain in Caddyfile.example, then:
+ORIGIN=https://send.example.com docker compose up -d
+```
 
 ### Run from source
 
@@ -175,32 +203,36 @@ Web UI: `http://localhost:5173` — API: `http://localhost:3000`
 
 All configuration is done via environment variables. Full reference: [docs/CONFIG.md](docs/CONFIG.md).
 
-| Variable               | Default                 | Purpose                                        |
-| ---------------------- | ----------------------- | ---------------------------------------------- |
-| `BASE_URL`             | `http://localhost:3000` | Public URL the service is reachable under      |
-| `NODE_ENV`             | `development`           | Set to `production` for production deployments |
-| `STORAGE_BACKEND`      | `filesystem`            | `filesystem` (default) or `s3` for S3/MinIO    |
-| `STORAGE_PATH`         | `./data/uploads`        | Filesystem-backend upload directory            |
-| `DB_PATH`              | `./data/shares.db`      | SQLite database path                           |
-| `RATE_LIMIT_PER_MIN`   | `60`                    | Per-IP request limit per minute                |
-| `ENABLE_ACCOUNTS`      | `true`                  | Allow optional user accounts                   |
-| `REGISTRATION_ENABLED` | `true`                  | Allow new registrations                        |
-| `DEFAULT_QUOTA_BYTES`  | `5368709120`            | Per-user quota (default: 5 GB)                 |
+| Variable               | Default                 | Purpose                                                               |
+| ---------------------- | ----------------------- | --------------------------------------------------------------------- |
+| `REVERSE_PROXY_MODE`   | `false`                 | When `true`, skip embedded Caddy and bind Node on `0.0.0.0:3000`      |
+| `ORIGIN`               | `http://localhost:3000` | Public origin for share links and cookie scope                        |
+| `BASE_URL`             | `http://localhost:3000` | Public URL the service is reachable under                             |
+| `SEND_HOST`            | `192.168.0.10`          | LAN IP / hostname embedded into the embedded Caddy's self-signed cert |
+| `NODE_ENV`             | `development`           | Set to `production` for production deployments                        |
+| `STORAGE_BACKEND`      | `filesystem`            | `filesystem` (default) or `s3` for S3/MinIO                           |
+| `STORAGE_PATH`         | `./data/uploads`        | Filesystem-backend upload directory                                   |
+| `DB_PATH`              | `./data/shares.db`      | SQLite database path                                                  |
+| `RATE_LIMIT_PER_MIN`   | `60`                    | Per-IP request limit per minute                                       |
+| `ENABLE_ACCOUNTS`      | `true`                  | Allow optional user accounts                                          |
+| `REGISTRATION_ENABLED` | `true`                  | Allow new registrations                                               |
+| `DEFAULT_QUOTA_BYTES`  | `5368709120`            | Per-user quota (default: 5 GB)                                        |
 
 ---
 
 ## Documentation
 
-| Document                                                         | Description                                          |
-| ---------------------------------------------------------------- | ---------------------------------------------------- |
-| [docs/INSTALL.md](docs/INSTALL.md)                               | Installation guide for Docker and from source        |
-| [docs/CONFIG.md](docs/CONFIG.md)                                 | Full environment variable reference                  |
-| [docs/API.md](docs/API.md)                                       | REST API reference                                   |
-| [docs/SECURITY.md](docs/SECURITY.md)                             | Security architecture and threat model               |
-| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)                     | System design and component overview                 |
-| [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)               | Known issues and build/runtime pitfalls              |
-| [packages/crypto-spec/README.md](packages/crypto-spec/README.md) | Cryptographic format specification                   |
-| [CHANGELOG.md](CHANGELOG.md)                                     | Release history                                      |
+| Document                                                         | Description                                   |
+| ---------------------------------------------------------------- | --------------------------------------------- |
+| [docs/INSTALL.md](docs/INSTALL.md)                               | Installation guide for Docker and from source |
+| [docs/REVERSE_PROXY.md](docs/REVERSE_PROXY.md)                   | Running behind NPM, Traefik, Caddy or Nginx   |
+| [docs/CONFIG.md](docs/CONFIG.md)                                 | Full environment variable reference           |
+| [docs/API.md](docs/API.md)                                       | REST API reference                            |
+| [docs/SECURITY.md](docs/SECURITY.md)                             | Security architecture and threat model        |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)                     | System design and component overview          |
+| [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)               | Known issues and build/runtime pitfalls       |
+| [packages/crypto-spec/README.md](packages/crypto-spec/README.md) | Cryptographic format specification            |
+| [CHANGELOG.md](CHANGELOG.md)                                     | Release history                               |
 
 ---
 

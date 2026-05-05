@@ -1,9 +1,18 @@
-# Minimal production setup: ITSWEBER Send + Caddy auto-HTTPS reverse proxy.
-# Suitable for single-server deployments (VPS, Unraid, home lab).
+# Production setup: ITSWEBER Send + external Caddy with public Let's Encrypt
+# certificate. Use this when the host has direct ports 80/443 free and you
+# want Caddy to manage HTTPS termination automatically against a real
+# domain (no external reverse proxy plugin like NPM in front).
+#
+# If you already run NPM, Traefik, or another reverse proxy, use
+# docker-compose.proxy.yml instead — it ships only the send container.
 #
 # Bring it up:   docker compose -f docker/docker-compose.yml up -d
 # Logs:          docker compose -f docker/docker-compose.yml logs -f
 # Tear down:     docker compose -f docker/docker-compose.yml down
+#
+# Before first start: copy Caddyfile.example to Caddyfile and replace
+# `send.example.com` with your actual hostname. Set ORIGIN to the same
+# public URL so generated share links use it.
 
 services:
   send:
@@ -19,7 +28,12 @@ services:
       - no-new-privileges:true
     environment:
       NODE_ENV: production
-      BASE_URL: ${BASE_URL:-http://localhost:3000}
+      # Skip the embedded Caddy — the external caddy service below handles
+      # public HTTPS. Node binds 0.0.0.0:3000 so the caddy container can
+      # reach it on the shared network.
+      REVERSE_PROXY_MODE: 'true'
+      ORIGIN: ${ORIGIN:-https://send.example.com}
+      BASE_URL: ${ORIGIN:-https://send.example.com}
       LOG_LEVEL: info
       RATE_LIMIT_PER_MIN: 60
       ENABLE_ACCOUNTS: 'true'

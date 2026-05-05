@@ -34,7 +34,7 @@
 
 ---
 
-> **Status:** v1.2.0 — Unterbrechbare, chunked Uploads für Dateien beliebiger Größe, 2FA-Wiederherstellungscodes, FSA-Streaming-Downloads, SMTP-Benachrichtigungen und ein All-in-One-Container mit eingebettetem Caddy. Alle v1.0-Shares bleiben entschlüsselbar.
+> **Status:** v1.3.0 — Drei Deployment-Modi (LAN direkt mit Self-Signed TLS, hinter bestehendem Reverse-Proxy, public mit gebündeltem Caddy + Let's Encrypt), unterbrechbare chunked Uploads für Dateien beliebiger Größe, 2FA-Wiederherstellungscodes, FSA-Streaming-Downloads, SMTP-Benachrichtigungen. Alle v1.0+-Shares bleiben entschlüsselbar.
 
 ---
 
@@ -44,10 +44,10 @@
 <summary><strong>Upload</strong></summary>
 
 ![Upload-Seite — dunkles Theme mit Dateien und Einstellungen](docs/previews/screenshots/01-upload-dark.png)
-*Drag & Drop Multi-Datei-Upload mit Ablaufdatum, Download-Limit, Passwortschutz, 4-Wort-Code und Benachrichtigungseinstellungen.*
+_Drag & Drop Multi-Datei-Upload mit Ablaufdatum, Download-Limit, Passwortschutz, 4-Wort-Code und Benachrichtigungseinstellungen._
 
 ![Upload-Seite — Passwort und Einstellungen konfiguriert](docs/previews/screenshots/02-upload-configured.png)
-*Alle Share-Optionen ausgefüllt: Passwort, Markdown-Notiz für den Empfänger, Benachrichtigung beim ersten Download.*
+_Alle Share-Optionen ausgefüllt: Passwort, Markdown-Notiz für den Empfänger, Benachrichtigung beim ersten Download._
 
 </details>
 
@@ -55,7 +55,7 @@
 <summary><strong>Share erstellt</strong></summary>
 
 ![Share erstellt — QR-Code, 4-Wort-Code und Share-Link](docs/previews/screenshots/03-share-created.png)
-*Bereit zum Teilen: sprechbarer 4-Wort-Code, scannbarer QR-Code und der vollständige verschlüsselte Link — alles clientseitig generiert.*
+_Bereit zum Teilen: sprechbarer 4-Wort-Code, scannbarer QR-Code und der vollständige verschlüsselte Link — alles clientseitig generiert._
 
 </details>
 
@@ -63,10 +63,10 @@
 <summary><strong>Empfangen & Herunterladen</strong></summary>
 
 ![Empfangen-Seite — Share-Link oder 4-Wort-Code eingeben](docs/previews/screenshots/04-receive.png)
-*Empfänger geben den Share-Link, die 24-stellige ID oder den 4-Wort-Code ein, um einen Share abzurufen.*
+_Empfänger geben den Share-Link, die 24-stellige ID oder den 4-Wort-Code ein, um einen Share abzurufen._
 
 ![Download-Seite — Dateiliste mit Download-Buttons](docs/previews/screenshots/05-download.png)
-*Dateien werden mit Typ und Größe aufgelistet. Einzeln herunterladen oder alle als Streaming-ZIP. Der Server sieht nur Chiffriertexte.*
+_Dateien werden mit Typ und Größe aufgelistet. Einzeln herunterladen oder alle als Streaming-ZIP. Der Server sieht nur Chiffriertexte._
 
 </details>
 
@@ -74,10 +74,10 @@
 <summary><strong>Admin-Panel</strong></summary>
 
 ![Admin-Dashboard — Nutzer, Shares und Speicherübersicht](docs/previews/screenshots/06-admin-overview.png)
-*Systemübersicht: registrierte Nutzer, aktive und gesamte Shares, belegter Speicher. Links zu Health-, Readiness- und OpenAPI-Endpunkten.*
+_Systemübersicht: registrierte Nutzer, aktive und gesamte Shares, belegter Speicher. Links zu Health-, Readiness- und OpenAPI-Endpunkten._
 
 ![Admin-Panel — SMTP-E-Mail-Vorlagen-Editor](docs/previews/screenshots/07-admin-mail-templates.png)
-*Benachrichtigungs-E-Mails bei erstem Download anpassen: vollständiger HTML-Template-Editor mit Live-Vorschau.*
+_Benachrichtigungs-E-Mails bei erstem Download anpassen: vollständiger HTML-Template-Editor mit Live-Vorschau._
 
 </details>
 
@@ -129,34 +129,62 @@ Inspiriert von Firefox Send und dem [timvisee/send](https://github.com/timvisee/
 
 ## Schnellstart
 
-### Mit Docker Compose starten (Produktion)
+Das Image bringt drei Deployment-Modi mit. Wähle den, der zu deinem Setup passt.
+
+### Modus 1 — LAN direkt (eingebetteter Caddy, Self-Signed TLS)
+
+Für ein Homelab mit statischer LAN-IP, ohne öffentliche Domain. Der mitgelieferte
+Caddy terminiert HTTPS auf Port 8443 mit einem selbst signierten Zertifikat —
+so funktioniert Web Crypto auch im LAN.
 
 ```bash
-# Compose-Datei und Caddyfile herunterladen
-curl -O https://raw.githubusercontent.com/ITSWEBER-OFFICIAL/itsweber-send/main/docker/docker-compose.yml
-curl -O https://raw.githubusercontent.com/ITSWEBER-OFFICIAL/itsweber-send/main/docker/Caddyfile.example
-
-# Hostname setzen und starten
-BASE_URL=https://send.example.com docker compose up -d
+docker run -d \
+  --name itsweber-send \
+  -p 8443:8443 \
+  -v send-data:/data \
+  -e SEND_HOST=192.168.1.100 \
+  -e ORIGIN=https://192.168.1.100:8443 \
+  -e BASE_URL=https://192.168.1.100:8443 \
+  ghcr.io/itsweber-official/itsweber-send:latest
 ```
 
-`Caddyfile.example` bearbeiten und `send.example.com` durch die eigene Domain ersetzen. Caddy bezieht automatisch ein Let's Encrypt-Zertifikat.
+`https://192.168.1.100:8443` öffnen und das Self-Signed-Zertifikat einmal akzeptieren.
+Compose-Variante: [`docker/docker-compose.lan.yml`](docker/docker-compose.lan.yml).
 
-### Ohne Reverse-Proxy starten (lokal / schneller Test)
+### Modus 2 — Hinter deinem bestehenden Reverse-Proxy
+
+Für Setups, in denen Nginx Proxy Manager, Traefik, ein Ingress-Controller oder
+ein anderer Upstream-Proxy schon HTTPS mit echtem Zertifikat terminiert. Der
+eingebettete Caddy wird deaktiviert — keine doppelte TLS-Termination.
 
 ```bash
 docker run -d \
   --name itsweber-send \
   -p 3000:3000 \
   -v send-data:/data \
-  -e NODE_ENV=production \
-  -e BASE_URL=http://localhost:3000 \
+  -e REVERSE_PROXY_MODE=true \
+  -e ORIGIN=https://send.example.com \
+  -e BASE_URL=https://send.example.com \
   ghcr.io/itsweber-official/itsweber-send:latest
 ```
 
-`http://localhost:3000` im Browser öffnen.
+Im Reverse-Proxy auf Port `3000` per HTTP weiterleiten. Compose-Variante:
+[`docker/docker-compose.proxy.yml`](docker/docker-compose.proxy.yml).
+Konkrete Snippets für NPM, Traefik, Caddy und Nginx: [docs/REVERSE_PROXY.md](docs/REVERSE_PROXY.md).
 
-> Hinweis: Upload und Download erfordern einen sicheren Kontext. Für lokale Tests über HTTP funktioniert Web Crypto speziell auf `localhost`, aber nicht auf einer IP oder einem beliebigen Hostnamen. Siehe [docs/INSTALL.md](docs/INSTALL.md) für das LAN-Setup mit selbst signiertem TLS.
+### Modus 3 — Public mit gebündeltem Caddy und Let's Encrypt
+
+Für Single-Server-Deployments mit freien Ports 80/443 und ohne anderen Proxy
+davor. Ein separater Caddy-Container holt sich ein Let's Encrypt-Zertifikat
+und proxiert auf den Send-Container.
+
+```bash
+curl -O https://raw.githubusercontent.com/ITSWEBER-OFFICIAL/itsweber-send/main/docker/docker-compose.yml
+curl -O https://raw.githubusercontent.com/ITSWEBER-OFFICIAL/itsweber-send/main/docker/Caddyfile.example
+
+# In Caddyfile.example send.example.com durch die eigene Domain ersetzen, dann:
+ORIGIN=https://send.example.com docker compose up -d
+```
 
 ### Aus dem Quellcode starten
 
@@ -175,46 +203,50 @@ Web-UI: `http://localhost:5173` — API: `http://localhost:3000`
 
 Die gesamte Konfiguration erfolgt über Umgebungsvariablen. Vollständige Referenz: [docs/CONFIG.md](docs/CONFIG.md).
 
-| Variable               | Standard                | Zweck                                                    |
-| ---------------------- | ----------------------- | -------------------------------------------------------- |
-| `BASE_URL`             | `http://localhost:3000` | Öffentliche URL, unter der der Dienst erreichbar ist     |
-| `NODE_ENV`             | `development`           | Auf `production` setzen für Produktiv-Deployments        |
-| `STORAGE_BACKEND`      | `filesystem`            | `filesystem` (Standard) oder `s3` für S3/MinIO           |
-| `STORAGE_PATH`         | `./data/uploads`        | Upload-Verzeichnis für das Filesystem-Backend            |
-| `DB_PATH`              | `./data/shares.db`      | SQLite-Datenbankpfad                                     |
-| `RATE_LIMIT_PER_MIN`   | `60`                    | Per-IP-Anfragelimit pro Minute                           |
-| `ENABLE_ACCOUNTS`      | `true`                  | Optionale Benutzerkonten erlauben                        |
-| `REGISTRATION_ENABLED` | `true`                  | Neue Registrierungen erlauben                            |
-| `DEFAULT_QUOTA_BYTES`  | `5368709120`            | Pro-Nutzer-Quota (Standard: 5 GB)                        |
+| Variable               | Standard                | Zweck                                                                             |
+| ---------------------- | ----------------------- | --------------------------------------------------------------------------------- |
+| `REVERSE_PROXY_MODE`   | `false`                 | Bei `true`: eingebetteter Caddy aus, Node bindet `0.0.0.0:3000`                   |
+| `ORIGIN`               | `http://localhost:3000` | Öffentlicher Origin für Share-Links und Cookie-Scope                              |
+| `BASE_URL`             | `http://localhost:3000` | Öffentliche URL, unter der der Dienst erreichbar ist                              |
+| `SEND_HOST`            | `192.168.0.10`          | LAN-IP / Hostname, der ins Self-Signed-Cert des eingebetteten Caddy gebrannt wird |
+| `NODE_ENV`             | `development`           | Auf `production` setzen für Produktiv-Deployments                                 |
+| `STORAGE_BACKEND`      | `filesystem`            | `filesystem` (Standard) oder `s3` für S3/MinIO                                    |
+| `STORAGE_PATH`         | `./data/uploads`        | Upload-Verzeichnis für das Filesystem-Backend                                     |
+| `DB_PATH`              | `./data/shares.db`      | SQLite-Datenbankpfad                                                              |
+| `RATE_LIMIT_PER_MIN`   | `60`                    | Per-IP-Anfragelimit pro Minute                                                    |
+| `ENABLE_ACCOUNTS`      | `true`                  | Optionale Benutzerkonten erlauben                                                 |
+| `REGISTRATION_ENABLED` | `true`                  | Neue Registrierungen erlauben                                                     |
+| `DEFAULT_QUOTA_BYTES`  | `5368709120`            | Pro-Nutzer-Quota (Standard: 5 GB)                                                 |
 
 ---
 
 ## Dokumentation
 
-| Dokument                                                         | Beschreibung                                              |
-| ---------------------------------------------------------------- | --------------------------------------------------------- |
-| [docs/INSTALL.md](docs/INSTALL.md)                               | Installationsanleitung für Docker und aus dem Quellcode   |
-| [docs/CONFIG.md](docs/CONFIG.md)                                 | Vollständige Umgebungsvariablen-Referenz                  |
-| [docs/API.md](docs/API.md)                                       | REST-API-Referenz                                         |
-| [docs/SECURITY.md](docs/SECURITY.md)                             | Sicherheitsarchitektur und Bedrohungsmodell               |
-| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)                     | Systemdesign und Komponentenübersicht                     |
-| [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)               | Bekannte Probleme und Build-/Runtime-Fallstricke          |
-| [packages/crypto-spec/README.md](packages/crypto-spec/README.md) | Kryptografisches Formatdokument                           |
-| [CHANGELOG.md](CHANGELOG.md)                                     | Versionshistorie                                          |
+| Dokument                                                         | Beschreibung                                            |
+| ---------------------------------------------------------------- | ------------------------------------------------------- |
+| [docs/INSTALL.md](docs/INSTALL.md)                               | Installationsanleitung für Docker und aus dem Quellcode |
+| [docs/REVERSE_PROXY.md](docs/REVERSE_PROXY.md)                   | Betrieb hinter NPM, Traefik, Caddy oder Nginx           |
+| [docs/CONFIG.md](docs/CONFIG.md)                                 | Vollständige Umgebungsvariablen-Referenz                |
+| [docs/API.md](docs/API.md)                                       | REST-API-Referenz                                       |
+| [docs/SECURITY.md](docs/SECURITY.md)                             | Sicherheitsarchitektur und Bedrohungsmodell             |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)                     | Systemdesign und Komponentenübersicht                   |
+| [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)               | Bekannte Probleme und Build-/Runtime-Fallstricke        |
+| [packages/crypto-spec/README.md](packages/crypto-spec/README.md) | Kryptografisches Formatdokument                         |
+| [CHANGELOG.md](CHANGELOG.md)                                     | Versionshistorie                                        |
 
 ---
 
 ## Architektur
 
-| Schicht   | Technologie                              | Hinweise                                                  |
-| --------- | ---------------------------------------- | --------------------------------------------------------- |
-| Backend   | Fastify 5 auf Node.js 22                 | Unterbrechbare chunked Uploads (eigenes Protokoll), S3-Multipart |
-| Frontend  | SvelteKit 2 + Svelte 5 + Vite            | TailwindCSS v4, svelte-i18n                               |
-| Krypto    | Web Crypto API                           | AES-256-GCM, PBKDF2 200.000 Iterationen                   |
-| DB        | better-sqlite3                           | Eingebettet; kein separater Dienst                        |
-| Storage   | Filesystem (Standard) / S3 (MinIO)       | Austauschbarer Adapter                                    |
-| Container | node:22-alpine, Multi-Stage              | Nicht-Root UID 10001, read-only Rootfs                    |
-| Proxy     | Caddy 2                                  | Automatisches TLS, Security-Header                        |
+| Schicht   | Technologie                        | Hinweise                                                         |
+| --------- | ---------------------------------- | ---------------------------------------------------------------- |
+| Backend   | Fastify 5 auf Node.js 22           | Unterbrechbare chunked Uploads (eigenes Protokoll), S3-Multipart |
+| Frontend  | SvelteKit 2 + Svelte 5 + Vite      | TailwindCSS v4, svelte-i18n                                      |
+| Krypto    | Web Crypto API                     | AES-256-GCM, PBKDF2 200.000 Iterationen                          |
+| DB        | better-sqlite3                     | Eingebettet; kein separater Dienst                               |
+| Storage   | Filesystem (Standard) / S3 (MinIO) | Austauschbarer Adapter                                           |
+| Container | node:22-alpine, Multi-Stage        | Nicht-Root UID 10001, read-only Rootfs                           |
+| Proxy     | Caddy 2                            | Automatisches TLS, Security-Header                               |
 
 Vollständige Dokumentation: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 

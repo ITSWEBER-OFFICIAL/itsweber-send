@@ -37,16 +37,20 @@ FROM node:22-alpine AS runtime
 
 LABEL org.opencontainers.image.title="ITSWEBER Send" \
       org.opencontainers.image.description="Self-hosted, end-to-end encrypted file sharing." \
-      org.opencontainers.image.source="https://github.com/itsweber/itsweber-send" \
+      org.opencontainers.image.source="https://github.com/ITSWEBER-OFFICIAL/itsweber-send" \
       org.opencontainers.image.licenses="AGPL-3.0-only"
 
 ENV NODE_ENV=production \
-    HOST=127.0.0.1 \
     PORT=3000 \
     STORAGE_PATH=/data/uploads \
     DB_PATH=/data/shares.db \
     XDG_DATA_HOME=/data \
     XDG_CONFIG_HOME=/data/caddy-config
+
+# HOST is intentionally not set here. The entrypoint picks the bind
+# address based on the deployment mode: 127.0.0.1 in all-in-one mode
+# (Caddy proxies on loopback), 0.0.0.0 in REVERSE_PROXY_MODE. A user
+# explicitly setting HOST overrides both.
 
 # Caddy provides HTTPS termination on 8443 inside the same container so
 # the deployment is a single image with a single port. Caddy stores its
@@ -87,7 +91,9 @@ VOLUME ["/data"]
 # OR a fronting reverse proxy on the host that maps the public ports.
 
 USER 10001:10001
-EXPOSE 8443
+# 8443 is exposed by the embedded Caddy in all-in-one mode.
+# 3000 is exposed by Node directly in REVERSE_PROXY_MODE=true.
+EXPOSE 8443 3000
 
 # Container is meant to run with `--read-only` and `--tmpfs /tmp:size=64m,mode=1777`.
 # Healthcheck hits the Node API directly on loopback so a momentary Caddy
