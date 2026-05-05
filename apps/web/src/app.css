@@ -40,6 +40,11 @@ body {
   font-family: var(--font-sans);
   background: var(--bg);
   color: var(--text);
+  /* Belt-and-braces guard against horizontal scroll on phones. Individual
+     elements should still wrap their content (long URLs, share IDs, OTP
+     URIs, code blocks); this rule is a last-resort safety net so a single
+     overflowing descendant cannot make the whole page swipe sideways. */
+  overflow-x: clip;
   transition:
     background-color var(--transition-base),
     color var(--transition-base);

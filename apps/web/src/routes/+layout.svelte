@@ -211,4 +211,30 @@
       padding-top: 6px;
     }
   }
+
+  /* Phone-sized viewports: drop the wordmark to give the right-side tools
+     enough room for "Anmelden / Registrieren" without the brand text
+     wrapping. The brand mark stays visible so the home affordance is
+     preserved. */
+  @media (max-width: 480px) {
+    .appbar {
+      gap: 8px;
+      padding: max(8px, env(safe-area-inset-top, 0px)) max(12px, env(safe-area-inset-right, 0px))
+        8px max(12px, env(safe-area-inset-left, 0px));
+    }
+    .brand-text {
+      display: none;
+    }
+    .right-tools {
+      gap: 6px;
+    }
+    .auth-link {
+      padding: 5px 9px;
+      font-size: 13px;
+    }
+    .nav a {
+      padding: 5px 11px;
+      font-size: 13px;
+    }
+  }
 </style>

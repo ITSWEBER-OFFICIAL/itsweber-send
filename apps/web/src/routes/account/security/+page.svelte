@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
   import { _ } from 'svelte-i18n';
+  import { toCanvas as qrToCanvas } from 'qrcode';
   import { auth } from '$lib/stores/auth.svelte.js';
   import Shield from '$lib/components/icons/Shield.svelte';
   import ShieldCheck from '$lib/components/icons/ShieldCheck.svelte';
@@ -38,6 +39,20 @@
   let totpLoading = $state(false);
   let totpError = $state('');
   let totpSuccess = $state('');
+  let totpQrCanvas: HTMLCanvasElement | undefined = $state();
+
+  // Render the otpauth:// URI as a scannable QR code into the canvas as
+  // soon as both the URI and the canvas exist. Same colour palette as the
+  // share-link QR so the visual treatment stays consistent across the app.
+  $effect(() => {
+    if (totpQrCanvas && totpUri) {
+      void qrToCanvas(totpQrCanvas, totpUri, {
+        width: 192,
+        margin: 1,
+        color: { dark: '#0a1a26', light: '#ffffff' },
+      });
+    }
+  });
 
   // -- Recovery codes --
   let recoveryCodes = $state<string[] | null>(null);
@@ -510,6 +525,10 @@
               {$_('account.security.totp_step1_desc')}
             </p>
 
+            <div class="totp-qr">
+              <canvas bind:this={totpQrCanvas} aria-label="TOTP QR code"></canvas>
+            </div>
+
             <div class="totp-field-group">
               <div class="totp-field">
                 <span class="totp-field-label">otpauth:// URI</span>
@@ -912,6 +931,23 @@
     color: var(--text);
     margin: 0 0 14px;
     line-height: 1.5;
+  }
+  .totp-qr {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 18px;
+  }
+  .totp-qr canvas {
+    background: white;
+    padding: 8px;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    /* Cap the rendered size on small screens so the QR never forces the
+       card wider than the viewport. The canvas is drawn at 192 px so
+       max-width 100% scales it down on phones without re-rendering. */
+    max-width: 100%;
+    height: auto;
+    display: block;
   }
   .totp-field-group {
     display: flex;

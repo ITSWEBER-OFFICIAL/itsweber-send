@@ -4,6 +4,18 @@ All notable changes to ITSWEBER Send are documented here.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.1] - 2026-05-05
+
+### Added
+
+- QR code in the 2FA setup flow: scan straight from the screen into Aegis / Google Authenticator / Bitwarden / 1Password instead of typing the 32-character secret. The `otpauth://` URI and the manual secret stay available as fallbacks.
+- Unraid Docker template at [`unraid/itsweber-send.xml`](unraid/itsweber-send.xml). Drop it onto the Unraid USB at `/boot/config/plugins/dockerMan/templates-user/` and the container appears in the _Docker → Add Container → Template_ dropdown with all fields pre-filled (image, volume, env vars, security flags). Description includes the required pre-chown step.
+- Startup preflight check in the entrypoint: when `/data` is not writable by the runtime user (UID 10001), the container now prints an actionable error message (`chown -R 10001:10001 /your/host/path`) before exiting, instead of crashing with the cryptic `SQLITE_CANTOPEN`.
+
+### Fixed
+
+- Mobile responsive issues: the appbar's wordmark wrapped to two lines on narrow phones (≤480 px). The wordmark is now hidden at that breakpoint, leaving the brand mark plus tightened auth links and language/theme tools. The page tree gains an `overflow-x: clip` safety net so a single overflowing descendant (long share URL, OTP URI) cannot make the whole page swipe sideways.
+
 ## [1.3.0] - 2026-05-05
 
 ### Added
@@ -183,6 +195,7 @@ The S3 backend now supports resumable chunked uploads via S3 multipart and is te
 - Synchronous i18n bundle loading resolves a first-render flash where the locale was not yet resolved.
 - `default_sni` set in `Caddyfile.lan` so IP-literal HTTPS connections succeed during LAN testing.
 
+[1.3.1]: https://github.com/ITSWEBER-OFFICIAL/itsweber-send/releases/tag/v1.3.1
 [1.3.0]: https://github.com/ITSWEBER-OFFICIAL/itsweber-send/releases/tag/v1.3.0
 [1.2.0]: https://github.com/ITSWEBER-OFFICIAL/itsweber-send/releases/tag/v1.2.0
 [1.1.0]: https://github.com/ITSWEBER-OFFICIAL/itsweber-send/releases/tag/v1.1.0

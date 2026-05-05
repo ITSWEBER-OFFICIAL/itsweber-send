@@ -34,7 +34,7 @@
 
 ---
 
-> **Status:** v1.3.0 — three deployment modes (LAN direct with self-signed TLS, behind an existing reverse proxy, public with bundled Caddy + Let's Encrypt), resumable chunked uploads for files of any size, 2FA recovery codes, FSA streaming downloads, SMTP notifications. All v1.0+ shares stay decryptable.
+> **Status:** v1.3.1 — three deployment modes (LAN direct with self-signed TLS, behind an existing reverse proxy, public with bundled Caddy + Let's Encrypt), Unraid template, mobile-responsive UI, 2FA QR code, resumable chunked uploads for files of any size, FSA streaming downloads, SMTP notifications. All v1.0+ shares stay decryptable.
 
 ---
 
@@ -185,6 +185,28 @@ curl -O https://raw.githubusercontent.com/ITSWEBER-OFFICIAL/itsweber-send/main/d
 # Replace send.example.com with your domain in Caddyfile.example, then:
 ORIGIN=https://send.example.com docker compose up -d
 ```
+
+### Unraid one-shot template
+
+Drop the bundled XML template onto the Unraid USB so the container appears
+in the _Docker → Container hinzufügen → Vorlage_ dropdown with everything
+pre-filled (image, volume, env vars, security flags):
+
+```bash
+wget -O /boot/config/plugins/dockerMan/templates-user/itsweber-send.xml \
+  https://raw.githubusercontent.com/ITSWEBER-OFFICIAL/itsweber-send/main/unraid/itsweber-send.xml
+```
+
+> **Pre-chown the data directory before the first start.** The image runs
+> as the non-root UID `10001:10001`, so the host bind-mount must be owned
+> by that UID:
+>
+> ```bash
+> mkdir -p /mnt/user/appdata/itsweber-send
+> chown -R 10001:10001 /mnt/user/appdata/itsweber-send
+> ```
+>
+> Without this, SQLite refuses to open and the container exits on start.
 
 ### Run from source
 

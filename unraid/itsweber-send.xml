@@ -1,0 +1,77 @@
+<?xml version="1.0"?>
+<Container version="2">
+  <Name>itsweber-send</Name>
+  <Repository>ghcr.io/itsweber-official/itsweber-send:latest</Repository>
+  <Registry>https://github.com/ITSWEBER-OFFICIAL/itsweber-send</Registry>
+  <Network>bridge</Network>
+  <MyIP/>
+  <Shell>bash</Shell>
+  <Privileged>false</Privileged>
+  <Support>https://github.com/ITSWEBER-OFFICIAL/itsweber-send/issues</Support>
+  <Project>https://github.com/ITSWEBER-OFFICIAL/itsweber-send</Project>
+  <Overview>
+Self-hosted, end-to-end encrypted file sharing in a single Docker container.
+
+THREE DEPLOYMENT MODES:
+
+  1) Behind your existing reverse proxy (NPM, Traefik, Caddy-external, Nginx)
+     — DEFAULT for this template. Set REVERSE_PROXY_MODE = true (default),
+     point your proxy at host:3000 over plain HTTP. Set ORIGIN/BASE_URL to
+     your public URL (e.g. https://send.example.com).
+
+  2) LAN direct (no public domain). Set REVERSE_PROXY_MODE = false and use
+     the bundled HTTPS port 8443 with the embedded Caddy + self-signed cert.
+
+  3) Public with bundled Caddy + Let&apos;s Encrypt. Use docker-compose.yml
+     from the repo instead of this template.
+
+FIRST-TIME SETUP (read this before clicking Apply):
+
+  The container runs as a non-root user (UID 10001). The host directory you
+  pick for /data must be owned by that UID. Open the Unraid terminal and run:
+
+      mkdir -p /mnt/user/appdata/itsweber-send
+      chown -R 10001:10001 /mnt/user/appdata/itsweber-send
+
+  Without this, SQLite cannot open the database file and the container will
+  exit on start with a clear error message in the log.
+
+  When using REVERSE_PROXY_MODE=true behind NPM, set Network to a custom
+  static-IP bridge (e.g. br1) and clear the Port mapping below — your reverse
+  proxy reaches the container directly on its assigned LAN IP.
+
+LICENSE: AGPL-3.0-only.
+DOCS:    https://github.com/ITSWEBER-OFFICIAL/itsweber-send#readme
+  </Overview>
+  <Category>Network:Web Tools: Productivity:</Category>
+  <WebUI>http://[IP]:[PORT:3000]/</WebUI>
+  <TemplateURL/>
+  <Icon>https://raw.githubusercontent.com/ITSWEBER-OFFICIAL/itsweber-send/main/brand/logo/itsweber-send-mark.svg</Icon>
+  <ExtraParams>--read-only --tmpfs /tmp:size=64m,mode=1777 --cap-drop=ALL --security-opt no-new-privileges:true</ExtraParams>
+  <PostArgs/>
+  <CPUset/>
+  <DateInstalled/>
+  <DonateText/>
+  <DonateLink/>
+  <Requires/>
+
+  <Config Name="Reverse Proxy Mode" Target="REVERSE_PROXY_MODE" Default="true" Mode="" Description="true: skip embedded Caddy, bind Node on 0.0.0.0:3000 for an external reverse proxy. false: enable embedded Caddy on 8443 with a self-signed cert (LAN-only)." Type="Variable" Display="always" Required="true" Mask="false">true</Config>
+
+  <Config Name="Public URL" Target="ORIGIN" Default="https://send.example.com" Mode="" Description="The public URL the service is reachable under. Used to build share links and as the cookie scope. Match what your reverse proxy serves." Type="Variable" Display="always" Required="true" Mask="false">https://send.example.com</Config>
+
+  <Config Name="Base URL" Target="BASE_URL" Default="https://send.example.com" Mode="" Description="Base URL for the SvelteKit frontend. Set the same value as Public URL." Type="Variable" Display="always" Required="true" Mask="false">https://send.example.com</Config>
+
+  <Config Name="Log Level" Target="LOG_LEVEL" Default="info" Mode="" Description="Pino log verbosity: trace, debug, info, warn, error, fatal." Type="Variable" Display="advanced" Required="false" Mask="false">info</Config>
+
+  <Config Name="Rate Limit Per Minute" Target="RATE_LIMIT_PER_MIN" Default="60" Mode="" Description="Per-IP request limit per minute. Healthcheck endpoints are exempt." Type="Variable" Display="advanced" Required="false" Mask="false">60</Config>
+
+  <Config Name="Enable Accounts" Target="ENABLE_ACCOUNTS" Default="true" Mode="" Description="Allow optional user accounts on top of anonymous uploads." Type="Variable" Display="advanced" Required="false" Mask="false">true</Config>
+
+  <Config Name="LAN Hostname (mode 2 only)" Target="SEND_HOST" Default="192.168.1.100" Mode="" Description="Only used when REVERSE_PROXY_MODE=false: hostname or LAN IP that gets baked into the embedded Caddy&apos;s self-signed certificate. Browse via https://&lt;value&gt;:8443." Type="Variable" Display="advanced" Required="false" Mask="false">192.168.1.100</Config>
+
+  <Config Name="Data" Target="/data" Default="/mnt/user/appdata/itsweber-send" Mode="rw" Description="SQLite database (shares.db) plus encrypted uploaded blobs. Pre-chown the host directory to 10001:10001 before the first start (see Overview)." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/itsweber-send</Config>
+
+  <Config Name="HTTP Port (reverse-proxy mode)" Target="3000" Default="3000" Mode="tcp" Description="Plain HTTP port. Map this when using REVERSE_PROXY_MODE=true and Bridge networking; clear it when using a custom static-IP network like br1." Type="Port" Display="always" Required="false" Mask="false">3000</Config>
+
+  <Config Name="HTTPS Port (mode 2 only)" Target="8443" Default="8443" Mode="tcp" Description="Self-signed HTTPS via embedded Caddy. Only map when REVERSE_PROXY_MODE=false." Type="Port" Display="advanced" Required="false" Mask="false"></Config>
+</Container>

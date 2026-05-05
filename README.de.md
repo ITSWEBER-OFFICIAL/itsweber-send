@@ -34,7 +34,7 @@
 
 ---
 
-> **Status:** v1.3.0 — Drei Deployment-Modi (LAN direkt mit Self-Signed TLS, hinter bestehendem Reverse-Proxy, public mit gebündeltem Caddy + Let's Encrypt), unterbrechbare chunked Uploads für Dateien beliebiger Größe, 2FA-Wiederherstellungscodes, FSA-Streaming-Downloads, SMTP-Benachrichtigungen. Alle v1.0+-Shares bleiben entschlüsselbar.
+> **Status:** v1.3.1 — Drei Deployment-Modi (LAN direkt mit Self-Signed TLS, hinter bestehendem Reverse-Proxy, public mit gebündeltem Caddy + Let's Encrypt), Unraid-Template, mobile-responsive UI, QR-Code im 2FA-Setup, unterbrechbare chunked Uploads für Dateien beliebiger Größe, FSA-Streaming-Downloads, SMTP-Benachrichtigungen. Alle v1.0+-Shares bleiben entschlüsselbar.
 
 ---
 
@@ -185,6 +185,27 @@ curl -O https://raw.githubusercontent.com/ITSWEBER-OFFICIAL/itsweber-send/main/d
 # In Caddyfile.example send.example.com durch die eigene Domain ersetzen, dann:
 ORIGIN=https://send.example.com docker compose up -d
 ```
+
+### Unraid-One-Shot-Template
+
+Lege das mitgelieferte XML-Template auf dem Unraid-USB ab, damit der Container
+im _Docker → Container hinzufügen → Vorlage_-Dropdown mit vorausgefüllten Feldern
+(Image, Volume, Env-Vars, Security-Flags) erscheint:
+
+```bash
+wget -O /boot/config/plugins/dockerMan/templates-user/itsweber-send.xml \
+  https://raw.githubusercontent.com/ITSWEBER-OFFICIAL/itsweber-send/main/unraid/itsweber-send.xml
+```
+
+> **Vor dem ersten Start: Datenverzeichnis chownen.** Das Image läuft als
+> Non-Root-User `10001:10001`. Der Host-Bind-Mount muss diesem UID gehören:
+>
+> ```bash
+> mkdir -p /mnt/user/appdata/itsweber-send
+> chown -R 10001:10001 /mnt/user/appdata/itsweber-send
+> ```
+>
+> Ohne diesen Schritt kann SQLite die Datenbank nicht öffnen und der Container beendet sich beim Start.
 
 ### Aus dem Quellcode starten
 

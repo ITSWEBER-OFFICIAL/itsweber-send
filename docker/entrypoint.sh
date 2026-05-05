@@ -10,11 +10,34 @@
 #      (NPM, Traefik, Nginx, Caddy-external) already terminates HTTPS in
 #      front of the container.
 #
+# This image runs as the unprivileged user 10001:10001. Bind-mounted /data
+# directories must therefore be writable by that UID — the entrypoint
+# performs a quick preflight check below and prints an actionable message
+# before letting Node crash with SQLITE_CANTOPEN.
+#
 # Caddy stores its self-signed certs under $XDG_DATA_HOME/caddy
-# (= /data/caddy here) so they survive container restarts. /data is the
-# only writable mount point — the rootfs is read-only.
+# (= /data/caddy here) so they survive container restarts.
 
 set -e
+
+# Preflight: confirm /data is writable as the runtime user.
+if ! { [ -d /data ] && touch /data/.write-test 2>/dev/null && rm -f /data/.write-test; }; then
+    cat >&2 <<'EOF'
+
+  ERROR: /data is not writable by the container's user (UID 10001).
+
+  Run this on the host before starting the container, replacing the path
+  with the actual location of your bind mount:
+
+      chown -R 10001:10001 /mnt/user/appdata/itsweber-send
+
+  Then restart the container.
+
+  See docs/INSTALL.md for the full first-time setup checklist.
+
+EOF
+    exit 1
+fi
 
 if [ "${REVERSE_PROXY_MODE:-false}" = "true" ]; then
     # Bind on all interfaces so the upstream proxy (running outside the

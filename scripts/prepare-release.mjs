@@ -23,6 +23,7 @@ const ALLOWED_PREFIXES = [
   'docs/',
   'brand/',
   'scripts/',
+  'unraid/',
   '.github/',
 ];
 

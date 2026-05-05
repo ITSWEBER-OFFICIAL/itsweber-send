@@ -93,6 +93,10 @@ VOLUME ["/data"]
 USER 10001:10001
 # 8443 is exposed by the embedded Caddy in all-in-one mode.
 # 3000 is exposed by Node directly in REVERSE_PROXY_MODE=true.
+# IMPORTANT: this image runs as a non-root user. Bind-mounted /data
+# directories must be owned by UID 10001:10001 on the host, otherwise
+# SQLite fails to open with SQLITE_CANTOPEN. The entrypoint prints a
+# diagnostic message before exiting if /data is not writable.
 EXPOSE 8443 3000
 
 # Container is meant to run with `--read-only` and `--tmpfs /tmp:size=64m,mode=1777`.
