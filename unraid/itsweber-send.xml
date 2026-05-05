@@ -46,7 +46,7 @@ DOCS:    https://github.com/ITSWEBER-OFFICIAL/itsweber-send#readme
   <Category>Network:Web Tools: Productivity:</Category>
   <WebUI>http://[IP]:[PORT:3000]/</WebUI>
   <TemplateURL/>
-  <Icon>https://raw.githubusercontent.com/ITSWEBER-OFFICIAL/itsweber-send/main/brand/logo/itsweber-send-mark.svg</Icon>
+  <Icon>https://raw.githubusercontent.com/ITSWEBER-OFFICIAL/itsweber-send/main/brand/logo/itsweber-send-mark.png</Icon>
   <ExtraParams>--read-only --tmpfs /tmp:size=64m,mode=1777 --cap-drop=ALL --security-opt no-new-privileges:true</ExtraParams>
   <PostArgs/>
   <CPUset/>
