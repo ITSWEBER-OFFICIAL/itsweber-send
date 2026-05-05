@@ -1,9 +1,8 @@
 # Community Apps submission
 
-Repositories are added to Squid's Community Applications feed by opening a
-GitHub Issue at the CA project. Recent successful submissions follow this
-pattern (see [issues #14, #17, #18, #26](https://github.com/Squidly271/community.applications/issues?q=is%3Aissue+add)
-for examples).
+CA submissions land as GitHub Issues at <https://github.com/Squidly271/AppFeed/issues>.
+The two earlier ITSWEBER submissions (#27 itsweber-mesh, #28 itsweber-tools)
+use the format below; the same shape works here.
 
 ## Step 1 — Verify the repo is CA-ready
 
@@ -20,69 +19,61 @@ This repo already meets the CA conventions:
 
 ## Step 2 — Open the submission issue
 
-Go to <https://github.com/Squidly271/community.applications/issues/new> while
-signed in to GitHub.
+Go to <https://github.com/Squidly271/AppFeed/issues/new> while signed in.
 
 **Title:**
 
 ```
-Add ITSWEBER Send to Community Applications
+Add ITSWEBER Send — end-to-end encrypted file sharing
 ```
 
 **Body:**
 
 ```markdown
-### Application Name
-ITSWEBER Send
+Hi Squid, please consider adding ITSWEBER Send to the Community Applications feed.
 
-### GitHub Template URL
+**Template URL:**
 https://raw.githubusercontent.com/ITSWEBER-OFFICIAL/itsweber-send/main/unraid/itsweber-send.xml
 
-### Container Image
-ghcr.io/itsweber-official/itsweber-send:latest
+**Container image (GHCR, public):**
+`ghcr.io/itsweber-official/itsweber-send:latest`
 
-### Repository
-https://github.com/ITSWEBER-OFFICIAL/itsweber-send
+**Project / Support / License:**
+- Project: https://github.com/ITSWEBER-OFFICIAL/itsweber-send
+- Support: https://github.com/ITSWEBER-OFFICIAL/itsweber-send/issues
+- License: AGPL-3.0
+- Maintainer: Maniskryptus (ITSWEBER)
+- Category: `Network-Web Productivity Cloud Security`
 
-### Overview
-Self-hosted, end-to-end encrypted file sharing in a single Docker container.
-AES-256-GCM in the browser, server only sees ciphertext, resumable chunked
-uploads for files of any size, optional accounts with TOTP 2FA (with
-scannable QR), public link / four-word handoff code / QR sharing, optional
-SMTP first-download notifications.
-
-Three deployment modes are supported in the same image: behind an existing
-reverse proxy (default for the template), LAN-direct with embedded Caddy +
-self-signed cert, and public with a bundled Caddy + Let's Encrypt.
-
-### Support
-https://github.com/ITSWEBER-OFFICIAL/itsweber-send/issues
-
-### Icon URL
+**Icon:**
 https://raw.githubusercontent.com/ITSWEBER-OFFICIAL/itsweber-send/main/brand/logo/itsweber-send-mark.png
 
-### License
-AGPL-3.0-only
+**Screenshot:**
+https://raw.githubusercontent.com/ITSWEBER-OFFICIAL/itsweber-send/main/docs/previews/screenshots/01-upload-dark.png
 
-### Notes
-- Container is currently linux/amd64 only. Multi-arch returns once GitHub
-  provides native arm64 free runners or once a self-hosted arm64 builder
-  is wired in.
-- Image runs as the unprivileged user UID 10001:10001. The bundled XML
-  Overview includes a one-line chown step the operator must run on their
-  host bind-mount before the first Apply, otherwise SQLite fails to open.
-  The entrypoint prints an actionable error if /data is not writable.
+**Overview:**
+ITSWEBER Send is self-hosted, end-to-end encrypted file sharing in a single Docker container — files are encrypted in the browser (AES-256-GCM, key in URL fragment) before they touch the server, the server only ever sees ciphertext. Resumable chunked uploads handle files of arbitrary size; downloads stream straight to disk via the File System Access API where supported. Sharing options include the standard public link, a four-word handoff code for voice, and a QR code. Optional accounts add TOTP 2FA (with scannable QR), API tokens, audit log, per-user quotas and an admin panel with email-template editor and SMTP test button.
 
-Happy to adjust anything that does not conform to current CA policy.
-Thank you!
+**Default container behaviour:**
+- Three deployment modes in the same image, switchable via `REVERSE_PROXY_MODE`:
+  1. **Behind reverse proxy** (default for the template) — Caddy is skipped, Node binds `0.0.0.0:3000`. Works behind NPM, Traefik, external Caddy, vanilla Nginx.
+  2. **LAN direct** — embedded Caddy serves HTTPS on `8443` with a self-signed cert so Web Crypto works over the LAN.
+  3. **Public + bundled Caddy + Let's Encrypt** — separate Compose file in the repo.
+- Persistent volume: `/data` → `/mnt/user/appdata/itsweber-send` (SQLite + encrypted blobs)
+- Container runs as non-root UID `10001:10001`, read-only rootfs, all caps dropped, `no-new-privileges`. Bundled Overview includes the one-line chown step the operator runs once before first Apply.
+- Required env vars: `ORIGIN` and `BASE_URL` (public URL the service is reachable under)
+- Optional reverse-proxy guide in the repo: `docs/REVERSE_PROXY.md`
+
+Image is built and pushed via GitHub Actions on every tag (semver only — pre-release tags do not move `:latest`). Current release: **v1.3.5**. Image is currently `linux/amd64` only; arm64 returns once GitHub provides native arm64 free runners.
+
+Thanks!
 ```
 
 ## Step 3 — While waiting for inclusion
 
 Squid (or a CA maintainer) typically processes new repositories within a few
-days to a week. There is no automated acknowledgement; the entry simply
-shows up under *Apps → Browse* on every Unraid box after the next feed
-regeneration cycle.
+days. There is no automated acknowledgement; the entry simply shows up under
+*Apps → Browse* on every Unraid box after the next feed regeneration cycle.
 
 In the meantime, self-hosters can still install the container today via the
 `wget` workflow documented in [`README.md`](../README.md#unraid-one-shot-template).
