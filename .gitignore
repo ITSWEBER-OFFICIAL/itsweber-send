@@ -42,5 +42,8 @@ tmp/
 temp/
 
 
+# Editor / IDE files (contain local paths and personal preferences)
+*.code-workspace
+
 # Wiki build artifacts
 docs/wiki/*.zip

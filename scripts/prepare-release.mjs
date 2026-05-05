@@ -47,16 +47,12 @@ const ALLOWED_ROOT_FILES = new Set([
   'pnpm-lock.yaml',
   'pnpm-workspace.yaml',
   'turbo.json',
-  // VS Code workspace file — valid to track, excluded from release artifacts.
-  'ITSWEBER Send.code-workspace',
 ]);
 
 /** Paths that must NOT appear inside the release artifact. */
 const NEVER_RELEASE = [
   'docs/previews/',
   'brand/screenshots/',
-  // VS Code workspace file contains local path references and is for developer tooling only.
-  'ITSWEBER Send.code-workspace',
 ];
 
 function listTrackedFiles() {
