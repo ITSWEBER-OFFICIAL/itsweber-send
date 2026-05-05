@@ -81,7 +81,7 @@ Manuell verifiziert über die Browser-Devtools-Geräteemulation:
 - Pixel 7 (412 × 915, Android Chrome)
 - iPad Mini (768 × 1024, viewport-fit-Edge-Case bei großem Bildschirm + safe-area)
 
-Tatsächliches Geräte-Smoke-Testing erfolgt im Rahmen der Unraid-Verifikation (siehe `docs/IMPLEMENTATION_PLAN.md`, Abschnitt 12).
+Tatsächliches Geräte-Smoke-Testing erfolgt im Rahmen der Deployment-Verifikation auf Zielhardware vor jedem Release.
 
 ## Nicht-Ziele dieses Audits
 
