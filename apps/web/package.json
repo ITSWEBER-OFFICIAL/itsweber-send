@@ -1,6 +1,6 @@
 {
   "name": "@itsweber-send/web",
-  "version": "1.3.2",
+  "version": "1.3.3",
   "private": true,
   "description": "SvelteKit frontend for ITSWEBER Send.",
   "license": "AGPL-3.0-only",

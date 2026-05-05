@@ -7,6 +7,7 @@ export { default as Upload } from './Upload.svelte';
 export { default as Download } from './Download.svelte';
 export { default as Copy } from './Copy.svelte';
 export { default as X } from './X.svelte';
+export { default as Menu } from './Menu.svelte';
 export { default as Pause } from './Pause.svelte';
 export { default as Play } from './Play.svelte';
 export { default as FileIcon } from './FileIcon.svelte';

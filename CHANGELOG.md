@@ -4,6 +4,16 @@ All notable changes to ITSWEBER Send are documented here.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.3] - 2026-05-05
+
+### Added
+
+- Hamburger drawer for the account / admin sub-navigation on phone-sized viewports. The horizontally-scrolling icon strip used at `≤880 px` is replaced by a single button that shows the current section name and, on tap, slides in a full-width drawer with the grouped vertical sidebar (text labels, group headings, 44 px tap targets). Closes on link tap, overlay tap, the close button, or Escape.
+
+### Changed
+
+- Unraid template overview and the README's Unraid section now document the post-apply cleanup step (`rm /boot/config/plugins/dockerMan/templates-user/itsweber-send.xml`). Without that, Unraid can fall back to the bundled source template on Update / Force Update and overwrite the operator's customisations (network, IP, public domain, port mapping). Mitigation goes away once the project is in Community Apps proper.
+
 ## [1.3.2] - 2026-05-05
 
 ### Fixed
@@ -203,6 +213,7 @@ The S3 backend now supports resumable chunked uploads via S3 multipart and is te
 - Synchronous i18n bundle loading resolves a first-render flash where the locale was not yet resolved.
 - `default_sni` set in `Caddyfile.lan` so IP-literal HTTPS connections succeed during LAN testing.
 
+[1.3.3]: https://github.com/ITSWEBER-OFFICIAL/itsweber-send/releases/tag/v1.3.3
 [1.3.2]: https://github.com/ITSWEBER-OFFICIAL/itsweber-send/releases/tag/v1.3.2
 [1.3.1]: https://github.com/ITSWEBER-OFFICIAL/itsweber-send/releases/tag/v1.3.1
 [1.3.0]: https://github.com/ITSWEBER-OFFICIAL/itsweber-send/releases/tag/v1.3.0

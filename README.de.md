@@ -207,6 +207,22 @@ wget -O /boot/config/plugins/dockerMan/templates-user/itsweber-send.xml \
 >
 > Ohne diesen Schritt kann SQLite die Datenbank nicht öffnen und der Container beendet sich beim Start.
 
+> **Nach dem ersten erfolgreichen Apply: Source-Template löschen.** Unraid
+> behält sowohl die per `wget` abgelegte Quell-XML _als auch_ eine `my-`
+> prefixte Kopie des angewandten User-States. Beim späteren _Update_ /
+> _Force Update_ kann Unraid auf die Quell-Datei zurückgreifen und deine
+> Anpassungen (Netzwerk, IP, Public-Domain, Ports) überschreiben. Quell-
+> Datei nach dem ersten Apply entfernen, damit Unraid bei künftigen
+> Updates ausschließlich den User-State liest:
+>
+> ```bash
+> rm /boot/config/plugins/dockerMan/templates-user/itsweber-send.xml
+> ```
+>
+> Bei künftigen Releases den Zyklus wget + Apply + rm wiederholen. Dieser
+> Workaround entfällt, sobald das Projekt regulär in den Community Apps
+> Store eingereicht ist.
+
 ### Aus dem Quellcode starten
 
 ```bash

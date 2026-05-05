@@ -40,6 +40,17 @@ FIRST-TIME SETUP (read this before clicking Apply):
   static-IP bridge (e.g. br1) and clear the Port mapping below — your reverse
   proxy reaches the container directly on its assigned LAN IP.
 
+AFTER THE FIRST SUCCESSFUL APPLY:
+
+  Delete the source template file you wgot. Unraid keeps both the source
+  XML and a my- prefixed copy of the applied state, and on Update / Force
+  Update can fall back to the source — overwriting your customisations
+  (network, IP, public domain, port mapping). Run once:
+
+      rm /boot/config/plugins/dockerMan/templates-user/itsweber-send.xml
+
+  When a new release is out, repeat the wget + Apply + rm cycle.
+
 LICENSE: AGPL-3.0-only.
 DOCS:    https://github.com/ITSWEBER-OFFICIAL/itsweber-send#readme
   </Overview>

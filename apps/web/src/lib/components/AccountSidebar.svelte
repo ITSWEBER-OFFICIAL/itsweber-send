@@ -11,6 +11,8 @@
   import Palette from '$lib/components/icons/Palette.svelte';
   import Gauge from '$lib/components/icons/Gauge.svelte';
   import FileText from '$lib/components/icons/FileText.svelte';
+  import Menu from '$lib/components/icons/Menu.svelte';
+  import X from '$lib/components/icons/X.svelte';
   import { auth } from '$lib/stores/auth.svelte.js';
 
   interface Props {
@@ -78,9 +80,66 @@
     if (href === '/account' || href === '/admin') return pathname === href;
     return pathname.startsWith(href);
   }
+
+  // Drawer state — only used at <=880px (the mobile breakpoint where the
+  // sidebar collapses to a hamburger trigger). Closed by default; opens
+  // when the trigger is tapped, closes on link tap, on overlay tap, on
+  // Escape, or when the viewport widens past the breakpoint.
+  let drawerOpen = $state(false);
+
+  // Friendly label for the trigger button — shows the current page title
+  // so the user knows where they are even with the drawer collapsed.
+  const currentLabelKey = $derived.by(() => {
+    for (const group of groups) {
+      for (const item of group.items) {
+        if (isActive(item.href)) return item.labelKey;
+      }
+    }
+    return groups[0]?.items[0]?.labelKey ?? 'sidebar.nav.overview';
+  });
+
+  function handleKey(e: KeyboardEvent) {
+    if (e.key === 'Escape' && drawerOpen) drawerOpen = false;
+  }
 </script>
 
-<aside class="side">
+<svelte:window on:keydown={handleKey} />
+
+<!-- Mobile trigger: visible only at <=880px via CSS. Tapping toggles the
+     drawer, which slides in from the left and shows the full grouped
+     navigation with text labels. -->
+<button
+  type="button"
+  class="trigger"
+  aria-label={$_('sidebar.menu_open')}
+  aria-expanded={drawerOpen}
+  aria-controls="account-drawer"
+  onclick={() => (drawerOpen = !drawerOpen)}
+>
+  <Menu size={18} />
+  <span class="trigger-label">{$_(currentLabelKey)}</span>
+</button>
+
+{#if drawerOpen}
+  <button
+    type="button"
+    class="overlay"
+    aria-label={$_('sidebar.menu_close')}
+    onclick={() => (drawerOpen = false)}
+  ></button>
+{/if}
+
+<aside class="side" class:open={drawerOpen} id="account-drawer">
+  <div class="drawer-head">
+    <button
+      type="button"
+      class="close"
+      aria-label={$_('sidebar.menu_close')}
+      onclick={() => (drawerOpen = false)}
+    >
+      <X size={18} />
+    </button>
+  </div>
   {#if auth.user}
     <div class="me">
       <span class="avatar">{(auth.user.email[0] ?? 'U').toUpperCase()}</span>
@@ -97,7 +156,12 @@
       <h3>{$_(group.titleKey)}</h3>
       {#each group.items as item}
         {@const SvelteIcon = item.Icon}
-        <a class="link" class:active={isActive(item.href)} href={item.href}>
+        <a
+          class="link"
+          class:active={isActive(item.href)}
+          href={item.href}
+          onclick={() => (drawerOpen = false)}
+        >
           <SvelteIcon size={16} />
           <span>{$_(item.labelKey)}</span>
         </a>
@@ -191,39 +255,119 @@
     }
   }
 
+  /* The trigger button + overlay + close button are only used at the
+     mobile breakpoint. Hidden on desktop so the sidebar renders as a
+     classic vertical column. */
+  .trigger,
+  .overlay,
+  .drawer-head {
+    display: none;
+  }
+
   @media (max-width: 880px) {
-    .side {
-      padding: 14px 12px;
-      border-right: 0;
-      border-bottom: 1px solid var(--border);
-      min-height: 0;
-      display: flex;
-      gap: 14px;
-      align-items: flex-start;
-      overflow-x: auto;
-      scrollbar-width: thin;
+    /* Replace the horizontally-scrolling icon strip with a tap-to-open
+       drawer. The trigger sits inline at the top of the content area
+       and shows the current section name so the user always knows
+       which page they are on. */
+    .trigger {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      margin: 14px 16px 0;
+      padding: 10px 14px;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      font: inherit;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      min-height: 44px;
+      transition:
+        color var(--transition-fast),
+        border-color var(--transition-fast),
+        background var(--transition-fast);
     }
+    .trigger:hover {
+      border-color: var(--border-strong);
+    }
+    .trigger-label {
+      color: var(--muted);
+    }
+
+    .overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 90;
+      background: color-mix(in srgb, var(--bg) 70%, transparent);
+      backdrop-filter: blur(2px);
+      border: 0;
+      padding: 0;
+      cursor: pointer;
+    }
+
+    .side {
+      position: fixed;
+      top: 0;
+      left: 0;
+      bottom: 0;
+      width: min(86vw, 320px);
+      z-index: 100;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      padding: 18px 14px max(20px, env(safe-area-inset-bottom, 0px));
+      transform: translateX(-100%);
+      transition: transform 220ms ease;
+      overflow-y: auto;
+      box-shadow: var(--shadow-lg);
+    }
+    .side.open {
+      transform: translateX(0);
+    }
+
+    .drawer-head {
+      display: flex;
+      justify-content: flex-end;
+      margin-bottom: 8px;
+    }
+    .close {
+      width: 36px;
+      height: 36px;
+      display: grid;
+      place-items: center;
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--muted);
+      cursor: pointer;
+      transition:
+        color var(--transition-fast),
+        border-color var(--transition-fast);
+    }
+    .close:hover {
+      color: var(--text);
+      border-color: var(--border-strong);
+    }
+
+    /* Inside the drawer the layout reverts to the desktop vertical
+       stack — full text labels, group headings, generous tap targets. */
     .me {
-      margin-bottom: 0;
-      flex-shrink: 0;
+      margin-bottom: 14px;
     }
     .group {
-      margin-bottom: 0;
-      display: flex;
-      align-items: center;
-      gap: 4px;
-      flex-shrink: 0;
+      margin-bottom: 18px;
     }
     h3 {
-      display: none;
+      display: block;
     }
     .link {
-      padding: 7px 10px;
-      white-space: nowrap;
-      font-size: 13px;
+      padding: 10px 12px;
+      font-size: 14px;
+      min-height: 44px;
     }
     .link span {
-      display: none;
+      display: inline;
     }
   }
 </style>

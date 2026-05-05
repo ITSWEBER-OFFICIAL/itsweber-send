@@ -645,7 +645,9 @@
       "admin_settings": "Einstellungen"
     },
     "role_admin": "Administrator",
-    "role_user": "Konto"
+    "role_user": "Konto",
+    "menu_open": "Menü öffnen",
+    "menu_close": "Menü schließen"
   },
   "common": {
     "cancel": "Abbrechen",
