@@ -18,8 +18,8 @@ A reverse proxy that handles TLS is strongly recommended in production. The bund
 ### 1. Download the Compose file
 
 ```bash
-curl -O https://raw.githubusercontent.com/itsweber/itsweber-send/main/docker/docker-compose.yml
-curl -O https://raw.githubusercontent.com/itsweber/itsweber-send/main/docker/Caddyfile.example
+curl -O https://raw.githubusercontent.com/ITSWEBER-OFFICIAL/itsweber-send/main/docker/docker-compose.yml
+curl -O https://raw.githubusercontent.com/ITSWEBER-OFFICIAL/itsweber-send/main/docker/Caddyfile.example
 ```
 
 ### 2. Set the public hostname

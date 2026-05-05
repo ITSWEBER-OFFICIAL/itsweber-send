@@ -34,7 +34,7 @@
 
 ---
 
-> **Status:** v1.3.1 — Drei Deployment-Modi (LAN direkt mit Self-Signed TLS, hinter bestehendem Reverse-Proxy, public mit gebündeltem Caddy + Let's Encrypt), Unraid-Template, mobile-responsive UI, QR-Code im 2FA-Setup, unterbrechbare chunked Uploads für Dateien beliebiger Größe, FSA-Streaming-Downloads, SMTP-Benachrichtigungen. Alle v1.0+-Shares bleiben entschlüsselbar.
+> **Status:** v1.3.4 — Drei Deployment-Modi (LAN direkt mit Self-Signed TLS, hinter bestehendem Reverse-Proxy, public mit gebündeltem Caddy + Let's Encrypt), Unraid-Template, mobile-responsive UI mit Hamburger-Drawer für Konto / Admin, QR-Code im 2FA-Setup, unterbrechbare chunked Uploads für Dateien beliebiger Größe, FSA-Streaming-Downloads, SMTP-Benachrichtigungen. Alle v1.0+-Shares bleiben entschlüsselbar. Container-Image aktuell nur `linux/amd64`; arm64 kommt zurück, sobald GitHub native arm64-Runner bereitstellt.
 
 ---
 

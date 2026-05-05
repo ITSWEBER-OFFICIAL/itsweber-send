@@ -2,66 +2,70 @@
 
 > [English](../03-unraid-installation.md)
 
-## Manuelles Template
+Auf Unraid gibt es zwei Wege. Der erste nutzt das mitgelieferte XML-Template und ist die Empfehlung; der zweite ist die manuelle Eingabe.
 
-1. **Docker** -> **Container hinzufügen**
-2. Felder unten ausfüllen
-3. **Apply**
+## Variante 1 — Mitgeliefertes Template (empfohlen)
 
-| Feld                 | Wert                                                                      |
-| -------------------- | ------------------------------------------------------------------------- |
-| Name                 | `itsweber-send`                                                           |
-| Repository           | `ghcr.io/itsweber/itsweber-send:latest`                                   |
-| Network type         | `Bridge`                                                                  |
-| Restart policy       | `unless-stopped`                                                          |
-| Port mapping         | `3000 -> 3000 (TCP)` (oder ein anderer Host-Port)                         |
-| Volume mapping       | `/mnt/user/appdata/itsweber-send -> /data`                                |
-| Variable: `NODE_ENV` | `production`                                                              |
-| Variable: `BASE_URL` | `http://[UNRAID-IP]:3000` (oder Reverse-Proxy-URL)                        |
-| Extra parameters     | `--security-opt no-new-privileges:true --read-only --tmpfs /tmp:size=64M` |
-| Privileged           | Nein                                                                      |
+Im Repo liegt ein Unraid-Docker-Template unter [`unraid/itsweber-send.xml`](https://github.com/ITSWEBER-OFFICIAL/itsweber-send/blob/main/unraid/itsweber-send.xml). Auf den Unraid-USB legen, schon erscheint der Container im _Docker → Container hinzufügen → Vorlage_-Dropdown mit Image, Volume, Env-Variablen und Security-Flags vorausgefüllt.
 
-## Mit Caddy via Compose
-
-Wenn du ein dediziertes Build-Verzeichnis im Array hast:
-
-```
-/mnt/user/appdata/itsweber-send-build/docker/
-  docker-compose.lan.yml
-  Caddyfile.lan
-```
-
-Dann von der Unraid-CLI:
+**Schritt 1 — Datenverzeichnis vorab anlegen und auf den Runtime-User chownen.** Das Image läuft als Non-Root-User `10001:10001`. Ohne diesen Schritt kann SQLite die Datenbank nicht öffnen und der Container beendet sich beim Start.
 
 ```bash
-cd /mnt/user/appdata/itsweber-send-build/docker
-docker compose -f docker-compose.lan.yml up -d
+mkdir -p /mnt/user/appdata/itsweber-send
+chown -R 10001:10001 /mnt/user/appdata/itsweber-send
 ```
 
-Caddy lauscht auf `:8443` mit selbst-signiertem TLS. Verbindung von jedem Gerät im LAN über `https://<unraid-ip>:8443`.
+**Schritt 2 — Template installieren.**
 
-## Hinter einem bestehenden Reverse-Proxy
-
-Wenn du bereits **Nginx Proxy Manager**, **SWAG** oder **Traefik** auf Unraid betreibst:
-
-1. Nur `itsweber-send` starten (ohne separates Caddy). Host-Port `3000:3000` mappen.
-2. Im Proxy einen Eintrag `send.deine-domain.tld` -> `http://[UNRAID-IP]:3000` anlegen.
-3. `BASE_URL=https://send.deine-domain.tld` in den Container-Variablen setzen.
-4. Sicherstellen, dass der Proxy die `Host`- und `X-Forwarded-Proto`-Header durchreicht.
-
-Speziell für Nginx Proxy Manager: **Block Common Exploits** aus, **Websockets Support** an, und im Advanced-Tab folgendes ergänzen, damit der Rate-Limiter die richtige Client-IP sieht:
-
-```
-proxy_set_header X-Real-IP $remote_addr;
-proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+```bash
+wget -O /boot/config/plugins/dockerMan/templates-user/itsweber-send.xml \
+  https://raw.githubusercontent.com/ITSWEBER-OFFICIAL/itsweber-send/main/unraid/itsweber-send.xml
 ```
 
-## Zugriff
+**Schritt 3 — Container anlegen.**
 
-Direkt: `http://[UNRAID-IP]:3000`  
-Mit Compose-LAN: `https://[UNRAID-IP]:8443`  
-Hinter Reverse-Proxy: dein konfigurierter Hostname.
+1. _Docker → Container hinzufügen_
+2. _Vorlage_-Dropdown → **itsweber-send**
+3. Anpassen:
+   - **Public URL** und **Base URL** auf deine öffentliche Domain (z. B. `https://send.example.com`)
+   - **Netzwerktyp** auf eine Custom-Static-IP-Bridge (z. B. `br1`) und LAN-IP setzen. Host-Port-Mappings entfernen — dein Reverse-Proxy spricht den Container direkt unter der zugewiesenen LAN-IP an.
+4. _Anwenden_
 
-## Update
+**Schritt 4 — Quell-Template nach dem ersten erfolgreichen Apply löschen.** Unraid behält sowohl die Quell-XML als auch eine `my-` prefixte Kopie des angewandten Zustands. Bei _Update_ / _Force Update_ kann Unraid auf die Quelle zurückfallen und deine Anpassungen überschreiben.
 
-In der Unraid-Web-UI: Container anklicken -> **Force update**. Migrationen laufen automatisch. Das Volume bewahrt Datenbank und alle Uploads.
+```bash
+rm /boot/config/plugins/dockerMan/templates-user/itsweber-send.xml
+```
+
+Bei künftigen Releases den Zyklus wget + Apply + rm wiederholen. Dieser Workaround entfällt, sobald das Projekt regulär in den Community Apps Store eingereicht ist.
+
+## Variante 2 — Manuelle Eingabe
+
+_Docker → Container hinzufügen_ mit folgenden Feldern:
+
+| Feld                      | Wert                                                                                               |
+| ------------------------- | -------------------------------------------------------------------------------------------------- |
+| Name                      | `itsweber-send`                                                                                    |
+| Quelle                    | `ghcr.io/itsweber-official/itsweber-send:latest`                                                   |
+| Netzwerktyp               | `Custom: br1` mit Static IP oder `Bridge` mit Port-Mapping                                         |
+| Volume                    | `/mnt/user/appdata/itsweber-send → /data` (rw)                                                     |
+| Env: `REVERSE_PROXY_MODE` | `true` (überspringt eingebetteten Caddy, Node bindet `0.0.0.0:3000`)                               |
+| Env: `ORIGIN`             | `https://send.example.com` (öffentliche URL deines Reverse-Proxy)                                  |
+| Env: `BASE_URL`           | gleich wie `ORIGIN`                                                                                |
+| Env: `LOG_LEVEL`          | `info`                                                                                             |
+| Extra-Parameter           | `--read-only --tmpfs /tmp:size=64m,mode=1777 --cap-drop=ALL --security-opt no-new-privileges:true` |
+
+Der `chown`-Schritt ist bei beiden Varianten Pflicht:
+
+```bash
+mkdir -p /mnt/user/appdata/itsweber-send
+chown -R 10001:10001 /mnt/user/appdata/itsweber-send
+```
+
+## Vor dem Container
+
+Im Reverse-Proxy-Modus (`REVERSE_PROXY_MODE=true`) bietet der Container Plain-HTTP auf Port `3000`. Im Reverse-Proxy darauf weiterleiten. Snippets für Nginx Proxy Manager, Traefik, externes Caddy und vanilla Nginx in [`docs/REVERSE_PROXY.md`](https://github.com/ITSWEBER-OFFICIAL/itsweber-send/blob/main/docs/REVERSE_PROXY.md).
+
+## LAN-Only-Deployment (ohne öffentliche Domain)
+
+`REVERSE_PROXY_MODE=false` setzen (oder weglassen) und Port `8443` statt `3000` mappen. Der eingebettete Caddy terminiert dann HTTPS mit einem selbst signierten Zertifikat, damit Web Crypto auch im LAN funktioniert. `SEND_HOST` auf die LAN-IP setzen, die ins Cert gebrannt wird.

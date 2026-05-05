@@ -31,8 +31,8 @@
     <div class="panel-body prose">
       <h3>1. Compose-Datei herunterladen</h3>
       <pre><code
-          >curl -O https://raw.githubusercontent.com/itsweber/itsweber-send/main/docker/docker-compose.yml
-curl -O https://raw.githubusercontent.com/itsweber/itsweber-send/main/docker/Caddyfile.example</code
+          >curl -O https://raw.githubusercontent.com/ITSWEBER-OFFICIAL/itsweber-send/main/docker/docker-compose.yml
+curl -O https://raw.githubusercontent.com/ITSWEBER-OFFICIAL/itsweber-send/main/docker/Caddyfile.example</code
         ></pre>
 
       <h3>2. Hostname setzen</h3>

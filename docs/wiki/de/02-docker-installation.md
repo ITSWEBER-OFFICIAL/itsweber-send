@@ -16,8 +16,8 @@
 ### 1. Compose-Datei herunterladen
 
 ```bash
-curl -O https://raw.githubusercontent.com/itsweber/itsweber-send/main/docker/docker-compose.yml
-curl -O https://raw.githubusercontent.com/itsweber/itsweber-send/main/docker/Caddyfile.example
+curl -O https://raw.githubusercontent.com/ITSWEBER-OFFICIAL/itsweber-send/main/docker/docker-compose.yml
+curl -O https://raw.githubusercontent.com/ITSWEBER-OFFICIAL/itsweber-send/main/docker/Caddyfile.example
 ```
 
 ### 2. Hostname setzen
@@ -34,10 +34,10 @@ Caddy holt beim ersten Start ein Let's-Encrypt-Zertifikat. Nach etwa 30 Sekunden
 
 ### Was läuft
 
-| Container             | Image                                   | Zweck                                    |
-| --------------------- | --------------------------------------- | ---------------------------------------- |
-| `itsweber-send`       | `ghcr.io/itsweber/itsweber-send:latest` | Anwendung (API + SSR-Frontend)           |
-| `itsweber-send-caddy` | `caddy:2-alpine`                        | TLS-Reverse-Proxy, Security-Header-Layer |
+| Container             | Image                                            | Zweck                                    |
+| --------------------- | ------------------------------------------------ | ---------------------------------------- |
+| `itsweber-send`       | `ghcr.io/itsweber-official/itsweber-send:latest` | Anwendung (API + SSR-Frontend)           |
+| `itsweber-send-caddy` | `caddy:2-alpine`                                 | TLS-Reverse-Proxy, Security-Header-Layer |
 
 Die Anwendung lauscht intern auf `:3000` und ist **nicht** öffentlich exponiert. Nur Caddy bindet die Host-Ports `:80` und `:443`.
 
