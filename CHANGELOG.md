@@ -4,6 +4,13 @@ All notable changes to ITSWEBER Send are documented here.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.5] - 2026-05-05
+
+### Changed
+
+- Unraid Docker template polished for Community Apps Store submission. The XML now carries a self-referencing `TemplateURL` so CA can refresh the entry on its own, a `Date` field, a `Changes` history block that the CA UI surfaces as "What's New", and a `Beta` flag set to `false`. The Overview leads with the actual product description rather than the deployment-mode list, so the CA browse preview is informative.
+- README, status lines and CHANGELOG tag-link table aligned with the current public release set. Pre-public versions (v1.0.0, v1.1.0) keep their changelog entries as historical milestones but no longer link to non-existent GitHub Releases.
+
 ## [1.3.4] - 2026-05-05
 
 ### Changed
@@ -219,11 +226,17 @@ The S3 backend now supports resumable chunked uploads via S3 multipart and is te
 - Synchronous i18n bundle loading resolves a first-render flash where the locale was not yet resolved.
 - `default_sni` set in `Caddyfile.lan` so IP-literal HTTPS connections succeed during LAN testing.
 
+<!--
+  Tag-link table: only versions that have an associated GitHub Release on
+  the current repository point at a real URL. Pre-public versions (v1.0.0,
+  v1.1.0) live in this changelog as historical milestones but never had a
+  GitHub Release of their own — the project went public with v1.2.0.
+-->
+
+[1.3.5]: https://github.com/ITSWEBER-OFFICIAL/itsweber-send/releases/tag/v1.3.5
 [1.3.4]: https://github.com/ITSWEBER-OFFICIAL/itsweber-send/releases/tag/v1.3.4
 [1.3.3]: https://github.com/ITSWEBER-OFFICIAL/itsweber-send/releases/tag/v1.3.3
 [1.3.2]: https://github.com/ITSWEBER-OFFICIAL/itsweber-send/releases/tag/v1.3.2
 [1.3.1]: https://github.com/ITSWEBER-OFFICIAL/itsweber-send/releases/tag/v1.3.1
 [1.3.0]: https://github.com/ITSWEBER-OFFICIAL/itsweber-send/releases/tag/v1.3.0
 [1.2.0]: https://github.com/ITSWEBER-OFFICIAL/itsweber-send/releases/tag/v1.2.0
-[1.1.0]: https://github.com/ITSWEBER-OFFICIAL/itsweber-send/releases/tag/v1.1.0
-[1.0.0]: https://github.com/ITSWEBER-OFFICIAL/itsweber-send/releases/tag/v1.0.0

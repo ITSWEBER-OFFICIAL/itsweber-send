@@ -9,23 +9,27 @@
   <Privileged>false</Privileged>
   <Support>https://github.com/ITSWEBER-OFFICIAL/itsweber-send/issues</Support>
   <Project>https://github.com/ITSWEBER-OFFICIAL/itsweber-send</Project>
+  <TemplateURL>https://raw.githubusercontent.com/ITSWEBER-OFFICIAL/itsweber-send/main/unraid/itsweber-send.xml</TemplateURL>
+  <Icon>https://raw.githubusercontent.com/ITSWEBER-OFFICIAL/itsweber-send/main/brand/logo/itsweber-send-mark.png</Icon>
+  <Beta>false</Beta>
+  <Date>2026-05-05</Date>
   <Overview>
-Self-hosted, end-to-end encrypted file sharing in a single Docker container.
+End-to-end encrypted file sharing, self-hosted in a single Docker container. Files are encrypted in the browser (AES-256-GCM, key in URL fragment) before they touch the server &#x2014; the server only ever sees ciphertext. Resumable chunked uploads handle files of arbitrary size; downloads stream straight to disk via the File System Access API where supported. Optional accounts unlock 2FA (TOTP with scannable QR), API tokens, audit log, per-user quotas and an admin panel.
 
-THREE DEPLOYMENT MODES:
+THREE DEPLOYMENT MODES
 
-  1) Behind your existing reverse proxy (NPM, Traefik, Caddy-external, Nginx)
-     — DEFAULT for this template. Set REVERSE_PROXY_MODE = true (default),
-     point your proxy at host:3000 over plain HTTP. Set ORIGIN/BASE_URL to
-     your public URL (e.g. https://send.example.com).
+  1) Behind your existing reverse proxy (NPM, Traefik, external Caddy, Nginx).
+     Default for this template. Set REVERSE_PROXY_MODE=true (default), point
+     your proxy at host:3000 over plain HTTP. Set ORIGIN/BASE_URL to your
+     public URL.
 
-  2) LAN direct (no public domain). Set REVERSE_PROXY_MODE = false and use
-     the bundled HTTPS port 8443 with the embedded Caddy + self-signed cert.
+  2) LAN direct (no public domain). Set REVERSE_PROXY_MODE=false and use the
+     bundled HTTPS port 8443 with the embedded Caddy + self-signed cert.
 
   3) Public with bundled Caddy + Let&apos;s Encrypt. Use docker-compose.yml
      from the repo instead of this template.
 
-FIRST-TIME SETUP (read this before clicking Apply):
+FIRST-TIME SETUP (read this before clicking Apply)
 
   The container runs as a non-root user (UID 10001). The host directory you
   pick for /data must be owned by that UID. Open the Unraid terminal and run:
@@ -33,31 +37,17 @@ FIRST-TIME SETUP (read this before clicking Apply):
       mkdir -p /mnt/user/appdata/itsweber-send
       chown -R 10001:10001 /mnt/user/appdata/itsweber-send
 
-  Without this, SQLite cannot open the database file and the container will
-  exit on start with a clear error message in the log.
+  Without this, SQLite cannot open the database file and the container exits
+  on start with a clear chown hint in the log.
 
   When using REVERSE_PROXY_MODE=true behind NPM, set Network to a custom
-  static-IP bridge (e.g. br1) and clear the Port mapping below — your reverse
-  proxy reaches the container directly on its assigned LAN IP.
+  static-IP bridge (e.g. br1) and clear the Port mapping below &#x2014; your
+  reverse proxy reaches the container directly on its assigned LAN IP.
 
-AFTER THE FIRST SUCCESSFUL APPLY:
-
-  Delete the source template file you wgot. Unraid keeps both the source
-  XML and a my- prefixed copy of the applied state, and on Update / Force
-  Update can fall back to the source — overwriting your customisations
-  (network, IP, public domain, port mapping). Run once:
-
-      rm /boot/config/plugins/dockerMan/templates-user/itsweber-send.xml
-
-  When a new release is out, repeat the wget + Apply + rm cycle.
-
-LICENSE: AGPL-3.0-only.
-DOCS:    https://github.com/ITSWEBER-OFFICIAL/itsweber-send#readme
+LICENSE: AGPL-3.0-only. DOCS: https://github.com/ITSWEBER-OFFICIAL/itsweber-send#readme
   </Overview>
-  <Category>Network:Web Tools: Productivity:</Category>
+  <Category>Network:Web Productivity:</Category>
   <WebUI>http://[IP]:[PORT:3000]/</WebUI>
-  <TemplateURL/>
-  <Icon>https://raw.githubusercontent.com/ITSWEBER-OFFICIAL/itsweber-send/main/brand/logo/itsweber-send-mark.png</Icon>
   <ExtraParams>--read-only --tmpfs /tmp:size=64m,mode=1777 --cap-drop=ALL --security-opt no-new-privileges:true</ExtraParams>
   <PostArgs/>
   <CPUset/>
@@ -65,6 +55,40 @@ DOCS:    https://github.com/ITSWEBER-OFFICIAL/itsweber-send#readme
   <DonateText/>
   <DonateLink/>
   <Requires/>
+  <Changes>
+### v1.3.5 (2026-05-05)
+- Polished Unraid template for Community Apps submission: TemplateURL, Date, Changes block, tighter Overview.
+
+### v1.3.4 (2026-05-05)
+- Release pipeline temporarily builds linux/amd64 only. arm64 returns once GitHub provides native arm64 runners on the free tier.
+
+### v1.3.3 (2026-05-05)
+- Hamburger drawer for the account / admin sub-navigation on phone-sized viewports.
+- README + Unraid template overview now document the post-apply cleanup step (`rm /boot/config/plugins/dockerMan/templates-user/itsweber-send.xml`).
+
+### v1.3.2 (2026-05-05)
+- Fixed 2FA TOTP code input: Svelte template parser had been mangling `pattern="[0-9]{6}"` into `pattern="[0-9]6"`, blocking both 2FA enable and 2FA login.
+- Mobile responsive fixes on /account, /admin and /account/quota stat grids.
+
+### v1.3.1 (2026-05-05)
+- QR code in the 2FA setup flow &#x2014; scan straight from the screen into Aegis / Google Authenticator / Bitwarden / 1Password.
+- Unraid Docker template (`unraid/itsweber-send.xml`) for one-shot install.
+- Startup preflight check in the entrypoint: prints an actionable chown hint when /data is not writable instead of crashing with the cryptic SQLITE_CANTOPEN.
+- Mobile responsive fixes for the appbar wordmark on narrow phones.
+
+### v1.3.0 (2026-05-05)
+- `REVERSE_PROXY_MODE=true` environment variable: skips the embedded Caddy and binds Node directly on `0.0.0.0:3000` so the container can sit behind an existing reverse proxy without double TLS termination.
+- New `docker/docker-compose.proxy.yml` and `docs/REVERSE_PROXY.md` with copy-paste snippets for NPM, Traefik, external Caddy and vanilla Nginx.
+- Repaired `docker/docker-compose.yml` so the bundled external Caddy can actually reach the send container.
+- `/health` endpoint now reports the version from `apps/api/package.json` instead of a stale hardcoded string.
+
+### v1.2.0 (2026-05-04)
+- All-in-one Docker image with embedded Caddy.
+- SMTP mailer for first-download notifications, configurable through the admin panel.
+- FSA streaming for single-file downloads with per-file progress.
+- Cross-session upload resume.
+- Visible build version in the app footer.
+  </Changes>
 
   <Config Name="Reverse Proxy Mode" Target="REVERSE_PROXY_MODE" Default="true" Mode="" Description="true: skip embedded Caddy, bind Node on 0.0.0.0:3000 for an external reverse proxy. false: enable embedded Caddy on 8443 with a self-signed cert (LAN-only)." Type="Variable" Display="always" Required="true" Mask="false">true</Config>
 
@@ -78,7 +102,7 @@ DOCS:    https://github.com/ITSWEBER-OFFICIAL/itsweber-send#readme
 
   <Config Name="Enable Accounts" Target="ENABLE_ACCOUNTS" Default="true" Mode="" Description="Allow optional user accounts on top of anonymous uploads." Type="Variable" Display="advanced" Required="false" Mask="false">true</Config>
 
-  <Config Name="LAN Hostname (mode 2 only)" Target="SEND_HOST" Default="192.168.1.100" Mode="" Description="Only used when REVERSE_PROXY_MODE=false: hostname or LAN IP that gets baked into the embedded Caddy&apos;s self-signed certificate. Browse via https://&lt;value&gt;:8443." Type="Variable" Display="advanced" Required="false" Mask="false">192.168.1.100</Config>
+  <Config Name="LAN Hostname (mode 2 only)" Target="SEND_HOST" Default="192.168.1.100" Mode="" Description="Only used when REVERSE_PROXY_MODE=false: hostname or LAN IP that gets baked into the embedded Caddy's self-signed certificate. Browse via https://&lt;value&gt;:8443." Type="Variable" Display="advanced" Required="false" Mask="false">192.168.1.100</Config>
 
   <Config Name="Data" Target="/data" Default="/mnt/user/appdata/itsweber-send" Mode="rw" Description="SQLite database (shares.db) plus encrypted uploaded blobs. Pre-chown the host directory to 10001:10001 before the first start (see Overview)." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/itsweber-send</Config>
 
