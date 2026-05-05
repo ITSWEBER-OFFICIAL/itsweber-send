@@ -26,6 +26,10 @@
     padding: 36px 32px 80px;
     max-width: 1080px;
     width: 100%;
+    /* Without min-width: 0 a grid item refuses to shrink below the
+       intrinsic width of its widest descendant (long emails, share IDs,
+       OTP URIs), which on phones produces page-level horizontal scroll. */
+    min-width: 0;
   }
   @media (max-width: 880px) {
     .layout {

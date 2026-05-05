@@ -384,6 +384,11 @@
       grid-template-columns: repeat(2, 1fr);
     }
   }
+  @media (max-width: 420px) {
+    .stats-grid {
+      grid-template-columns: 1fr;
+    }
+  }
   .stat {
     background: var(--surface-2);
     border: 1px solid var(--border);

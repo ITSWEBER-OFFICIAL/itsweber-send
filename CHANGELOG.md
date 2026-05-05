@@ -4,6 +4,14 @@ All notable changes to ITSWEBER Send are documented here.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.2] - 2026-05-05
+
+### Fixed
+
+- 2FA setup and login were unusable: the TOTP code input had `pattern="[0-9]{6}"` which Svelte's template parser interpreted as a JavaScript expression — the `{6}` was evaluated to the integer `6`, producing the rendered HTML `pattern="[0-9]6"`. Browsers compiled that as a regex requiring "any digit followed by a literal 6", so a valid 6-digit TOTP like `535268` was rejected with "Eingabe muss mit dem geforderten Format übereinstimmen". Fixed in both `account/security` (enabling 2FA) and `login` (signing in with 2FA enabled) by switching to a JS string expression: `pattern={'[0-9]{6}'}`.
+- Mobile layout on the account dashboard, admin dashboard and quota page: the stats grids stayed at 2 columns even on phone-sized viewports, causing the second column of cards to extend past the right edge. Now collapses to a single column at `≤480 px` (account / admin) and `≤420 px` (quota).
+- Long descendants on account / admin pages (share IDs, OTP URIs, emails) were preventing the layout grid item from shrinking below their intrinsic width, occasionally causing page-level horizontal scroll. The content area now sets `min-width: 0` so the grid actually respects narrow viewports.
+
 ## [1.3.1] - 2026-05-05
 
 ### Added
@@ -195,6 +203,7 @@ The S3 backend now supports resumable chunked uploads via S3 multipart and is te
 - Synchronous i18n bundle loading resolves a first-render flash where the locale was not yet resolved.
 - `default_sni` set in `Caddyfile.lan` so IP-literal HTTPS connections succeed during LAN testing.
 
+[1.3.2]: https://github.com/ITSWEBER-OFFICIAL/itsweber-send/releases/tag/v1.3.2
 [1.3.1]: https://github.com/ITSWEBER-OFFICIAL/itsweber-send/releases/tag/v1.3.1
 [1.3.0]: https://github.com/ITSWEBER-OFFICIAL/itsweber-send/releases/tag/v1.3.0
 [1.2.0]: https://github.com/ITSWEBER-OFFICIAL/itsweber-send/releases/tag/v1.2.0

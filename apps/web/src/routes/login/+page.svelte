@@ -147,7 +147,7 @@
                 id="totp"
                 type="text"
                 inputmode="numeric"
-                pattern="[0-9]{6}"
+                pattern={'[0-9]{6}'}
                 maxlength="6"
                 class="input totp-input"
                 placeholder="123456"

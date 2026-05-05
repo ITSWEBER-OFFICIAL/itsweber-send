@@ -584,7 +584,7 @@
                   placeholder="000000"
                   maxlength={6}
                   inputmode="numeric"
-                  pattern="[0-9]{6}"
+                  pattern={'[0-9]{6}'}
                   autocomplete="one-time-code"
                   required
                 />

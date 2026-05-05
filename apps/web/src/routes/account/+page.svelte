@@ -380,6 +380,14 @@
       grid-template-columns: repeat(2, 1fr);
     }
   }
+  /* On phone widths the 2-column layout still overflows (each stat card
+     has its own padding + numerals). Collapse to a single column so the
+     cards stack vertically and the page never needs horizontal scroll. */
+  @media (max-width: 480px) {
+    .stats {
+      grid-template-columns: 1fr;
+    }
+  }
   .stat-card {
     background: var(--surface);
     border: 1px solid var(--border);
