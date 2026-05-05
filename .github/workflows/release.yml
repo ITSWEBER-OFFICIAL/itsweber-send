@@ -63,7 +63,11 @@ jobs:
           context: .
           file: docker/Dockerfile
           push: true
-          platforms: linux/amd64,linux/arm64
+          # arm64 is temporarily disabled because the QEMU emulation step on
+          # the shared GitHub runners has been timing out at 45+ minutes for
+          # multi-arch builds. Re-add once GitHub provides native arm64
+          # runners or once we self-host an arm64 builder.
+          platforms: linux/amd64
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha

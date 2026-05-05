@@ -4,6 +4,12 @@ All notable changes to ITSWEBER Send are documented here.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.4] - 2026-05-05
+
+### Changed
+
+- Release pipeline temporarily builds only `linux/amd64`. The `linux/arm64` leg via QEMU emulation on the shared GitHub runners has been timing out at 45+ minutes per build, repeatedly hitting the auto-cancel ceiling. Will be re-enabled once GitHub provides native arm64 runners on the free tier or once a self-hosted arm64 builder is wired in. Existing arm64 images for previous tags remain untouched on GHCR.
+
 ## [1.3.3] - 2026-05-05
 
 ### Added
@@ -213,6 +219,7 @@ The S3 backend now supports resumable chunked uploads via S3 multipart and is te
 - Synchronous i18n bundle loading resolves a first-render flash where the locale was not yet resolved.
 - `default_sni` set in `Caddyfile.lan` so IP-literal HTTPS connections succeed during LAN testing.
 
+[1.3.4]: https://github.com/ITSWEBER-OFFICIAL/itsweber-send/releases/tag/v1.3.4
 [1.3.3]: https://github.com/ITSWEBER-OFFICIAL/itsweber-send/releases/tag/v1.3.3
 [1.3.2]: https://github.com/ITSWEBER-OFFICIAL/itsweber-send/releases/tag/v1.3.2
 [1.3.1]: https://github.com/ITSWEBER-OFFICIAL/itsweber-send/releases/tag/v1.3.1
