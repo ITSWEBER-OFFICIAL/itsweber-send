@@ -47,3 +47,31 @@ temp/
 
 # Wiki build artifacts
 docs/wiki/*.zip
+
+# KI / Agents — never tracked, never published
+CLAUDE.md
+AGENTS.md
+**/CLAUDE.md
+**/AGENTS.md
+.claude/
+.agents/
+.continue/
+.cursorrules
+skills/
+skills-lock.json
+OPUS-BRIEFING.md
+memory/
+**/memory/
+
+# Internal documentation — never released
+docs/internal/
+docs/audits/
+docs/release-prep/
+docs/previews/
+docs/_archive/
+docs/opus-planning-*.md
+
+# Archive & build output
+_archive/
+artifacts/
+.volumes/

@@ -49,11 +49,36 @@ const ALLOWED_ROOT_FILES = new Set([
   'turbo.json',
 ]);
 
-/** Paths that must NOT appear inside the release artifact. */
-const NEVER_RELEASE = [
-  'docs/previews/',
-  'brand/screenshots/',
+/**
+ * Paths that may stay in the repo but are stripped from the release artifact
+ * by the build step. Tracked here is fine; flagged only as informational.
+ */
+const STRIPPED_FROM_RELEASE = ['docs/previews/', 'brand/screenshots/'];
+
+/**
+ * Paths that must NOT be tracked at all. Privacy / internal workflow.
+ * Tracking any of these is a release-stopping error.
+ */
+const FORBIDDEN_DIRS = [
+  'docs/internal/',
+  'docs/_archive/',
+  'docs/audits/',
+  'docs/release-prep/',
+  '_archive/',
+  '.claude/',
+  '.agents/',
+  '.continue/',
+  'memory/',
 ];
+
+/** Basenames that must never appear anywhere in the repo, on any depth. */
+const FORBIDDEN_BASENAMES = new Set([
+  'CLAUDE.md',
+  'AGENTS.md',
+  'OPUS-BRIEFING.md',
+  'skills-lock.json',
+  '.cursorrules',
+]);
 
 function listTrackedFiles() {
   const out = execSync('git ls-files', { encoding: 'utf8' });
@@ -79,11 +104,18 @@ function main() {
   }
 
   const offenders = files.filter((f) => !isAllowed(f));
-  const inReleaseButShouldNot = files.filter((f) =>
-    NEVER_RELEASE.some((prefix) => f.startsWith(prefix)),
+  const strippedFromRelease = files.filter((f) =>
+    STRIPPED_FROM_RELEASE.some((prefix) => f.startsWith(prefix)),
   );
+  const forbiddenDirs = files.filter((f) => FORBIDDEN_DIRS.some((prefix) => f.startsWith(prefix)));
+  const forbiddenBasenames = files.filter((f) => {
+    const basename = f.split('/').pop();
+    return FORBIDDEN_BASENAMES.has(basename);
+  });
 
-  if (offenders.length === 0 && inReleaseButShouldNot.length === 0) {
+  const hardFails = offenders.length + forbiddenDirs.length + forbiddenBasenames.length;
+
+  if (hardFails === 0 && strippedFromRelease.length === 0) {
     console.log(`Release allowlist OK (${files.length} tracked files).`);
     if (check) process.exit(0);
     return;
@@ -93,14 +125,24 @@ function main() {
     console.error('Files outside the release allowlist:');
     for (const f of offenders) console.error(`  - ${f}`);
   }
-  if (inReleaseButShouldNot.length) {
-    console.error('\nFiles tracked but excluded from release artifact:');
-    console.error('(These will be stripped from the build context.)');
-    for (const f of inReleaseButShouldNot) console.error(`  - ${f}`);
+  if (forbiddenDirs.length) {
+    console.error('\nForbidden directory tracked (privacy / internal workflow):');
+    for (const f of forbiddenDirs) console.error(`  - ${f}`);
+  }
+  if (forbiddenBasenames.length) {
+    console.error('\nForbidden basename tracked (KI / workflow file):');
+    for (const f of forbiddenBasenames) console.error(`  - ${f}`);
+  }
+  if (strippedFromRelease.length) {
+    console.error('\nFiles tracked but stripped from release artifact:');
+    console.error('(These will be removed from the build context.)');
+    for (const f of strippedFromRelease) console.error(`  - ${f}`);
   }
 
-  if (check && offenders.length > 0) {
-    console.error('\nRelease check failed. Either move these files out of git or extend the allowlist in scripts/prepare-release.mjs.');
+  if (check && hardFails > 0) {
+    console.error(
+      '\nRelease check failed. Move offending files out of git, extend the allowlist, or audit the privacy block in scripts/prepare-release.mjs.',
+    );
     process.exit(1);
   }
 }
